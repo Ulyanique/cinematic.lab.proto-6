@@ -31,9 +31,12 @@
         display: none; margin: 25px auto 0; padding: 9px 22px; border-radius: 2px;
         border: 1px solid rgba(230, 191, 114, .58); background: transparent;
         color: #e8bf76; cursor: pointer; font: inherit;
+        /* Иконка Lucide (RotateCcw) инлайном: экран загрузки рисуется до
+           загрузки модулей, поэтому пакет иконок здесь недоступен. */
+        align-items: center; gap: 8px;
       }
       #boot-screen[data-state="error"] .boot-symbol { animation: none; border-color: #9b6653; }
-      #boot-screen[data-state="error"] #boot-retry { display: block; }
+      #boot-screen[data-state="error"] #boot-retry { display: inline-flex; }
       @keyframes boot-turn { to { transform: rotate(360deg); } }
       @media (prefers-reduced-motion: reduce) { .boot-symbol { animation: none; } #boot-screen { transition: none; } }
     </style>
@@ -63,7 +66,10 @@
         <p class="boot-title" id="boot-title">Янтарный циркуль</p>
         <p class="boot-detail" id="boot-detail">Подготавливаем сцену и свет…</p>
         <noscript><p class="boot-detail">Для заставки необходимо включить JavaScript в браузере.</p></noscript>
-        <button id="boot-retry" type="button" onclick="location.reload()">Повторить загрузку</button>
+        <button id="boot-retry" type="button" onclick="location.reload()">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 1 0 3.2-6.9"/><path d="M3 4v5h5"/></svg>
+          <span>Повторить загрузку</span>
+        </button>
       </div>
     </div>
 

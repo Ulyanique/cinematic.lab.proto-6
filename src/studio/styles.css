@@ -621,7 +621,7 @@ body.panels-on .clip-switch { opacity: 1; }
 .clip-switch select {
   appearance: none;
   width: 100%;
-  padding: 8px 30px 8px 14px;
+  padding: 8px 34px 8px 14px;
   border-radius: var(--ui-pill-radius);
   border: 1px solid var(--ui-amber-soft);
   background: rgba(0, 0, 0, .7);
@@ -638,14 +638,15 @@ body.panels-on .clip-switch { opacity: 1; }
   transition: border-color .18s ease, color .18s ease;
 }
 .clip-switch select:is(:hover, :focus-visible) { border-color: rgba(255, 214, 140, .7); color: #fff3dc; }
-.clip-switch::after {
-  content: "⌄";
+/* Шеврон — иконка Lucide, а не глиф «⌄»: глиф зависел от шрифта и «плыл»
+   по вертикали в разных системах. */
+.clip-switch-chevron {
   position: absolute;
-  right: 13px;
+  right: 12px;
   top: 50%;
-  transform: translateY(-52%);
+  transform: translateY(-50%);
+  display: grid;
   color: rgba(255, 236, 199, .6);
-  font-size: 12px;
   pointer-events: none;
 }
 
@@ -1254,3 +1255,41 @@ body.panels-on .clip-switch { opacity: 1; }
   cursor: pointer;
 }
 .ins-effect-off:is(:hover, :focus-visible) { border-color: rgba(255, 214, 140, .6); color: #fff3dc; }
+
+/* ── иконки: общая геометрия ───────────────────────────────────────────── */
+/* Кнопки с иконкой и подписью (вкладки «Кадр» и «JSON», список глубины,
+   диалог готового видео) выравниваются по одной линии: иконка 1.75 штриха
+   Lucide читается на тёмном стекле, подпись остаётся текстом. */
+.ins-actions button,
+.export-viewer-actions button,
+.lyr-depth-reset,
+.ins-layer-reset,
+.ins-effect-off {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ins-actions button svg,
+.export-viewer-actions button svg,
+.lyr-depth-reset svg,
+.ins-layer-reset svg,
+.ins-effect-off svg { flex: 0 0 auto; }
+.export-viewer-actions { display: flex; align-items: center; gap: 8px; }
+.export-viewer-actions .export-viewer-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+/* Круглые кнопки хрома: иконка по центру, без текста. */
+.studio-btn svg,
+.fp-btn svg,
+.operator-icon svg,
+.lyr-eye svg,
+.ins-reset svg { display: block; }
+.operator-icon {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+}

@@ -11,22 +11,13 @@
  * разметка, чтобы левая и правая панели не расходились по механике.
  */
 
-/** Иконки в той же штриховой манере, что и в референсе. */
-const svg = (paths, size = 15) =>
-  `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+// Имя `icon` занято параметром панели (готовая иконка заголовка), поэтому
+// хелпер Lucide приходит под своим именем.
+import { icon as svgIcon } from './icons.js';
 
-export const ICON_LAYERS = svg(
-  '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/><path d="m3 17.5 9 5 9-5" opacity=".5"/>'
-);
-export const ICON_GEAR = svg(
-  '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
-);
-export const ICON_EXPORT = svg(
-  '<rect x="3" y="5.5" width="13" height="13" rx="3"/><path d="m16 12 4.5-3v6L16 12Z"/>'
-);
-const ICON_MIN = '<path d="m6 15 6-6 6 6"/>';
-const ICON_MAX = '<path d="m6 9 6 6 6-6"/>';
-const ICON_CLOSE = '<path d="M6 6l12 12M18 6 6 18"/>';
+export const ICON_LAYERS = svgIcon('layers', 16);
+export const ICON_GEAR = svgIcon('settings', 16);
+export const ICON_EXPORT = svgIcon('record', 16);
 
 const POS_KEY = 'circle-ui-panels-v1';
 
@@ -73,8 +64,8 @@ export function createFloatPanel({ title, icon, key, width = 300, side = 'left',
       <span class="fp-icon">${icon || ''}</span>
       <span class="fp-title" data-role="title">${title}</span>
       <span class="fp-right" data-role="right"></span>
-      <button type="button" class="fp-btn" data-role="min" aria-label="Свернуть" title="Свернуть">${svg(ICON_MIN, 12)}</button>
-      <button type="button" class="fp-btn" data-role="close" aria-label="Закрыть" title="Закрыть">${svg(ICON_CLOSE, 12)}</button>
+      <button type="button" class="fp-btn" data-role="min" aria-label="Свернуть" title="Свернуть">${svgIcon('chevronUp', 13)}</button>
+      <button type="button" class="fp-btn" data-role="close" aria-label="Закрыть" title="Закрыть">${svgIcon('close', 13)}</button>
     </div>
     <div class="fp-body panel-scroll" data-role="body"></div>
   `;
@@ -154,7 +145,7 @@ export function createFloatPanel({ title, icon, key, width = 300, side = 'left',
     min = value;
     el.classList.toggle('is-min', min);
     body.hidden = min;
-    minBtn.innerHTML = svg(min ? ICON_MAX : ICON_MIN, 12);
+    minBtn.innerHTML = svgIcon(min ? 'chevronDown' : 'chevronUp', 13);
     minBtn.setAttribute('aria-label', min ? 'Развернуть' : 'Свернуть');
   }
 

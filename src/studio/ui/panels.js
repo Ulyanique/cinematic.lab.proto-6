@@ -1,4 +1,5 @@
 import { createFloatPanel, ICON_LAYERS, ICON_GEAR, ICON_EXPORT } from './float-panel.js';
+import { icon as ico } from './icons.js';
 import { groupLayers, layerMeta } from './layer-registry.js';
 import { DEPTH_LABELS } from '../depth-order.js';
 import { eyeKey as ruleEyeKey, SECTION_NOTES } from './field-rules.js';
@@ -14,14 +15,6 @@ import { FRAME_SECTIONS, frameSummary, probeDeliveries } from '../output-setting
  * пишут через `commit(sectionId, key, value)`. Поэтому одинаково работают и для
  * классических сцен, и для лабораторий.
  */
-
-const CHEVRON = '<path d="m6 15 6-6 6 6"/>';
-const ARROW_UP = '<path d="m6 15 6-6 6 6"/>';
-const RESET = '<path d="M3 12a9 9 0 1 0 3.2-6.9M3 4v5h5"/>';
-const ARROW_DOWN = '<path d="m6 9 6 6 6-6"/>';
-const EYE_ON = '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>';
-const EYE_OFF = '<path d="M17.9 17.9A10.4 10.4 0 0 1 12 19c-6.5 0-10-7-10-7a17.6 17.6 0 0 1 4.1-4.9M9.9 5.2A9.7 9.7 0 0 1 12 5c6.5 0 10 7 10 7a17.7 17.7 0 0 1-2.2 3.2M2 2l20 20"/>';
-const ico = (p, size = 14) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
 
 const decimals = (step) => {
   const s = String(step ?? 0.01);
@@ -50,6 +43,12 @@ export function createStudioPanels({
   // Разделы, у которых каждая строка — отдельный эффект (стек эффектов).
   effectKeys,
 }) {
+  /**
+   * Текст кнопки с иконкой: в разметке одна строка, а не три узла, и подпись
+   * остаётся доступной для поиска и тестов.
+   */
+  const withIcon = (name, text, size = 13) => `${ico(name, size)}<span>${text}</span>`;
+
   let selected = null;
   let panelOpenLayers = false;
   let panelOpenSettings = false;
@@ -124,6 +123,9 @@ export function createStudioPanels({
   // ── выбор слоя ───────────────────────────────────────────────────────
   function select(sectionId, { openInspector = true } = {}) {
     selected = sectionId;
+    // Выбор слоя всегда показывает его параметры: остаться на вкладке «Кадр»
+    // или «JSON» после клика по слою значило бы, что клик не сработал.
+    tab = 'layer';
     renderLayers();
     renderInspector();
     if (openInspector) {
@@ -203,7 +205,7 @@ export function createStudioPanels({
     head.type = 'button';
     head.className = 'lyr-group-head';
     head.setAttribute('aria-expanded', 'true');
-    head.innerHTML = `<span>Глубина кадра</span>${ico(CHEVRON, 11)}`;
+    head.innerHTML = `<span>Глубина кадра</span>${ico('chevronUp', 12)}`;
     const body = document.createElement('div');
     body.className = 'lyr-depth-body';
     head.addEventListener('click', () => {
@@ -220,7 +222,8 @@ export function createStudioPanels({
       const reset = document.createElement('button');
       reset.type = 'button';
       reset.className = 'lyr-depth-reset';
-      reset.textContent = 'Стандартный порядок';
+      reset.innerHTML = withIcon('reset', 'Стандартный порядок', 12);
+      reset.title = 'Вернуть исходный порядок слоёв';
       reset.title = 'Вернуть исходный порядок слоёв';
       reset.addEventListener('click', () => {
         for (const change of depthOrderReset()) onCommand?.('depthOrder', change.key, change.value);
@@ -258,8 +261,8 @@ export function createStudioPanels({
         return button;
       };
       controls.append(
-        step('front', ARROW_UP, 'Выше — ближе к зрителю', at >= order.length - 1),
-        step('back', ARROW_DOWN, 'Ниже — дальше от зрителя', at <= 0),
+        step('front', 'up', 'Выше — ближе к зрителю', at >= order.length - 1),
+        step('back', 'down', 'Ниже — дальше от зрителя', at <= 0),
       );
       row.append(label, controls);
       body.appendChild(row);
@@ -294,7 +297,7 @@ export function createStudioPanels({
       head.type = 'button';
       head.className = 'lyr-group-head';
       head.setAttribute('aria-expanded', 'true');
-      head.innerHTML = `<span>${name}</span>${ico(CHEVRON, 11)}`;
+      head.innerHTML = `<span>${name}</span>${ico('chevronUp', 12)}`;
       const body = document.createElement('ul');
       body.className = 'lyr-list';
       head.addEventListener('click', () => {
@@ -318,8 +321,8 @@ export function createStudioPanels({
         row.title = meta.hint || section.title;
 
         const eye = key
-          ? `<button type="button" class="lyr-eye" data-role="eye" aria-pressed="${enabled}" title="${enabled ? 'Скрыть слой' : 'Показать слой'}">${ico(enabled ? EYE_ON : EYE_OFF)}</button>`
-          : `<span class="lyr-eye is-empty" aria-hidden="true">${ico(EYE_ON)}</span>`;
+          ? `<button type="button" class="lyr-eye" data-role="eye" aria-pressed="${enabled}" title="${enabled ? 'Скрыть слой' : 'Показать слой'}">${ico(enabled ? 'eye' : 'eyeOff', 14)}</button>`
+          : `<span class="lyr-eye is-empty" aria-hidden="true">${ico('eye', 14)}</span>`;
         row.innerHTML = `${eye}<span class="lyr-text"><b>${meta.label}</b><i>${meta.hint || ''}</i></span>`;
 
         row.addEventListener('click', (event) => {
@@ -423,7 +426,7 @@ export function createStudioPanels({
       const note = SECTION_NOTES[section.id];
       const hint = document.createElement('p');
       hint.className = 'ins-hint';
-      hint.textContent = `${note || meta.hint || section.title}. Иконка ↺ у параметра возвращает его стандартное значение.`;
+      hint.textContent = `${note || meta.hint || section.title}. Значок сброса у параметра возвращает его стандартное значение.`;
       frag.appendChild(hint);
 
       // Сброс слоя целиком: кадр возвращается к стандартному виду, остальные
@@ -435,7 +438,7 @@ export function createStudioPanels({
       const resetLayer = document.createElement('button');
       resetLayer.type = 'button';
       resetLayer.className = 'ins-layer-reset';
-      resetLayer.innerHTML = `${ico(RESET, 12)}<span>Сброс слоя</span>${changedCount ? ` <b>${changedCount}</b>` : ''}`;
+      resetLayer.innerHTML = `${ico('reset', 13)}<span>Сброс слоя</span>${changedCount ? ` <b>${changedCount}</b>` : ''}`;
       resetLayer.title = changedCount
         ? `Вернуть все ${section.fields.length} параметров этого слоя к умолчаниям (изменено ${changedCount})`
         : 'Все параметры слоя уже стандартные';
@@ -469,7 +472,7 @@ export function createStudioPanels({
             const off = document.createElement('button');
             off.type = 'button';
             off.className = 'ins-effect-off';
-            off.textContent = 'выкл';
+            off.innerHTML = withIcon('close', 'выкл', 11);
             off.title = 'Вернуть этот эффект к нулю, остальные не трогать';
             off.addEventListener('click', () => resetEffect(section, field));
             row.appendChild(off);
@@ -534,17 +537,19 @@ export function createStudioPanels({
     // Действия: пауза, запись одного ролика и копия ссылки на настройки сцены.
     const actions = document.createElement('div');
     actions.className = 'ins-actions';
-    const action = (text, title, handler) => {
+    // Подпись приходит готовой разметкой (`withIcon`), поэтому innerHTML:
+    // текст здесь наш собственный, а не из поля ввода.
+    const action = (html, title, handler) => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.textContent = text;
+      button.innerHTML = html;
       button.title = title;
       button.addEventListener('click', handler);
       actions.appendChild(button);
       return button;
     };
-    action('● Записать ролик', 'Записать один цикл текущего ролика — то же, что «● Ролик» на пульте', () => onExportVideo?.());
-    action('Ссылка на сцену', 'Скопировать короткую ссылку на текущие настройки сцены', async () => {
+    action(withIcon('record', 'Записать ролик'), 'Записать один цикл текущего ролика — то же, что кнопка записи сверху', () => onExportVideo?.());
+    action(withIcon('link', 'Ссылка на сцену'), 'Скопировать короткую ссылку на текущие настройки сцены', async () => {
       const url = new URL(location.href);
       url.searchParams.set('scene', state.sceneId === 'waiting' ? 'intro' : state.sceneId);
       url.hash = `cfg=${encodeConfigShareHash(getState().config, getState().defaults)}`;
@@ -555,7 +560,7 @@ export function createStudioPanels({
         onToast?.(url.href, true);
       }
     });
-    action('Сброс сцены', 'Вернуть умолчания этого ролика', () => {
+    action(withIcon('reset', 'Сброс сцены'), 'Вернуть умолчания этого ролика', () => {
       if (!confirm(`Сбросить настройки ролика «${state.sceneLabel}» к умолчаниям? При необходимости сначала скачайте JSON проекта.`)) return;
       onApplyScene?.(state.sceneId, cloneDefaults(getState().defaults));
       renderInspector();
@@ -596,10 +601,11 @@ export function createStudioPanels({
 
     const actions = document.createElement('div');
     actions.className = 'ins-actions ins-actions-tight';
-    const action = (text, title, handler) => {
+    // Как и на вкладке «Кадр»: подпись приходит разметкой с иконкой.
+    const action = (html, title, handler) => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.textContent = text;
+      button.innerHTML = html;
       button.title = title;
       button.addEventListener('click', handler);
       actions.appendChild(button);
@@ -613,20 +619,20 @@ export function createStudioPanels({
     area.readOnly = true;
     area.value = configToJSON?.(getState().config) || '';
 
-    action('Сцена', 'Показать JSON текущего ролика', () => {
+    action(withIcon('json', 'Сцена'), 'Показать JSON текущего ролика', () => {
       area.readOnly = true;
       area.value = configToJSON?.(getState().config) || '';
     });
-    action('Проект', 'Показать JSON всех готовых роликов', () => {
+    action(withIcon('json', 'Проект'), 'Показать JSON всех готовых роликов', () => {
       area.readOnly = true;
       area.value = getProjectJSON?.() || '';
     });
-    action('Копировать', 'Скопировать текст из поля', async () => {
+    action(withIcon('copy', 'Копировать'), 'Скопировать текст из поля', async () => {
       const text = area.value;
       try { await navigator.clipboard.writeText(text); onToast?.('JSON скопирован'); }
       catch (_) { area.select(); document.execCommand?.('copy'); onToast?.('JSON скопирован'); }
     });
-    action('Скачать', 'Сохранить текст как файл .json', () => {
+    action(withIcon('download', 'Скачать'), 'Сохранить текст как файл .json', () => {
       const blob = new Blob([area.value], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -636,11 +642,11 @@ export function createStudioPanels({
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     });
-    action('Вставить / править', 'Разрешить редактирование поля для импорта', () => {
+    action(withIcon('paste', 'Вставить / править'), 'Разрешить редактирование поля для импорта', () => {
       area.readOnly = false;
       area.focus();
     });
-    action('Применить', 'Применить JSON из поля к сцене или проекту', () => {
+    action(withIcon('apply', 'Применить'), 'Применить JSON из поля к сцене или проекту', () => {
       try {
         const text = area.value.trim();
         if (!text) throw new Error('пустой JSON');
@@ -670,7 +676,7 @@ export function createStudioPanels({
     for (const slot of ['A', 'B']) {
       const save = document.createElement('button');
       save.type = 'button';
-      save.textContent = `Запомнить ${slot}`;
+      save.innerHTML = withIcon('save', `Запомнить ${slot}`);
       save.title = `Сохранить текущие настройки в слот ${slot}`;
       save.addEventListener('click', () => {
         if (saveSceneSnapshot?.(state.sceneId, slot, getState().config)) onToast?.(`Вариант ${slot} сохранён`);
@@ -679,7 +685,7 @@ export function createStudioPanels({
       });
       const load = document.createElement('button');
       load.type = 'button';
-      load.textContent = `Применить ${slot}`;
+      load.innerHTML = withIcon('apply', `Применить ${slot}`);
       load.title = `Применить настройки из слота ${slot}`;
       load.disabled = hasSceneSnapshot ? !hasSceneSnapshot(state.sceneId, slot) : false;
       load.addEventListener('click', () => {
@@ -753,7 +759,7 @@ export function createStudioPanels({
     reset.className = `ins-reset${changed ? ' is-on' : ''}`;
     reset.title = `Сбросить «${field.label}» к умолчанию (${String(def ?? '')})`;
     reset.setAttribute('aria-label', `Сбросить ${field.label} к умолчанию`);
-    reset.innerHTML = ico(RESET, 11);
+    reset.innerHTML = ico('reset', 12);
     reset.addEventListener('click', (event) => {
       event.stopPropagation();
       if (def === undefined) return;
@@ -896,8 +902,9 @@ export function createStudioPanels({
       pick.type = 'button';
       const clear = document.createElement('button');
       clear.type = 'button';
-      clear.textContent = '×';
+      clear.innerHTML = ico('close', 12);
       clear.title = 'Убрать загруженный логотип';
+      clear.setAttribute('aria-label', 'Убрать загруженный логотип');
       const sync = () => {
         const has = typeof holder[field.key] === 'string' && holder[field.key].startsWith('data:image/');
         pick.textContent = has ? 'Заменить…' : 'Загрузить…';
@@ -967,6 +974,7 @@ export function createStudioPanels({
   function openSection(id) {
     const state = getState();
     selected = state.sections.some((s) => s.id === id) ? id : state.sections[0]?.id;
+    tab = 'layer';
     panelOpenSettings = true;
     renderLayers();
     renderInspector();

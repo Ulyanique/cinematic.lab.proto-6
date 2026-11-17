@@ -2,6 +2,7 @@ import { OUTPUT } from "./scenes/catalog.js";
 import { SCENE_NAV } from "./scenes/nav.js";
 import { beatDuration, beatInBar, beatEvents, nearestBeat } from "./beat-grid.js";
 import { isInteractiveTarget } from "./ui/dom.js";
+import { icon } from "./ui/icons.js";
 import { timelinePhases, timelineCursorPct, phaseTimeLabel, phaseTicks } from "./operator-timeline.js";
 
 /** Не реагировать на обычную перемотку; автопереход только при пересечении шва воспроизведением. */
@@ -27,7 +28,7 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
       <span class="operator-label" data-role="scene-title">РОЛИК</span>
       <output class="operator-scene-name" data-role="scene">—</output>
       <button type="button" data-action="auto" aria-pressed="false" title="Автоматическая смена роликов по кругу: показать всю программу без ручного переключения">Авто: выкл.</button>
-      <button type="button" data-action="pin" aria-pressed="false" title="Не скрывать пульт">◇</button>
+      <button type="button" data-action="pin" aria-pressed="false" class="operator-icon" title="Не скрывать пульт">${icon("pinOff", 14)}</button>
     </div>
     <div class="operator-timeline">
       <div class="operator-phases" data-role="phases" aria-hidden="true"></div>
@@ -43,9 +44,9 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
       <div class="operator-marks" data-role="marks"></div>
     </div>
     <div class="operator-row operator-transport">
-      <button type="button" data-action="play" title="Пауза или воспроизведение">Ⅱ</button>
-      <button type="button" data-action="prev" title="Назад на кадр">−1</button>
-      <button type="button" data-action="next" title="Вперёд на кадр">+1</button>
+      <button type="button" data-action="play" class="operator-icon" title="Пауза или воспроизведение" aria-label="Пауза или воспроизведение">${icon("pause", 14)}</button>
+      <button type="button" data-action="prev" class="operator-icon" title="Назад на кадр" aria-label="Назад на кадр">${icon("prev", 14)}</button>
+      <button type="button" data-action="next" class="operator-icon" title="Вперёд на кадр" aria-label="Вперёд на кадр">${icon("next", 14)}</button>
       <output data-role="time" aria-live="off"></output>
       <output data-role="beat" class="operator-beat" aria-live="off" title="Сетка такта: доля и такт"></output>
       <output data-role="media" class="operator-media" aria-live="polite" hidden></output>
@@ -185,7 +186,13 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
       beatEl.hidden = true;
     }
     if (!editing) duration.value = state.cycle.toFixed(1);
-    panel.querySelector('[data-action="play"]').textContent = state.config.playback.paused ? "▶" : "Ⅱ";
+    const playButton = panel.querySelector('[data-action="play"]');
+    const paused = state.config.playback.paused;
+    // Иконка, а не типографский символ: «Ⅱ» на другой системе читается как
+    // римская цифра, а «▸» приходит из другого набора глифов.
+    playButton.innerHTML = icon(paused ? "play" : "pause", 14);
+    playButton.setAttribute("aria-label", paused ? "Продолжить" : "Пауза");
+    playButton.title = paused ? "Продолжить" : "Пауза";
     // Выбор ролика живёт в выпадающем списке сверху; здесь только подпись
     // текущего, чтобы транспорт не терял контекст.
     const nav = SCENE_NAV.find((scene) => scene.id === state.id);
@@ -297,7 +304,7 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
       autoButton.setAttribute("aria-pressed", String(auto));
     } else if (action === "pin") {
       pinned = !pinned;
-      pinButton.textContent = pinned ? "◆" : "◇";
+      pinButton.innerHTML = icon(pinned ? "pin" : "pinOff", 14);
       pinButton.setAttribute("aria-pressed", String(pinned));
       awaken();
     } else if (!state.recording && action === "play") {
@@ -313,7 +320,7 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
     }
     if (event.code === "KeyR") {
       pinned = !pinned;
-      pinButton.textContent = pinned ? "◆" : "◇";
+      pinButton.innerHTML = icon(pinned ? "pin" : "pinOff", 14);
       pinButton.setAttribute("aria-pressed", String(pinned));
       awaken();
     }

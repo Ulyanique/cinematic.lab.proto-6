@@ -1,4 +1,5 @@
 import { SCENE_NAV } from '../scenes/nav.js';
+import { icon } from './icons.js';
 
 /**
  * Выбор ролика сверху по центру — единственное место, где ролик переключается.
@@ -18,6 +19,7 @@ export function createClipSwitcher({ onSwitch, canSwitch }) {
     <div class="clip-switch-inner">
       <label class="sr-only" for="clip-select">Ролик</label>
       <select id="clip-select" aria-label="Ролик программы"></select>
+      <span class="clip-switch-chevron" aria-hidden="true">${icon('chevronDown', 14)}</span>
     </div>`;
   document.body.appendChild(wrap);
 
