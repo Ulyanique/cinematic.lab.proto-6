@@ -3,6 +3,8 @@ import { WAITING_DEFAULTS } from "./waiting.js";
 import { DEFAULT_CONFIG, SCHEMA as LAB2_SCHEMA } from "../lab2/config.ts";
 import { DEFAULT_SETTINGS } from "../lab5/settings.ts";
 import { TL as LAB5_TL } from "../lab5/timeline.ts";
+import { MEDIA_CLIPS, mediaOptions, VIDEO_FIT_OPTIONS } from "../lab5/media.ts";
+import { FULL_ASSIGN, normalizeAssign } from "../lab5/settings.ts";
 
 /**
  * Две кинематографичные лаборатории, подключённые к конструктору как полноценные
@@ -93,7 +95,32 @@ export const LAB2_DEFAULTS = (() => {
 const LAB5_PREFIX = "lab5_";
 const FONTS5 = [{ value: "Prata", label: "Prata" }, { value: "Forum", label: "Forum" }, { value: "Inter", label: "Inter" }];
 const r = (key, label, min, max, step = 0.01) => ({ key, label, type: "range", min, max, step });
+/**
+ * Слоты видеомонолитов. Каждый слот — отдельное поле, поэтому человек видит,
+ * какой ролик попадёт в какой визит камеры, и может назначить источники по
+ * одному. Одним списком «videoOrder» это было не сделать: порядок есть, а
+ * что именно играет на слоте — нет.
+ */
+const LAB5_SLOTS = MEDIA_CLIPS.map((clip, index) => ({
+  key: `videoAssign.${index}`,
+  label: `Слот ${String(index + 1).padStart(2, "0")} (визит ${index + 1})`,
+  type: "select",
+  options: mediaOptions(),
+  // Подсказка в панели: чей ролик и сколько он длится.
+  hint: `${clip.name} · ${clip.timecode}`,
+}));
+
 const LAB5_FIELDS = {
+  video: [
+    {
+      key: "videoFit",
+      label: "Что видно в окне визита",
+      type: "select",
+      options: VIDEO_FIT_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
+      hint: "Экран монолита живёт около 1,9 с: выберите, показывать начало, кульминацию или весь ролик.",
+    },
+    ...LAB5_SLOTS,
+  ],
   text: [
     { key: "title", label: "Название", type: "text", maxLength: 30 },
     { key: "subtitle", label: "Подзаголовок", type: "text", maxLength: 45 },
@@ -121,12 +148,39 @@ const LAB5_FIELDS = {
     { key: "antialias", label: "Сглаживание кромок", type: "bool" },
   ],
 };
-const LAB5_TITLES = { text: "Надписи", logo: "Знак и кольца", light: "Свет, камера, цвет" };
+const LAB5_TITLES = { video: "Ролики на монолитах", text: "Надписи", logo: "Знак и кольца", light: "Свет, камера, цвет" };
 const lab5Sections = Object.entries(LAB5_FIELDS).map(([id, fields]) => ({ id: LAB5_PREFIX + id, title: `Лаб. 11 · ${LAB5_TITLES[id]}`, fields }));
 
-/** Собрать плоский набор настроек фильма из разделов сцены (нормализует сам движок). */
+/**
+ * Собрать плоский набор настроек фильма из разделов сцены (нормализует сам движок).
+ *
+ * Слоты лежат в конфиге плоско (`videoAssign.0`), а движок ждёт массив: здесь
+ * они и собираются. Пустой список означает «ни одного источника» — так
+ * плейсхолдеры видны сразу после первого запуска, а не заменяются молча.
+ */
 export function lab5Source(cfg) {
-  return { ...(cfg[LAB5_PREFIX + "text"] || {}), ...(cfg[LAB5_PREFIX + "logo"] || {}), ...(cfg[LAB5_PREFIX + "light"] || {}) };
+  const section = cfg[LAB5_PREFIX + "video"] || {};
+  // -1 — намеренно пустой слот, он часть раскладки: «одна дырка» не должна
+  // обнулять весь набор и молча терять все источники.
+  const assign = normalizeAssign(MEDIA_CLIPS.map((_clip, index) => section[`videoAssign.${index}`])) ?? [];
+  return {
+    videoAssign: assign,
+    videoFit: section.videoFit,
+    ...(cfg[LAB5_PREFIX + "text"] || {}),
+    ...(cfg[LAB5_PREFIX + "logo"] || {}),
+    ...(cfg[LAB5_PREFIX + "light"] || {}),
+  };
+}
+
+/**
+ * Значение по умолчанию для поля панели. Слоты монолитов адресуются точечным
+ * ключом (`videoAssign.3`), поэтому обычный `DEFAULT_SETTINGS[f.key]` для них
+ * пуст — здесь он разворачивается в номер ролика из полного набора.
+ */
+function lab5Default(key) {
+  const slot = /^videoAssign\.(\d+)$/.exec(key);
+  if (slot) return FULL_ASSIGN[Number(slot[1])];
+  return DEFAULT_SETTINGS[key];
 }
 
 export const LAB5_DEFAULTS = (() => {
@@ -134,7 +188,7 @@ export const LAB5_DEFAULTS = (() => {
   cfg.transition = { duration: 0.9 };
   cfg.caption.titleVisible = false;
   for (const [id, fields] of Object.entries(LAB5_FIELDS)) {
-    cfg[LAB5_PREFIX + id] = Object.fromEntries(fields.map((f) => [f.key, DEFAULT_SETTINGS[f.key]]));
+    cfg[LAB5_PREFIX + id] = Object.fromEntries(fields.map((f) => [f.key, lab5Default(f.key)]));
   }
   return cfg;
 })();

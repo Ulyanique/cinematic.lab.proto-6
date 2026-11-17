@@ -27,6 +27,7 @@ import { deliveryOption as deliveryOptionLight, deliveryFilename } from "./deliv
 import { masterSize, masterId, setMasterPreset, loadMasterPreset } from "./output-profile.js";
 import { transitionDuration, drawOutgoingFrame } from "./scene-transition.js";
 import { OUTPUT, sceneById } from "./scenes/catalog.js";
+import { sceneNav } from "./scenes/nav.js";
 import { loadRecordingChain, saveRecordingChain, chainBaseFilename } from "./recording-chain.js";
 import { decodeConfigShareHash } from "./scene-snapshots.js";
 import { createOperatorControls, crossedBoundary } from "./operator.js";
@@ -35,6 +36,13 @@ import { loadQuality, saveQuality } from "./quality-presets.js";
 import { loadDelivery, saveDelivery } from "./delivery-light.js";
 import { photoShutterSamples, shutterTimes } from "./photo-shutter.js";
 import { layoutEditorPreview } from "./editor-layout.js";
+
+// Панель настроек и пульт создаются ниже, но правка конфига может прийти из
+// панели в любой момент: объявляем их заранее, чтобы необработанная ссылка не
+// превращалась в ReferenceError.
+let editor;
+let settings;
+let operator;
 
 // Профиль мастера читаем до создания сцены: рендерер сразу получает нужный размер.
 loadMasterPreset();
@@ -78,6 +86,24 @@ function saveScene(id = sceneId) {
   updateStorageWarning();
 }
 /** Применить присланный JSON к сцене, не ломая ссылку, которую держит рендер. */
+/**
+ * Внести правку в конфиг сцены из панели настроек и сразу пересобрать кадр.
+ * Одна точка входа для всех полей: и одиночный ползунок, и быстрая команда
+ * раздела идут одним путём, поэтому движок и сохранение не могут разойтись.
+ */
+function commitSceneConfig(id, mutate) {
+  id = sceneById(id)?.id || id;
+  mutate(configFor(id));
+  saveScene(id);
+  if (id === sceneId) {
+    scene.configChanged?.();
+    applyTypography();
+    runtime.renderAt(runtime.time, 1 / OUTPUT.fps);
+  }
+  settings?.refresh?.();
+  operator?.refresh?.();
+}
+
 function applySceneConfig(id, next) {
   id = sceneById(id)?.id || id;
   // Импорт и сброс заменяют конфиг: старые команды редактора больше к нему неприменимы.
@@ -198,11 +224,12 @@ let runtime = new AnimationRuntime(scene, cfg, OUTPUT.fps);
 scene.setCaptionSource(captionSourceFor(sceneId));
 layoutEditorPreview(canvas, document.getElementById("caption"));
 applyTypography(true); // теперь известны реальные размеры рамки после resize сцены
-let editor;
-const settings = createSettingsUI({
+settings = createSettingsUI({
+  // Вкладки панели — из того же каталога, что кнопки пульта: подпись и порядок
+  // больше не дублируются в двух местах.
   scenes: READY_IDS.map((id) => ({
     id,
-    label: ({ waiting: "01", brand: "02", partners: "04", "sponsor-promrukav": "05а", "sponsor-keaz": "05б", "photo-pause": "08", finale: "09", [LAB2_ID]: "10", [LAB5_ID]: "11" })[id],
+    label: sceneNav(id)?.code || id,
     title: sceneById(id).title,
   })),
   getSceneId: () => sceneId,
@@ -211,15 +238,15 @@ const settings = createSettingsUI({
   setScene: (id) => switchScene(id),
   onConfigChange: (id, section, key) => {
     editor?.invalidateHistory(id, section, key);
-    saveScene(id);
-    // «Готовый образ» раскладывает набор эффектов по ползункам.
+    // «Готовый образ» раскладывает набор эффектов по ползункам — до сохранения,
+    // чтобы в файл попал уже разложенный набор.
     if (section === "fxStack" && key === "look") {
       applyFxPreset(configFor(id).fxStack, configFor(id).fxStack.look);
-      saveScene(id);
-      settings.refresh();
     }
-    if (id === sceneId) { scene.configChanged?.(); applyTypography(); runtime.renderAt(runtime.time, 1 / OUTPUT.fps); }
+    commitSceneConfig(id, () => {});
   },
+  // Быстрые команды раздела (например, раскладка роликов по монолитам).
+  onCommitCommand: (id, mutate) => commitSceneConfig(id, mutate),
   onApplyScene: (id, next) => applySceneConfig(id, next),
   onApplyProject: (scenes) => {
     for (const [id, next] of Object.entries(scenes)) applySceneConfig(id, next);
@@ -258,10 +285,10 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden && !recording) last = performance.now();
 });
 let recording = null; // один цикл текущей сцены, переключение на время записи заблокировано
-const operator = createOperatorControls({
+operator = createOperatorControls({
   getState: () => ({ id: sceneId, time: runtime.time, config: cfg, cycle: runtime.cycle,
     recording: !!recording, recordingKind: recording?.kind, master: masterId(), quality: scene.quality,
-    delivery, chain: activeChain }),
+    delivery, chain: activeChain, media: scene.mediaStatus?.() || null }),
   seek: (value) => { cfg.playback.paused = true; runtime.renderAt(value, 1 / OUTPUT.fps); },
   setBoundary: (edge, seconds) => {
     const minHold = sceneId === "waiting" ? 1 : 4;

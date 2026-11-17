@@ -11,6 +11,7 @@ import { LogoDust, LOGO_H, LOGO_W } from "./logoDust";
 import { logoExit } from "./finalExit";
 import { createAntialiasPass, resizeAntialias } from "./antialias";
 import { DEFAULT_SETTINGS, type FilmSettings } from "./settings";
+import { mediaClip, mediaUrl, makeSlotTexture, mediaClock } from "./media";
 import logoUrl from "./logo.svg?inline";
 import {
   BLAST_POS,
@@ -120,6 +121,10 @@ export class IntroEngine {
   private videos: HTMLVideoElement[] = [];
   private videoTextures: THREE.VideoTexture[] = [];
   private videoReady: Promise<void>[] = [];
+  /** Ошибки загрузки источников: по ним панель честно пишет, что не открылось. */
+  readonly mediaErrors: string[] = [];
+  /** Текстуры плейсхолдеров: создаются один раз на слот. */
+  private placeholderCache: (THREE.Texture | null)[] = [];
   private exportMode = new URLSearchParams(window.location.search).get("export") === "1";
   readonly ready: Promise<void>;
   private logoShine = { value: -1 };
@@ -228,11 +233,14 @@ export class IntroEngine {
       body.frustumCulled = false;
       group.add(body);
 
+      const clip = mediaClip(i);
       const video = document.createElement("video");
       video.muted = true;
       video.playsInline = true;
       video.preload = "auto";
-      video.src = `${import.meta.env.BASE_URL}video/${String(i + 1).padStart(2, "0")}.mp4`;
+      // Источник берётся из общего списка роликов папки video/ (см. ./media):
+      // реальные имена с пробелами и кириллицей, а не video/01.mp4, которого нет.
+      if (clip.file) video.src = mediaUrl(i);
       this.videos.push(video);
       const texture = new THREE.VideoTexture(video);
       texture.colorSpace = THREE.SRGBColorSpace;
@@ -244,9 +252,30 @@ export class IntroEngine {
         }
       });
       this.videoReady.push(new Promise<void>((resolve, reject) => {
-        const timer = window.setTimeout(() => reject(new Error(`Тайм-аут загрузки видео ${i + 1}`)), 30000);
-        video.addEventListener("loadeddata", () => { window.clearTimeout(timer); resolve(); }, { once: true });
-        video.addEventListener("error", () => { window.clearTimeout(timer); reject(new Error(`Не удалось загрузить или декодировать video/${String(i + 1).padStart(2, "0")}.mp4. Проверьте, что файл доступен на сервере и браузер поддерживает его формат.`)); }, { once: true });
+        if (!clip.file) { resolve(); return; }
+        const timer = window.setTimeout(() => reject(new Error(`Тайм-аут загрузки видео «${clip.file}»`)), 30000);
+        video.addEventListener("loadeddata", () => {
+          window.clearTimeout(timer);
+          // Первый кадр источника — по политике показа: при «середине» это
+          // кульминация ролика, а не всегда титр.
+          const first = mediaClock(0, video.duration, this.settings.videoFit).time;
+          if (Number.isFinite(first) && first > 0) video.currentTime = first;
+          resolve();
+        }, { once: true });
+        video.addEventListener("error", () => {
+          window.clearTimeout(timer);
+          const message = `Не удалось загрузить или декодировать video/${clip.file}`;
+          this.mediaErrors[i] = message;
+          // Битый файл не должен оставлять чёрный экран: слот сразу переходит
+          // на плейсхолдер, а причина видна в пульте и в подсказке.
+          this.heroes.forEach((hero, slot) => {
+            if (this.settings.videoAssign[slot] !== i) return;
+            hero.screenMat.uniforms.uTex.value = this.placeholderFor(slot);
+            hero.screenMat.uniforms.uLive.value = 0;
+          });
+          if (!this.exportMode && !this.disposed) this.composer.render();
+          reject(new Error(`${message}. Проверьте, что файл доступен на сервере и браузер поддерживает его формат.`));
+        }, { once: true });
         video.load();
       }));
       // Preview can still run without media; export checks all errors explicitly.
@@ -265,7 +294,8 @@ export class IntroEngine {
           uFogColor: this.U.uFogColor,
           uFogDensity: this.U.uFogDensity,
           uDim: this.U.uDim,
-          uTex: { value: texture },
+          uTex: { value: clip.file ? texture : this.placeholderFor(i) },
+          uLive: { value: clip.file ? 1 : 0 },
           uOn: { value: 0 },
           uFocus: { value: 0 },
           uAspect: { value: data.aspect },
@@ -735,6 +765,7 @@ export class IntroEngine {
   setSettings(settings: FilmSettings) {
     this.settings = settings;
     this.antialias.enabled = settings.antialias;
+    this.syncScreens();
     this.apply(this.time);
     this.syncVideos(this.time);
     this.composer.render();
@@ -844,21 +875,75 @@ export class IntroEngine {
   };
 
   /** Preview follows the film clock; media is silent and holds its last frame. */
-  private mediaTime(i: number, t: number) {
-    const duration = this.videos[i].duration;
-    const slot = this.settings.videoOrder.indexOf(i);
-    return Math.max(0, Math.min(Math.max(0, duration - 0.05), t - (visitTime(slot) - 0.95)));
+  /**
+   * Время источника для момента фильма `t`.
+   *
+   * Аргумент — номер источника, а не монолита: слот ищем в назначении. Политика
+   * `videoFit` решает, что видно в коротком окне визита (см. ./media).
+   */
+  private mediaTime(source: number, t: number) {
+    const slot = this.settings.videoAssign.indexOf(source);
+    if (slot < 0 || !mediaClip(source).file) return 0;
+    const duration = this.videos[source].duration;
+    if (!Number.isFinite(duration) || duration <= 0) return 0;
+    const local = t - (visitTime(slot) - 0.95);
+    return mediaClock(local, duration, this.settings.videoFit).time;
+  }
+
+  /** Скорость воспроизведения источника: 1, кроме политики «весь ролик». */
+  private mediaRate(source: number) {
+    const fitsSpeed = this.settings.videoFit === "speed";
+    if (!fitsSpeed) return 1;
+    const duration = this.videos[source]?.duration;
+    if (!Number.isFinite(duration) || duration <= 0) return 1;
+    return mediaClock(0, duration, "speed").rate;
   }
 
   private syncVideos(t: number) {
     if (this.exportMode) return;
-    this.videos.forEach((video, i) => {
+    this.videos.forEach((video, index) => {
+      if (!this.isLive(index)) return;
       if (video.readyState < 2 || !Number.isFinite(video.duration)) return;
-      const local = this.mediaTime(i, t);
-      const active = !this.paused && this.fixedT === null && t >= visitTime(this.settings.videoOrder.indexOf(i)) - 0.95 && local < video.duration - 0.06 && t < TL.explode;
-      if (Math.abs(video.currentTime - local) > 0.25) video.currentTime = local;
+      const slot = this.settings.videoAssign.indexOf(index);
+      if (slot < 0) { if (!video.paused) video.pause(); return; }
+      const local = this.mediaTime(index, t);
+      const rate = this.mediaRate(index);
+      if (video.playbackRate !== rate) video.playbackRate = rate;
+      const active = !this.paused && this.fixedT === null && t >= visitTime(slot) - 0.95 && local < video.duration - 0.06 && t < TL.explode;
+      // Порог перемотки больше на ускоренном воспроизведении: иначе каждый
+      // кадр «догоняет» источник и ролик дёргается.
+      if (Math.abs(video.currentTime - local) > 0.25 * Math.max(1, rate)) video.currentTime = local;
       if (active && video.paused) void video.play().catch(() => {});
       if (!active && !video.paused) video.pause();
+    });
+  }
+
+  /** Источник назначен и успешно декодируется: можно показывать видео. */
+  private isLive(index: number) {
+    return Boolean(index >= 0 && mediaClip(index).file && !this.mediaErrors[index]);
+  }
+
+  /** Номер ролика на монолите `i`; -1 — слот намеренно пуст. */
+  private slotClip(i: number) {
+    const index = this.settings.videoAssign?.[i];
+    return Number.isInteger(index) ? index : -1;
+  }
+
+  /** Плейсхолдер слота: показывается, пока источник не назначен или не декодировался. */
+  private placeholderFor(i: number) {
+    let tex = this.placeholderCache[i];
+    if (!tex) { tex = makeSlotTexture(i); this.placeholderCache[i] = tex; }
+    return tex;
+  }
+
+  /** Пересчитать экран после смены назначения источников. */
+  private syncScreens() {
+    this.heroes.forEach((hero, i) => {
+      const index = this.slotClip(i);
+      const live = this.isLive(index);
+      hero.screenMat.uniforms.uTex.value = live ? this.videoTextures[index] : this.placeholderFor(i);
+      hero.screenMat.uniforms.uLive.value = live ? 1 : 0;
+      hero.screenMat.uniforms.uMediaAspect.value = 16 / 9;
     });
   }
 
@@ -871,7 +956,12 @@ export class IntroEngine {
     await this.ready;
     if (this.renderer.getContext().isContextLost()) throw new Error("Контекст WebGL потерян; экспорт остановлен.");
     await Promise.all(this.videos.map((video, i) => new Promise<void>((resolve, reject) => {
+      if (!this.isLive(i) || video.readyState < 2) { resolve(); return; }
+      // Кадр нужен только тому источнику, который сейчас стоит на монолите.
+      if (!this.settings.videoAssign.includes(i)) { resolve(); return; }
       const target = this.mediaTime(i, t);
+      const rate = this.mediaRate(i);
+      if (video.playbackRate !== rate) video.playbackRate = rate;
       if (Math.abs(video.currentTime - target) < 0.00001 && video.readyState >= 2) { resolve(); return; }
       const timeout = window.setTimeout(() => { cleanup(); reject(new Error(`Тайм-аут перемотки видео ${i + 1}`)); }, 15000);
       const cleanup = () => { clearTimeout(timeout); video.removeEventListener("seeked", done); video.removeEventListener("error", failed); };
@@ -1024,7 +1114,12 @@ export class IntroEngine {
     let bestFocus = 0.3;
     for (let i = 0; i < HERO_COUNT; i++) {
       const h = this.heroes[i];
-      h.screenMat.uniforms.uTex.value = this.videoTextures[this.settings.videoOrder[i]];
+      const screenIndex = this.slotClip(i);
+      const screenLive = this.isLive(screenIndex);
+      h.screenMat.uniforms.uTex.value = screenLive
+        ? this.videoTextures[screenIndex]
+        : this.placeholderFor(i);
+      h.screenMat.uniforms.uLive.value = screenLive ? 1 : 0;
       h.screenMat.uniforms.uVideoBrightness.value = this.settings.videoBrightness;
       const rise = clamp((t - riseStart(i)) / TL.riseDur);
       const focus = Math.exp(-Math.pow((t - visitTime(i)) / 0.95, 2));
@@ -1200,6 +1295,7 @@ export class IntroEngine {
       }
     });
     for (const video of this.videos) { video.pause(); video.removeAttribute("src"); video.load(); }
+    for (const tex of this.placeholderCache) tex?.dispose();
     this.logoMaterial.map?.dispose();
     this.antialias.dispose();
     this.composer.dispose();

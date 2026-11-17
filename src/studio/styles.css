@@ -1,3 +1,12 @@
+/*
+ * Единый набор токенов интерфейса.
+ *
+ * Пульт, панель настроек и редактор исторически рисовали «свой» хром: у пульта
+ * золотая рамка и скругления 14 px, у панели выбран нейтральный графит, у
+ * редактора — «рабочий» монохром. Из-за этого один и тот же экран выглядел как
+ * три разных приложения. Здесь собраны форма, типографика и состояния, общие
+ * для всего хрома; сцена, титры и образцы цвета токенами не управляются.
+ */
 :root {
   --gold: #d9b061;
   --gold-soft: rgba(217, 176, 97, 0.28);
@@ -5,6 +14,72 @@
   --text: #e9dcc0;
   --muted: rgba(233, 220, 192, 0.55);
   color-scheme: dark;
+
+  /* поверхности: кадр не служит фоном для панелей — они всегда чуть плотнее */
+  --ui-surface: rgba(18, 18, 17, 0.96);
+  --ui-surface-solid: #141413;
+  --ui-surface-raised: rgba(255, 255, 255, 0.04);
+  --ui-surface-hover: rgba(255, 255, 255, 0.07);
+  --ui-line: rgba(255, 255, 255, 0.12);
+  --ui-line-strong: rgba(255, 255, 255, 0.22);
+  --ui-line-accent: rgba(217, 176, 97, 0.55);
+
+  /* типографика: одна шкала на все панели */
+  --ui-font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --ui-fs-micro: 9px;    /* надзаголовки-капсы */
+  --ui-fs-small: 11px;   /* подписи и подсказки */
+  --ui-fs-base: 12px;    /* элементы управления */
+  --ui-fs-title: 15px;   /* заголовки панелей */
+  --ui-tracking-caps: 0.13em;
+
+  /* форма и состояния */
+  --ui-radius-panel: 6px;
+  --ui-radius-control: 3px;
+  --ui-focus: #d4b47a;
+  --ui-danger: #d05a4a;
+  --ui-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  --ui-btn-bg: rgba(255, 255, 255, 0.025);
+  --ui-btn-border: rgba(255, 255, 255, 0.1);
+  --ui-btn-bg-hover: rgba(255, 255, 255, 0.07);
+  --ui-btn-border-hover: rgba(255, 255, 255, 0.25);
+  --ui-btn-active-bg: rgba(198, 165, 107, 0.12);
+  --ui-btn-active-border: rgba(198, 165, 107, 0.45);
+  --ui-btn-active-text: #e9d5ad;
+}
+
+/*
+ * Общая кнопка хрома: пульт, панель настроек и редактор берут форму и
+ * состояния отсюда, чтобы одинаковая команда выглядела одинаково везде.
+ * Точечные правила панелей задают только раскладку и плотность.
+ */
+/* Ручки границ фаз (.operator-grip) — не кнопки интерфейса, а направляющие:
+   у них своя геометрия и псевдоэлементы, поэтому из общей кнопки исключены. */
+:is(.operator-panel, .cfg-panel, .editor-history, .export-viewer-actions) button:not(.operator-grip) {
+  border-radius: var(--ui-radius-control);
+  border: 1px solid var(--ui-btn-border);
+  background: var(--ui-btn-bg);
+  color: #d5d1c8;
+  font: inherit;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+:is(.operator-panel, .cfg-panel, .editor-history, .export-viewer-actions) button:not(.operator-grip):is(:hover, :focus-visible) {
+  background: var(--ui-btn-bg-hover);
+  border-color: var(--ui-btn-border-hover);
+  color: #fff;
+}
+:is(.operator-panel, .cfg-panel, .editor-history) button:not(.operator-grip):is([aria-current="page"], [aria-pressed="true"], .active, .on) {
+  background: var(--ui-btn-active-bg);
+  border-color: var(--ui-btn-active-border);
+  color: var(--ui-btn-active-text);
+}
+:is(.operator-panel, .cfg-panel, .editor-history, .export-viewer-actions) button:disabled {
+  opacity: .4; cursor: default;
+}
+/* Один и тот же фокус на всём хроме: он должен читаться, а не спорить с золотом. */
+:is(.operator-panel, .cfg-panel, .cfg-toggle, .editor-panel-toggle, .editor-history, .export-viewer) :focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
 }
 
 * { box-sizing: border-box; }
@@ -67,24 +142,17 @@ body.operator-idle:not(.ui-on) .cfg-toggle { opacity: .55; }
 .operator-panel {
   position: fixed; z-index: 24; left: 50%; bottom: 16px;
   transform: translateX(-50%); width: min(1220px, calc(100vw - 32px));
-  border: 1px solid rgba(217,176,97,.30); border-radius: 14px;
-  background: rgba(8,7,6,.91); backdrop-filter: blur(16px);
-  box-shadow: 0 16px 50px rgba(0,0,0,.55); padding: 9px 14px 10px;
-  color: #e9dcc0; font: 12px/1.4 "Inter", system-ui, sans-serif;
+  border: 1px solid var(--ui-line); border-radius: var(--ui-radius-panel);
+  background: var(--ui-surface); backdrop-filter: blur(16px);
+  box-shadow: var(--ui-shadow); padding: 9px 14px 10px;
+  color: #d8d5ce; font: var(--ui-fs-base)/1.4 var(--ui-font);
   transition: opacity .25s ease;
 }
 .operator-row { display: flex; align-items: center; gap: 9px; }
 .operator-row + .operator-row { margin-top: 9px; }
-.operator-label { font-size: 10px; letter-spacing: .17em; color: #b79457; white-space: nowrap; }
+.operator-label { font-size: var(--ui-fs-micro); letter-spacing: var(--ui-tracking-caps); color: #9d8258; white-space: nowrap; text-transform: uppercase; font-weight: 600; }
 .operator-scenes { display: flex; gap: 4px; flex: 1; }
-.operator-panel button {
-  border: 1px solid rgba(217,176,97,.29); border-radius: 5px; padding: 6px 9px;
-  background: rgba(217,176,97,.04); color: #e9dcc0; font: inherit; cursor: pointer; white-space: nowrap;
-}
-.operator-panel button:hover, .operator-panel button:focus-visible,
-.operator-panel button[aria-current="page"], .operator-panel button[aria-pressed="true"] {
-  border-color: #dbb568; background: rgba(217,176,97,.17); color: #ffe3a1;
-}
+.operator-panel button { padding: 6px 9px; white-space: nowrap; }
 .operator-scenes small { font-size: 10px; opacity: .7; margin-left: 4px; }
 .operator-transport input[type="range"] { flex: 1; min-width: 60px; accent-color: #d9b061; cursor: pointer; }
 /* Таймлайн снизу: полоса фаз с метками входа, удержания и выхода.
@@ -169,7 +237,16 @@ body.operator-idle:not(.ui-on) .cfg-toggle { opacity: .55; }
 
 .operator-transport output { min-width: 98px; text-align: center; font-variant-numeric: tabular-nums; color: #ffe3a1; }
 /* Сетка такта: подпись уже и глуше, чтобы не спорить с таймкодом. */
-.operator-beat { min-width: 0 !important; color: #c9a97a !important; font-size: 12px; opacity: .85; }
+.operator-beat { min-width: 0 !important; color: #c9a97a !important; font-size: var(--ui-fs-base); opacity: .85; }
+/* Состояние источников фильма: та же строка транспорта, но читается как статус. */
+.operator-media {
+  min-width: 0 !important; padding: 3px 7px; border-radius: var(--ui-radius-control);
+  border: 1px solid var(--ui-line); background: var(--ui-surface-raised);
+  color: #c9c4b8; font-size: var(--ui-fs-small); font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.operator-media[hidden] { display: none; }
+.operator-media.is-error { border-color: var(--ui-danger); color: #ffd0c8; }
 .operator-duration { white-space: nowrap; color: #bca780; }
 .operator-master { white-space: nowrap; color: #bca780; display: flex; align-items: center; gap: 5px; }
 .operator-master select {
@@ -200,27 +277,46 @@ body.operator-idle:not(.ui-on) .cfg-toggle { opacity: .55; }
 }
 
 /* Необязательная режиссёрская панель; не входит в 1920×1080 WebGL-кадр. *//* ── кнопка настроек ── */
+/* Кнопки «Редактировать» и ⚙ стоят в одном углу кадра и делают похожую вещь:
+   открывают следующий уровень работы. Поэтому у них общая высота, форма,
+   поверхность и состояние — различаются только ширина и содержимое. */
+.editor-toggle,
 .cfg-toggle {
   position: fixed;
   top: 18px;
-  right: 18px;
   z-index: 20;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  cursor: pointer;
-  color: var(--gold);
-  background: rgba(12, 10, 8, 0.45);
-  border: 1px solid var(--gold-soft);
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--ui-radius-control);
+  border: 1px solid var(--ui-line);
+  background: var(--ui-surface);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  color: var(--text);
   cursor: pointer;
-  opacity: 0.78;
+  font: var(--ui-fs-base)/1 var(--ui-font);
+  opacity: 0.88;
+  transition: opacity .2s ease, border-color .15s ease, background .15s ease, color .15s ease;
 }
-.cfg-toggle.active, body.ui-on .cfg-toggle { border-color: var(--gold); opacity: 1; }
+.editor-toggle:hover,
+.cfg-toggle:hover { opacity: 1; border-color: var(--ui-line-strong); }
+.editor-toggle[aria-pressed="true"],
+.cfg-toggle.active,
+body.ui-on .cfg-toggle {
+  border-color: var(--ui-line-accent);
+  color: var(--ui-btn-active-text);
+  background: rgba(198, 165, 107, 0.14);
+  opacity: 1;
+}
+
+.cfg-toggle {
+  right: 18px;
+  width: 38px;
+  padding: 0;
+}
 
 /* ── панель ── */
 .cfg-panel {
@@ -425,24 +521,33 @@ body.operator-idle:not(.ui-on) .cfg-toggle { opacity: .55; }
 .cfg-bool input[type="checkbox"] { accent-color: var(--gold); width: 16px; height: 16px; cursor: pointer; }
 
 /* ── тост ── */
+/* Тост — часть того же хрома, что пульт и панели: та же поверхность, рамка и
+   типографика. «Таблетка» выбивалась из прямоугольной сетки панелей. */
 .toast {
   position: fixed;
   left: 50%;
   bottom: 26px;
   transform: translate(-50%, 12px);
   z-index: 30;
-  padding: 9px 16px;
-  font-size: 12px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 9px 14px;
+  font: var(--ui-fs-base)/1.4 var(--ui-font);
   color: var(--text);
-  background: rgba(10, 8, 6, 0.85);
-  border: 1px solid var(--gold-soft);
-  border-radius: 999px;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-panel);
+  box-shadow: var(--ui-shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   opacity: 0;
   pointer-events: none;
   transition: opacity .3s, transform .3s;
 }
+/* В редакторе тост поднимается над панелью инструментов, а не ложится на неё. */
+body.editor-on .toast { bottom: 96px; }
+@media (max-width: 780px) { body.editor-on .toast { bottom: 150px; } }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
-.toast.error { border-color: #d05a4a; color: #ffd0c8; }
+.toast.error { border-color: var(--ui-danger); color: #ffd0c8; }
 
 /* ── титр: каждая графема гравируется контуром, затем получает заливку. ── */
 #caption {
@@ -548,16 +653,16 @@ body.editor-on #caption { opacity: 1; }
   top: 66px; right: 18px; width: min(342px, calc(100vw - 36px));
   max-height: calc(100vh - 202px); min-height: 0;
   border-radius: 5px; background: rgba(18, 18, 17, .97);
-  border: 1px solid rgba(255, 255, 255, .12);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, .32);
+  border: 1px solid var(--ui-line);
+  box-shadow: var(--ui-shadow);
   color: #e9e6df; backdrop-filter: blur(14px);
-  font: 12px/1.4 "Inter", "Segoe UI", system-ui, sans-serif;
+  font: var(--ui-fs-base)/1.4 var(--ui-font);
 }
 .cfg-head { padding: 17px 18px 13px; border-color: rgba(255,255,255,.08); }
 .cfg-heading { display: grid; gap: 5px; }
-.cfg-kicker { color: #918d84; font-size: 9px; font-weight: 600; letter-spacing: .13em; }
+.cfg-kicker { color: #918d84; font-size: var(--ui-fs-micro); font-weight: 600; letter-spacing: var(--ui-tracking-caps); }
 .cfg-scene-name { margin: 0; color: #c9b68e; }
-.cfg-title { color: #f1efe9; font-size: 16px; line-height: 1.2; font-weight: 550; letter-spacing: 0; text-transform: none; }
+.cfg-title { color: #f1efe9; font-size: var(--ui-fs-title); line-height: 1.2; font-weight: 550; letter-spacing: 0; text-transform: none; }
 .cfg-close { color: #aaa69d; font-size: 22px; padding: 5px; }
 .cfg-tabs { gap: 0; padding: 0 14px; border-color: rgba(255,255,255,.09); }
 .cfg-tab {
@@ -575,16 +680,14 @@ body.editor-on #caption { opacity: 1; }
   grid-column: 1 / -1; margin-bottom: 4px; color: #918d84;
   font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
 }
-.cfg-tools button, .cfg-io-actions button {
-  border-radius: 3px; border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.025); color: #d5d1c8;
-  padding: 7px 9px; font-size: 11px; text-align: left;
-}
-.cfg-tools button:hover, .cfg-io-actions button:hover {
-  background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.25); color: #fff;
-}
-.cfg-tools button.on { color: #e9d5ad; background: rgba(198,165,107,.12); border-color: rgba(198,165,107,.45); }
-.cfg-tools button:disabled { opacity: .4; cursor: default; }
+/* Только плотность: форма, фон и состояния приходят из общей кнопки хрома. */
+.cfg-tools button, .cfg-io-actions button { padding: 7px 9px; font-size: var(--ui-fs-small); text-align: left; }
+/* Быстрые команды раздела: та же кнопка хрома, но в одну строку. */
+.cfg-quick { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0 8px; }
+.cfg-quick button { padding: 6px 9px; font-size: var(--ui-fs-small); }
+/* Слоты видеомонолитов: подпись шире обычной, варианты — полной строкой. */
+.cfg-row.cfg-select[data-key] { display: grid; }
+.cfg-select select { width: 100%; max-width: none; }
 .cfg-slots {
   grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
   margin-top: 4px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.07);
@@ -608,25 +711,16 @@ body.editor-on #caption { opacity: 1; }
   outline: 2px solid #d4b47a; outline-offset: 2px;
 }
 
+/* Плотность пульта. Поверхность, рамка и тень — из общих токенов выше,
+   поэтому пульт и панель настроек не расходятся по виду. */
 .operator-panel {
   width: min(1140px, calc(100vw - 36px)); bottom: 16px;
-  padding: 9px 14px 11px; border-radius: 5px;
-  background: rgba(18,18,17,.96); border-color: rgba(255,255,255,.12);
-  box-shadow: 0 10px 36px rgba(0,0,0,.35); color: #d8d5ce;
+  padding: 9px 14px 11px; border-radius: var(--ui-radius-panel);
 }
 .operator-row { gap: 7px; }
 .operator-row + .operator-row { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.08); }
-.operator-label { color: #89867f; font-size: 9px; letter-spacing: .12em; }
-.operator-panel button {
-  padding: 6px 9px; border-radius: 3px; border-color: transparent;
-  background: transparent; color: #bcb8b0;
-}
-.operator-panel button:hover, .operator-panel button:focus-visible {
-  background: rgba(255,255,255,.06); border-color: transparent; color: #f1eee7;
-}
-.operator-panel button[aria-current="page"], .operator-panel button[aria-pressed="true"] {
-  background: rgba(198,165,107,.12); border-color: transparent; color: #e9d5ad;
-}
+.operator-label { color: #9d8258; font-size: var(--ui-fs-micro); letter-spacing: var(--ui-tracking-caps); text-transform: uppercase; font-weight: 600; }
+.operator-panel button { padding: 6px 9px; }
 .operator-scenes small { opacity: .75; }
 .operator-transport input[type="range"] { accent-color: #c6a56b; }
 .operator-transport output { color: #d5d1c8; font-size: 11px; }
@@ -634,8 +728,12 @@ body.editor-on #caption { opacity: 1; }
 .operator-duration input {
   background: #10100f; color: #ded9cf; border-color: rgba(255,255,255,.14); border-radius: 3px;
 }
+/* Запись — главное действие пульта: единственная кнопка с акцентной рамкой.
+   Остальные команды остаются нейтральными, чтобы акцент не размывался. */
 .operator-panel [data-action="record"], .operator-panel [data-action="record-chain"] {
-  border-color: rgba(255,255,255,.14); color: #dfd8cc;
+  border-color: var(--ui-line-accent);
+  color: #f0dcb2;
+  font-weight: 500;
 }
 @media (max-width: 780px) {
   .cfg-panel { max-height: min(58vh, calc(100vh - 110px)); }
@@ -677,12 +775,8 @@ body.editor-on #caption { opacity: 1; }
 .operator-chain-menu input[type="checkbox"] { accent-color: #c6a56b; }
 
 /* Редактор — отдельный интерфейс, не часть экспортного кадра. */
-.editor-toggle {
-  position: fixed; z-index: 20; top: 18px; left: 18px; padding: 9px 14px;
-  border: 1px solid rgba(217,176,97,.4); border-radius: 7px; background: rgba(12,10,8,.86);
-  color: #ead3a5; cursor: pointer; font: 12px system-ui, sans-serif;
-}
-.editor-toggle[aria-pressed="true"] { background: #d9b061; color: #21180b; }
+/* Положение и плотность «Редактировать»: форма — из общей базы выше. */
+.editor-toggle { left: 18px; padding: 0 14px; }
 .editor-layer { position: fixed; inset: 0; z-index: 17; pointer-events: none; }
 .editor-layer[hidden], .editor-box[hidden], .editor-menu[hidden] { display: none; }
 .editor-box { position: fixed; pointer-events: auto; touch-action: none; cursor: move;
@@ -712,10 +806,8 @@ body.editor-on #caption { opacity: 1; }
 .editor-handle .editor-resize { right: -20px; bottom: -4px; }
 .editor-box.selected { z-index: 2; }
 .editor-menu { z-index: 4; }
-.editor-history { position: fixed; top: 18px; left: 145px; display: flex; gap: 6px; pointer-events: auto; }
-.editor-history button { padding: 9px 11px; border: 1px solid rgba(217,176,97,.4); border-radius: 6px;
-  background: rgba(12,10,8,.9); color: #ead3a5; cursor: pointer; font: 12px system-ui, sans-serif; }
-.editor-history button:disabled { opacity: .38; cursor: default; }
+.editor-history { position: fixed; top: 18px; left: 145px; display: flex; gap: 6px; pointer-events: auto; font: var(--ui-fs-base)/1.4 var(--ui-font); }
+.editor-history button { padding: 9px 11px; font-size: var(--ui-fs-base); }
 .editor-menu { width: 220px; max-height: calc(100vh - 8px); overflow-y: auto; }
 .editor-appearance { padding: 6px 7px; border-bottom: 1px solid #665333; color: #ead3a5; font: 12px system-ui, sans-serif; }
 .editor-appearance label { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
@@ -857,7 +949,7 @@ body.editor-on.operator-idle:not(.ui-on) .operator-panel { opacity: 1; pointer-e
 .editor-text-order div { display: flex; gap: 6px; }
 
 /* Сдержанная рабочая панель: акцент — на выбранном элементе, не на хроме. */
-.editor-toggle { top: 14px; left: 10px; padding: 7px 11px; border-radius: 3px; }
+.editor-toggle { top: 14px; left: 10px; padding: 0 11px; }
 .editor-history { top: 14px; left: 112px; gap: 4px; }
 .editor-history button { padding: 7px 9px; border-radius: 3px; }
 .editor-hint { top: 45px; left: 10px; padding: 2px 0; background: transparent; color: #8f8b81; font-size: 10px; }
@@ -1227,8 +1319,9 @@ body.editor-on .operator-transport [data-role="time"] { display: none; }
 body.editor-on .operator-panel { background: rgba(20,20,20,.96); border-color: #444; color: #ddd; }
 body.editor-on .operator-grip { display: none; }
 body.editor-on .operator-panel :is(.operator-label, .operator-duration) { color: #aaa; }
-body.editor-on .operator-panel button, body.editor-on .operator-duration input { background: #292929; border-color: #505050; color: #eee; }
-body.editor-on .operator-panel button:is(:hover, :focus-visible, [aria-current="page"], [aria-pressed="true"]) { background: #454545; border-color: #aaa; color: #fff; }
+body.editor-on .operator-panel button:not(.operator-grip), body.editor-on .operator-duration input { background: #292929; border-color: #505050; color: #eee; }
+body.editor-on .operator-panel button:is(:hover, :focus-visible) { background: #454545; border-color: #aaa; color: #fff; }
+body.editor-on .operator-panel button:is([aria-current="page"], [aria-pressed="true"]) { background: var(--ui-btn-active-bg); border-color: #aaa; color: var(--ui-btn-active-text); }
 body.editor-on .operator-transport output { color: #eee; }
 body.editor-on .operator-transport input[type="range"] { accent-color: #ddd; }
 body.editor-on .editor-toggle, body.editor-on .editor-history button { background: #242424; border-color: #505050; color: #eee; }
@@ -1350,3 +1443,115 @@ body.scene-partners .editor-toggle { display: none; }
   .export-viewer-head { flex-wrap: wrap; }
   .export-viewer-actions button { padding: 5px 8px; font-size: 12px; }
 }
+
+/* ============================================================================
+ * Единый хром: редактор, пульт и настройки — один интерфейс.
+ *
+ * Файл выше вырос из трёх проектов и местами объявляет вид одного и того же
+ * элемента два-три раза (например, у редактора было три «палитры» подряд:
+ * золотая, графитовая и монохромная). Ниже — один слой, который приводит
+ * панели редактора к тем же токенам, что пульт и настройки: та же
+ * поверхность, рамка, радиус, шрифт и шкала подписей. Сцена, титры и образцы
+ * цвета остаются нетронутыми: это содержимое кадра, а не хром.
+ * ========================================================================== */
+
+/* Панели редактора: поверхность и форма как у пульта и панели настроек. */
+:is(.editor-sidebar, .editor-track-panel, .editor-preview-tools, .editor-quick-help, .editor-context-menu) {
+  background: var(--ui-surface-solid);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-panel);
+  color: #dcd9d2;
+  font: var(--ui-fs-base)/1.4 var(--ui-font);
+  box-shadow: none;
+}
+.editor-track-panel { box-shadow: var(--ui-shadow); }
+.editor-sidebar-heading {
+  background: var(--ui-surface-raised);
+  border-bottom: 1px solid var(--ui-line);
+  min-height: 44px;
+}
+.editor-sidebar-heading span,
+.cfg-kicker,
+.operator-label { color: #918d84; font-size: var(--ui-fs-micro); letter-spacing: var(--ui-tracking-caps); font-weight: 600; text-transform: uppercase; }
+.editor-sidebar-heading h2 { color: #f1efe9; font-size: var(--ui-fs-title); font-weight: 550; }
+
+/* Поля ввода: одна форма на все панели (настройки, инспектор, таймлайн). */
+:is(.editor-inspector, .editor-track-panel, .editor-quick-help, .cfg-panel) :is(input[type="text"], input[type="number"], input[type="search"], select, textarea) {
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-control);
+  color: #f0ede6;
+  font: var(--ui-fs-base)/1.4 var(--ui-font);
+}
+:is(.editor-inspector, .editor-track-panel, .editor-quick-help, .cfg-panel) :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+:is(.editor-inspector, .editor-track-panel, .editor-quick-help, .cfg-panel) :is(label, output) { color: #b9b4aa; }
+.editor-selected-label { color: var(--ui-btn-active-text); font-weight: 600; font-size: 13px; }
+
+/* Подписи строк и разделов получают ту же шкалу, что и настройки. */
+.cfg-sec > summary,
+.editor-property-group > summary { color: #e0ddd6; font-size: var(--ui-fs-base); font-weight: 500; }
+.cfg-sec > summary:hover,
+.editor-property-group > summary:hover { color: var(--ui-btn-active-text); }
+.cfg-row,
+.editor-extra-row,
+.editor-geometry-fields label,
+.editor-timing-fields label { color: #a9a59d; font-size: var(--ui-fs-small); }
+.cfg-io-hint,
+.editor-sidebar-note,
+.editor-tip { color: #918d84; font-size: var(--ui-fs-small); line-height: 1.5; }
+
+/* Полосы и дорожки редактора: те же линии, что у таймлайна пульта. */
+:is(.editor-track-lane, .editor-phase-lane) {
+  background: rgba(255, 255, 255, .035);
+  border: 1px solid var(--ui-line);
+  border-radius: 2px;
+}
+.editor-track-row { border-top: 1px solid var(--ui-line); }
+.editor-track-row.selected { background: var(--ui-surface-hover); }
+.editor-track-label { color: #dedbd3; }
+.editor-track-row.is-hidden .editor-track-label { color: #7d7972; }
+
+/* В редакторе пульт и верхние кнопки — тот же хром, без отдельной «серой» темы.
+   Монохромная перекраска ниже по файлу обнуляла золото и делала редактор
+   похожим на другое приложение; здесь она приводится к общим токенам. */
+body.editor-on .operator-panel {
+  background: var(--ui-surface-solid);
+  border-color: var(--ui-line);
+  color: #dcd9d2;
+}
+body.editor-on .operator-panel button,
+body.editor-on .operator-duration input,
+body.editor-on .editor-toggle,
+body.editor-on .editor-history button {
+  background: var(--ui-btn-bg);
+  border-color: var(--ui-btn-border);
+  color: #d5d1c8;
+}
+body.editor-on .operator-panel button:is(:hover, :focus-visible),
+body.editor-on .editor-history button:is(:hover, :focus-visible),
+body.editor-on .editor-toggle:hover {
+  background: var(--ui-btn-bg-hover);
+  border-color: var(--ui-btn-border-hover);
+  color: #fff;
+}
+body.editor-on .operator-panel button:is([aria-current="page"], [aria-pressed="true"]),
+body.editor-on .editor-toggle[aria-pressed="true"],
+body.editor-on .editor-history button[aria-pressed="true"] {
+  background: var(--ui-btn-active-bg);
+  border-color: var(--ui-btn-active-border);
+  color: var(--ui-btn-active-text);
+}
+body.editor-on .operator-panel :is(.operator-label, .operator-duration) { color: #918d84; }
+body.editor-on .operator-transport output { color: #dedbd3; }
+
+/* Ориентир безопасных полей — направляющая, а не элемент кадра: тонкая линия
+   в цвет акцента, чтобы не читалась как часть композиции. */
+.editor-safe-frame { border-color: rgba(212, 180, 122, .4); }
+.editor-safe-notice { background: rgba(36, 27, 14, .92); color: #e9d5ad; border-radius: var(--ui-radius-control); font: var(--ui-fs-small)/1.35 var(--ui-font); }
+
+/* Слой эффектов и переходов рисуется в кадре: его геометрию не трогаем. */
+.fx-overlay { pointer-events: none; }

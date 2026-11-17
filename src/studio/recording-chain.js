@@ -1,15 +1,14 @@
 import { RECORDING_CHAIN } from './scenes/catalog.js';
+import { CHAIN_SCENES } from './scenes/nav.js';
 
-/** Все сцены, которые могут входить в настраиваемую программу показа/записи. */
-export const CHAIN_CANDIDATES = Object.freeze([
-  { id: 'waiting', code: '01', label: 'Интро' },
-  { id: 'brand', code: '02', label: 'Фон' },
-  { id: 'partners', code: '04', label: 'Спонсоры' },
-  { id: 'photo-pause', code: '08', label: 'Фотопауза' },
-  { id: 'finale', code: '09', label: 'Финал' },
-  { id: 'lab-swarm', code: '10', label: 'Золотой рой' },
-  { id: 'lab-monoliths', code: '11', label: 'Монолиты' },
-]);
+/**
+ * Все сцены, которые могут входить в настраиваемую программу показа/записи.
+ * Список не локальный: он собран из каталога роликов (scenes/nav.js), поэтому
+ * новая сцена появляется здесь сама, без правки второго перечня.
+ */
+export const CHAIN_CANDIDATES = Object.freeze(
+  CHAIN_SCENES.map((scene) => ({ id: scene.id, code: scene.code, label: scene.label }))
+);
 
 export const RECORDING_CHAIN_KEY = 'circle-anim-recording-chain-v1';
 

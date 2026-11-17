@@ -42,6 +42,7 @@ export function createSettingsUI({
   onExportVideo,
   getFrameSettings,
   onFrameSetting,
+  onCommitCommand,
 }) {
   // ─── кнопка ───
   const btn = document.createElement("button");
@@ -58,19 +59,19 @@ export function createSettingsUI({
   panel.setAttribute("aria-hidden", "true");
   panel.innerHTML = `
     <header class="cfg-head">
-      <div class="cfg-heading"><span class="cfg-kicker">КОНСТРУКТОР / СЦЕНА <em class="cfg-scene-name"></em></span><span class="cfg-title">Настройки</span></div>
+      <div class="cfg-heading"><span class="cfg-kicker">СТУДИЯ / РОЛИК <em class="cfg-scene-name"></em></span><span class="cfg-title">Настройки</span></div>
       <button type="button" class="cfg-close" aria-label="Закрыть">×</button>
     </header>
     <nav class="cfg-tabs" aria-label="Сцены"></nav>
     <div class="cfg-tools">
       <span class="cfg-tools-label">Действия</span>
       <button type="button" data-act="pause">Пауза</button>
-      <button type="button" data-act="export">Экспорт сцены</button>
-      <button type="button" data-act="export-project">Экспорт проекта</button>
-      <button type="button" data-act="video">Экспорт видео</button>
-      <button type="button" data-act="import">Импорт</button>
+      <button type="button" data-act="video" title="Записать один цикл текущего ролика — то же, что «● Ролик» на пульте">● Ролик</button>
+      <button type="button" data-act="export" title="Настройки сцены в JSON">JSON сцены</button>
+      <button type="button" data-act="export-project" title="Настройки всех роликов одним файлом">JSON проекта</button>
+      <button type="button" data-act="import" title="Вставить JSON сцены или всего проекта">Импорт JSON</button>
       <button type="button" data-act="share-link" title="Скопировать короткую ссылку на текущие настройки сцены">Ссылка на сцену</button>
-      <button type="button" data-act="reset">Сброс сцены</button>
+      <button type="button" data-act="reset" title="Вернуть умолчания этой сцены">Сброс сцены</button>
       <div class="cfg-slots" role="group" aria-label="Сравнение вариантов A и B">
         <span class="cfg-slots-label">Варианты A/B:</span>
         <button type="button" data-slot-save="A" title="Сохранить текущие настройки в слот A">Запомнить A</button>
@@ -170,6 +171,25 @@ export function createSettingsUI({
         note.textContent = "Исходные названия показывают встроенные золотые логотипы; можно загрузить свой SVG/PNG или ввести произвольный текст.";
         det.appendChild(note);
       }
+      // Слоты монолитов: раскладывать десять источников по одному — долго, а
+      // «пусто» бывает осмысленным состоянием. Поэтому две быстрые команды.
+      if (section.id === "lab5_video") {
+        const note = document.createElement("p"); note.className = "cfg-io-hint";
+        note.textContent = "Каждый слот — один визит камеры к монолиту. Пустой слот оставляет в кадре плейсхолдер: так видно, что источник не назначен. Файлы берутся из папки video/ в хронологии вечера.";
+        const quick = document.createElement("div");
+        quick.className = "cfg-quick";
+        for (const [label, mode, hint] of [
+          ["Все ролики", "fill", "Разложить все ролики папки video/ по слотам по порядку"],
+          ["Очистить слоты", "clear", "Оставить все слоты пустыми: в кадре будут плейсхолдеры"],
+        ]) {
+          const button = document.createElement("button");
+          button.type = "button"; button.textContent = label; button.title = hint;
+          button.dataset.lab5Slots = mode;
+          quick.appendChild(button);
+        }
+        det.appendChild(note);
+        det.appendChild(quick);
+      }
       if (section.id === "caption") {
         const note = document.createElement("p");
         note.className = "cfg-io-hint";
@@ -197,6 +217,8 @@ export function createSettingsUI({
             (editing === "finale" && f.key.startsWith("date")))) continue;
         const row = document.createElement("label");
         row.className = "cfg-row cfg-" + f.type;
+        // Подсказка поля — в title строки: она объясняет выбор, не занимая места.
+        if (f.hint) row.title = f.hint;
         const name = document.createElement("span");
         name.className = "cfg-name";
         name.textContent = section.id === 'photo' && editing === 'brand' && f.key === 'color' ? 'Исходный цвет надписи' : f.label;
@@ -241,14 +263,20 @@ export function createSettingsUI({
         } else if (f.type === "select") {
           const input = document.createElement("select");
           input.dataset.key = `${section.id}.${f.key}`;
+          // Числовые варианты (например, выбор видеоисточника) остаются числами:
+          // <select> отдаёт строку, а конфиг и движок ждут число.
+          const numeric = f.options.every((option) => typeof option.value === "number");
           for (const option of f.options) {
             const el = document.createElement("option");
-            el.value = option.value; el.textContent = option.label;
+            el.value = String(option.value); el.textContent = option.label;
             input.appendChild(el);
           }
-          input.value = holder[f.key];
-          input.addEventListener("change", () => { holder[f.key] = input.value; commit(section.id, f.key); });
-          inputs.push({ set: () => { input.value = holder[f.key]; } });
+          input.value = String(holder[f.key]);
+          input.addEventListener("change", () => {
+            holder[f.key] = numeric ? Number(input.value) : input.value;
+            commit(section.id, f.key);
+          });
+          inputs.push({ set: () => { input.value = String(holder[f.key]); } });
           row.appendChild(input);
         } else if (f.type === "color") {
           const input = document.createElement("input");
@@ -450,6 +478,24 @@ export function createSettingsUI({
   });
 
   panel.addEventListener("click", async (e) => {
+    // Быстрая раскладка видеослотов: одна правка конфига на все десять полей.
+    const slotsAction = e.target.closest("[data-lab5-slots]")?.dataset.lab5Slots;
+    if (slotsAction) {
+      if (!cfg()["lab5_video"]) return;
+      const { FULL_ASSIGN, EMPTY_ASSIGN } = await import("./lab5/settings.ts");
+      const next = slotsAction === "fill" ? FULL_ASSIGN : EMPTY_ASSIGN;
+      // Пишем через общий путь правки конфига: он сохраняет, пересобирает кадр,
+      // обновляет пульт (счётчик роликов) и вкладки — без расхождений.
+      onCommitCommand?.(editing, (config) => {
+        const holder = config["lab5_video"];
+        if (!holder) return;
+        next.forEach((value, index) => { holder[`videoAssign.${index}`] = value; });
+      });
+      // Полная перестройка: панель показывает фактические значения конфига.
+      rebuild();
+      onToast?.(slotsAction === "fill" ? "Все ролики папки video/ разложены по монолитам" : "Слоты очищены: в кадре плейсхолдеры");
+      return;
+    }
     const act = e.target.closest("[data-act]")?.dataset.act;
     const ioAct = e.target.closest("[data-io]")?.dataset.io;
     const slotSave = e.target.closest("[data-slot-save]")?.dataset.slotSave;

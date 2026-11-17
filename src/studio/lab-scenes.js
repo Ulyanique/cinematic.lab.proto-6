@@ -150,6 +150,19 @@ export class Lab5Scene extends LabScene {
     drawLab5Overlay(ctx, t, canvas.width, canvas.height, this.film);
   }
 
+  /**
+   * Состояние источников для пульта: сколько слотов занято, сколько играет и
+   * что не открылось. Без этого пустой экран в кадре выглядел как ошибка
+   * рендера, хотя причина — неназначенный слот или битый файл.
+   */
+  mediaStatus() {
+    const assign = this.film?.videoAssign || [];
+    const slots = assign.filter((n) => Number.isInteger(n) && n >= 0).length;
+    const engine = this.engine;
+    const errors = (engine?.mediaErrors || []).filter(Boolean);
+    return { slots, total: assign.length, errors, ready: this.ready };
+  }
+
   dispose() {
     super.dispose();
     try { this.engine?.dispose(); } catch (error) { console.warn("Лаборатория 11: ошибка освобождения", error); }

@@ -26,22 +26,41 @@ export const RECORDING_CHAIN = Object.freeze(["waiting", "brand", "photo-pause",
  */
 export const SCENES = Object.freeze([
   // Внутренний id сохранён для старых ссылок и настроек; роль сцены — интро.
-  { id: "waiting", title: "Интро — открытие вечера", status: "ready", defaults: WAITING_DEFAULTS },
-  { id: "brand", title: "Фирменный фон для речи, ужина и музыкальных сетов", status: "ready", defaults: BRAND_DEFAULTS },
+  // Код и короткое имя — часть программы вечера: по ним пульт, вкладки
+  // настроек и состав цепочки строятся из одного списка (scenes/nav.js).
+  { id: "waiting", title: "Интро — открытие вечера", code: "01", label: "Интро", status: "ready", defaults: WAITING_DEFAULTS },
+  { id: "brand", title: "Фирменный фон для речи, ужина и музыкальных сетов", code: "02", label: "Фон", status: "ready", defaults: BRAND_DEFAULTS },
   { id: "dream-project", title: "Проект мечты", status: "planned" },
-  { id: "partners", title: "Спонсоры и партнёры (макет)", status: "preview", defaults: PARTNERS_DEFAULTS },
+  { id: "partners", title: "Спонсоры и партнёры (макет)", code: "04", label: "Спонсоры", status: "preview", defaults: PARTNERS_DEFAULTS },
   // Заставки отдельных спонсоров: тот же кадр, но один знак крупно по центру.
-  { id: "sponsor-promrukav", title: "Спонсор — Промрукав", status: "preview", defaults: SPONSOR_PROMRUKAV_DEFAULTS },
-  { id: "sponsor-keaz", title: "Спонсор — КЭАЗ", status: "preview", defaults: SPONSOR_KEAZ_DEFAULTS },
+  { id: "sponsor-promrukav", title: "Спонсор — Промрукав", code: "05а", label: "Промрукав", status: "preview", defaults: SPONSOR_PROMRUKAV_DEFAULTS },
+  { id: "sponsor-keaz", title: "Спонсор — КЭАЗ", code: "05б", label: "КЭАЗ", status: "preview", defaults: SPONSOR_KEAZ_DEFAULTS },
   { id: "archive", title: "Янтарный циркуль: помним всё", status: "needs-assets" },
   { id: "trick-brief", title: "ТЗ с подвохом", status: "needs-host" },
   { id: "architect", title: "Проектировщик объясняет", status: "needs-host" },
-  { id: "photo-pause", title: "Фотопауза", status: "ready", defaults: PHOTO_PAUSE_DEFAULTS },
-  { id: "finale", title: "Янтарный циркуль / История продолжается", status: "ready", defaults: FINALE_DEFAULTS },
+  { id: "photo-pause", title: "Фотопауза", code: "08", label: "Фотопауза", status: "ready", defaults: PHOTO_PAUSE_DEFAULTS },
+  { id: "finale", title: "Янтарный циркуль / История продолжается", code: "09", label: "Финал", status: "ready", defaults: FINALE_DEFAULTS },
   // Кинематографичные лаборатории (cinematic-lab-proto-2 и proto-5).
-  { id: LAB2_ID, title: "Лаборатория 10 — Золотой рой: 3D-эмблема и объёмные буквы", status: "ready", defaults: LAB2_DEFAULTS },
-  { id: LAB5_ID, title: "Лаборатория 11 — Монолиты: кинофильм 51 с", status: "ready", defaults: LAB5_DEFAULTS },
+  { id: LAB2_ID, title: "Лаборатория 10 — Золотой рой: 3D-эмблема и объёмные буквы", code: "10", label: "Рой", status: "ready", defaults: LAB2_DEFAULTS },
+  { id: LAB5_ID, title: "Лаборатория 11 — Монолиты: кинофильм 51 с", code: "11", label: "Монолиты", status: "ready", defaults: LAB5_DEFAULTS },
 ]);
+
+/**
+ * Ролики, которые можно открыть и записать. Это единственный список id для
+ * пульта, панели настроек и цепочки: раньше у каждого модуля был свой, и
+ * наборы успевали разойтись. `chain` — сцена по умолчанию входит в автопоказ;
+ * спонсорские заставки играют отдельно.
+ */
+export const PLAYABLE_SCENES = Object.freeze(
+  SCENES.filter((scene) => scene.defaults && ["ready", "preview"].includes(scene.status))
+    .map((scene) => ({
+      id: scene.id,
+      title: scene.title,
+      code: scene.code,
+      label: scene.label,
+      chain: scene.id !== "sponsor-promrukav" && scene.id !== "sponsor-keaz",
+    }))
+);
 
 /** @param {string} id */
 export function sceneById(id) {

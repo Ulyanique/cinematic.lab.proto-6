@@ -1,4 +1,5 @@
 import { OUTPUT, RECORDING_CHAIN } from "./scenes/catalog.js";
+import { SCENE_NAV } from "./scenes/nav.js";
 import { CHAIN_CANDIDATES } from "./recording-chain.js";
 import { beatDuration, beatInBar, beatEvents, nearestBeat } from "./beat-grid.js";
 import { isInteractiveTarget } from "./ui.js";
@@ -27,17 +28,9 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
     <div class="operator-row operator-head">
       <span class="operator-label">РОЛИКИ</span>
       <nav class="operator-scenes" aria-label="Выбор ролика">
-        <button type="button" data-scene="waiting" title="Интро — открытие вечера">01 <small>Интро</small></button>
-        <button type="button" data-scene="brand" title="Фирменный фон">02 <small>Фон</small></button>
-        <button type="button" data-scene="partners" title="Спонсоры и партнёры">04 <small>Спонсоры</small></button>
-        <button type="button" data-scene="sponsor-promrukav" title="Заставка Промрукава: знак крупно по центру">05а <small>Промрукав</small></button>
-        <button type="button" data-scene="sponsor-keaz" title="Заставка КЭАЗ: знак крупно по центру">05б <small>КЭАЗ</small></button>
-        <button type="button" data-scene="photo-pause" title="Фотопауза">08 <small>Фотопауза</small></button>
-        <button type="button" data-scene="finale" title="Финал">09 <small>Финал</small></button>
-        <button type="button" data-scene="lab-swarm" title="Лаборатория 10: золотой рой, 3D-эмблема">10 <small>Рой</small></button>
-        <button type="button" data-scene="lab-monoliths" title="Лаборатория 11: монолиты, 51 секунда">11 <small>Монолиты</small></button>
+        ${SCENE_NAV.map((scene) => `<button type="button" data-scene="${scene.id}" title="${scene.title}">${scene.code} <small>${scene.label}</small></button>`).join("")}
       </nav>
-      <button type="button" data-action="auto" aria-pressed="false" title="Автоматическая цепочка 01 → 02 → 08 → 09">Авто: выкл.</button>
+      <button type="button" data-action="auto" aria-pressed="false" title="Автоматическая смена роликов по кругу: показать всю программу без ручного переключения">Авто: выкл.</button>
       <button type="button" data-action="pin" aria-pressed="false" title="Не скрывать пульт">◇</button>
     </div>
     <div class="operator-timeline">
@@ -59,6 +52,7 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
       <button type="button" data-action="next" title="Вперёд на кадр">+1</button>
       <output data-role="time" aria-live="off"></output>
       <output data-role="beat" class="operator-beat" aria-live="off" title="Сетка такта: доля и такт"></output>
+      <output data-role="media" class="operator-media" aria-live="polite" hidden></output>
       <label class="operator-duration" title="Длительность полного цикла ролика">Цикл <input type="number" data-action="duration" min="1" max="300" step="0.1" aria-label="Длительность цикла в секундах"> с</label>
       <button type="button" data-action="record" title="Записать один цикл текущего ролика">● Ролик</button>
       <button type="button" data-action="record-chain" title="Записать выбранную цепочку сцен с переходами одним файлом">● Все ролики</button>
@@ -82,6 +76,7 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
   const pinButton = panel.querySelector('[data-action="pin"]');
   const beatEl = panel.querySelector('[data-role="beat"]');
   const timeEl = panel.querySelector('[data-role="time"]');
+  const mediaEl = panel.querySelector('[data-role="media"]');
   let auto = false, pinned = false, dragging = false, editing = false;
   let grabbing = null; // { edge, pointerId } — тянем границу фазы
 
@@ -205,6 +200,19 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
     for (const button of panel.querySelectorAll("[data-scene]")) {
       if (button.dataset.scene === state.id) button.setAttribute("aria-current", "page");
       else button.removeAttribute("aria-current");
+    }
+    // Источники фильма «Монолиты»: пустой слот — не ошибка рендера, а решение,
+    // которое надо видеть. Показываем, сколько занято и что не открылось.
+    const media = state.media;
+    mediaEl.hidden = !media;
+    if (media) {
+      mediaEl.textContent = media.errors.length
+        ? `ролики: ${media.slots}/${media.total} · не открылось: ${media.errors.length}`
+        : `ролики: ${media.slots}/${media.total}`;
+      mediaEl.classList.toggle("is-error", media.errors.length > 0);
+      mediaEl.title = media.errors.length
+        ? `${media.errors.join("\n")}\nНазначьте источники в настройках сцены (⚙ → Лаб. 11 · Ролики на монолитах).`
+        : "Сколько слотов монолитов занято роликами из папки video/";
     }
     panel.classList.toggle("operator-busy", state.recording);
     for (const grip of grips) grip.disabled = state.recording;

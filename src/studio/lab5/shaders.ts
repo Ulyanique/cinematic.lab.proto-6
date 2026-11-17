@@ -188,6 +188,9 @@ uniform float uFocus;
 uniform float uAspect;
 uniform float uMediaAspect;
 uniform float uVideoBrightness;
+// 1 — в слоте реальный ролик, 0 — источник не назначен: экран показывает
+// осмысленную карточку пустого слота вместо чёрного прямоугольника.
+uniform float uLive;
 uniform float uSeed;
 uniform float uBlastLight;
 uniform vec3 uBlastPos;
@@ -215,7 +218,13 @@ void main(){
   float mediaY=(v-0.5)*uMediaAspect/uAspect+0.5;
   vec4 tex=texture2D(uTex,vec2(u,clamp(mediaY,0.0,1.0)));
   vec3 col=vec3(0.008,0.004,0.002);
-  if(mediaY>=0.0 && mediaY<=1.0) col=tex.rgb*1.25*uVideoBrightness;
+  if(mediaY>=0.0 && mediaY<=1.0){
+    float k=1.25*uVideoBrightness;
+    col=uLive>0.5 ? tex.rgb*k : mix(vec3(0.012,0.008,0.004),tex.rgb,k*0.9);
+  }
+  // Empty slot: a quiet gold vignette keeps the card readable on the far facades
+  // while the camera is still on its way to the monolith.
+  col*=mix(1.0,1.18,clamp(1.0-uLive,0.0,1.0));
 
   // scan lines + gentle flicker
   float ph=fwidth(v)*820.;
