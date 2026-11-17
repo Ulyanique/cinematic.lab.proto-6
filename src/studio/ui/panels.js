@@ -410,7 +410,9 @@ export function createStudioPanels({
       for (const scene of scenes) {
         const option = document.createElement('option');
         option.value = scene.id;
-        option.textContent = `${scene.code} · ${scene.label}`;
+        option.textContent = scene.archived
+          ? `${scene.code} · ${scene.label} · архив`
+          : `${scene.code} · ${scene.label}`;
         option.title = scene.title || scene.label;
         selectEl.appendChild(option);
       }
@@ -551,7 +553,8 @@ export function createStudioPanels({
     action(withIcon('record', 'Записать ролик'), 'Записать один цикл текущего ролика — то же, что кнопка записи сверху', () => onExportVideo?.());
     action(withIcon('link', 'Ссылка на сцену'), 'Скопировать короткую ссылку на текущие настройки сцены', async () => {
       const url = new URL(location.href);
-      url.searchParams.set('scene', state.sceneId === 'waiting' ? 'intro' : state.sceneId);
+      // Настоящий id: ?scene=intro — это новое интро, а не архивное.
+      url.searchParams.set('scene', state.sceneId);
       url.hash = `cfg=${encodeConfigShareHash(getState().config, getState().defaults)}`;
       try {
         await navigator.clipboard.writeText(url.href);

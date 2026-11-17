@@ -27,7 +27,11 @@ export function createClipSwitcher({ onSwitch, canSwitch }) {
   for (const scene of SCENE_NAV) {
     const option = document.createElement('option');
     option.value = scene.id;
-    option.textContent = `${scene.code} · ${scene.label}`;
+    // Архивные ролики остаются доступными, но подписаны явно: иначе старый
+    // «Интро» рядом с новым выглядел бы как дубль по ошибке.
+    option.textContent = scene.archived
+      ? `${scene.code} · ${scene.label} · архив`
+      : `${scene.code} · ${scene.label}`;
     option.title = scene.title;
     select.appendChild(option);
   }

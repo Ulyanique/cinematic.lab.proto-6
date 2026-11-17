@@ -17,6 +17,7 @@ import { PLAYABLE_SCENES } from "./catalog.js";
  * @property {string} label   короткое имя для пульта и вкладок
  * @property {string} title   полное название для подсказки и заголовка
  * @property {boolean} program  участвует ли сцена в автопоказе программы
+ * @property {boolean} archived сцена из прежних версий: доступна, но помечена
  */
 
 /**
@@ -43,13 +44,15 @@ export const SCENE_NAV = Object.freeze(
       // Заставка спонсора — тот же кадр, что «Спонсоры», но со своим знаком:
       // в автопоказ её ставят отдельно, поэтому по умолчанию она вне программы.
       program: scene.chain !== false,
+      archived: scene.archived === true,
     })
   )
 );
 
 /** @param {string} id */
 export function sceneNav(id) {
-  const canonical = id === "intro" ? "waiting" : id;
+  // «intro» теперь адрес лаборатории 10 — там же, где каталог ищет сцену.
+  const canonical = id === "intro" ? INTRO_SCENE_ID : id;
   return SCENE_NAV.find((scene) => scene.id === canonical);
 }
 

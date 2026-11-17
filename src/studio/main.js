@@ -588,7 +588,9 @@ function switchScene(id) {
   panels.syncScene();
   clipSwitcher.sync(id);
   const url = new URL(location.href);
-  url.searchParams.set("scene", id === "waiting" ? "intro" : id);
+  // Пишем настоящий id: ?scene=intro открывает новое интро (лабораторию 10),
+  // поэтому архивную сцену нельзя записывать этим адресом.
+  url.searchParams.set("scene", id);
   history.replaceState(null, "", url);
   if (snapshot) {
     // Оверлей живёт до конца перехода; снимает его сам цикл кадров.
@@ -812,7 +814,7 @@ async function runOfflineRecording(job, overlay, download) {
       // Имя файла берёт фактический размер записи: 4K-мастер не должен
       // сохраняться как «1920x1080».
       const filename = deliveryFilename(
-        initialScene === "waiting" ? "intro" : initialScene, option, REC_W, REC_H);
+        initialScene, option, REC_W, REC_H);
       // Готовое видео открывается поверх всего кадра: посмотреть, сохранить
       // кнопкой с этим именем или через «Сохранить видео как…», развернуть
       // на весь экран, закрыть Esc. Молчаливое скачивание убрано: файл было

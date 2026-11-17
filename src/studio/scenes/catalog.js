@@ -23,10 +23,12 @@ export const OUTPUT = Object.freeze({ ...BASE_FRAME, fps: 30 });
  * Виды 1, 2, 8 и 9 имеют адаптеры; прочие потребуют отдельного сценария.
  */
 export const SCENES = Object.freeze([
-  // Внутренний id сохранён для старых ссылок и настроек; роль сцены — интро.
-  // Код и короткое имя — часть программы вечера: по ним пульт, вкладки
-  // настроек и состав цепочки строятся из одного списка (scenes/nav.js).
-  { id: "waiting", title: "Интро — открытие вечера", code: "01", label: "Интро", status: "ready", defaults: WAITING_DEFAULTS },
+  // Прежнее «Интро» — заставка ожидания из первой версии студии. Новое интро —
+  // лаборатория 10, поэтому этот ролик помечен архивным: он остаётся доступным
+  // и записывается как обычно, но код у него архивный (A1), и в списке он
+  // подписан явно. Внутренний id сохранён: по нему лежат сохранённые настройки
+  // и старые ссылки ?scene=waiting.
+  { id: "waiting", title: "Архив — прежнее интро: ожидание вечера", code: "A1", label: "Интро (архив)", status: "ready", archived: true, defaults: WAITING_DEFAULTS },
   { id: "brand", title: "Фирменный фон для речи, ужина и музыкальных сетов", code: "02", label: "Фон", status: "ready", defaults: BRAND_DEFAULTS },
   { id: "dream-project", title: "Проект мечты", status: "planned" },
   { id: "partners", title: "Спонсоры и партнёры (макет)", code: "04", label: "Спонсоры", status: "preview", defaults: PARTNERS_DEFAULTS },
@@ -41,7 +43,7 @@ export const SCENES = Object.freeze([
   // Кинематографичные лаборатории (cinematic-lab-proto-2 и proto-5).
   // Первая анимация программы. Внутри — 3D-эмблема из роя частиц; в интерфейсе
   // она называется просто «Интро», потому что открывает показ.
-  { id: LAB2_ID, title: "Интро — 3D-эмблема из роя частиц и объёмные буквы", code: "10", label: "Интро", status: "ready", defaults: LAB2_DEFAULTS },
+  { id: LAB2_ID, title: "Интро — 3D-эмблема из роя частиц и объёмные буквы", code: "01", label: "Интро", status: "ready", defaults: LAB2_DEFAULTS },
   { id: LAB5_ID, title: "Лаборатория 11 — Монолиты: кинофильм 51 с", code: "11", label: "Монолиты", status: "ready", defaults: LAB5_DEFAULTS },
 ]);
 
@@ -58,13 +60,15 @@ export const PLAYABLE_SCENES = Object.freeze(
       title: scene.title,
       code: scene.code,
       label: scene.label,
+      archived: scene.archived === true,
       chain: scene.id !== "sponsor-promrukav" && scene.id !== "sponsor-keaz",
     }))
 );
 
 /** @param {string} id */
 export function sceneById(id) {
-  // Человеческий адрес для первого ролика, без поломки старого ?scene=waiting.
-  const canonical = id === "intro" ? "waiting" : id;
+  // «intro» — человеческий адрес интро программы: теперь это лаборатория 10.
+  // Прежнее интро живёт по своему id (waiting) и по-прежнему открывается.
+  const canonical = id === "intro" ? LAB2_ID : id;
   return SCENES.find((scene) => scene.id === canonical);
 }
