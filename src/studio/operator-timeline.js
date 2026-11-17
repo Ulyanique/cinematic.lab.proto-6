@@ -15,10 +15,31 @@
 
 /** Минимальная длительность удержания: короче — уже не «стоит» в кадре. */
 export const MIN_HOLD = 0.2;
+/**
+ * Вход и уход можно выключить совсем (0): у лабораторий своё появление, и
+ * насильно навязывать им 0.2 с входа значило бы менять чужой монтаж.
+ */
+export const MIN_PHASE = 0;
 /** Предел полного цикла ролика, секунды. */
 export const MAX_CYCLE = 300;
 
 const part = (value) => (Number.isFinite(value) && value > 0 ? value : 0);
+
+/**
+ * Разложить длительность фазы по её внутренним стадиям.
+ * Обычно стадии просто масштабируются (движение остаётся тем же, только
+ * короче). Если обе были нулевыми — у лабораторий вход и уход свои, — вся
+ * длительность достаётся первой стадии: иначе поле показывало бы 0.0 сразу
+ * после ввода, и фаза выглядела бы нередактируемой.
+ * @param {number} first @param {number} second @param {number} total
+ * @returns {[number, number]}
+ */
+function scaleStages(first, second, total) {
+  const a = part(first), b = part(second);
+  if (a + b <= 0) return [total, 0];
+  const scale = total / (a + b);
+  return [a * scale, b * scale];
+}
 
 /**
  * Три фазы ролика в секундах — то, что показывают поля пульта.
@@ -130,22 +151,24 @@ export function phaseChange(tl, key, seconds) {
     return next;
   }
   if (key === 'entry') {
-    const value = clampSeconds(seconds, MIN_HOLD, cycle - exit - MIN_HOLD);
+    const value = clampSeconds(seconds, MIN_PHASE, cycle - exit - MIN_HOLD);
     if (value === null) return null;
     // Внутренние стадии входа масштабируются: контур и появление остаются
-    // тем же движением, просто короче или длиннее.
-    const scale = value / (entry || 1);
-    next.drawDuration = part(tl.drawDuration) * scale;
-    next.emergeDuration = part(tl.emergeDuration) * scale;
+    // тем же движением, просто короче или длиннее. Если у ролика входа не было
+    // вовсе (лаборатории живут собственным фильмом), делить нечего — вся
+    // длительность достаётся первой стадии, и число в поле не отскакивает.
+    const scaled = scaleStages(tl.drawDuration, tl.emergeDuration, value);
+    next.drawDuration = scaled[0];
+    next.emergeDuration = scaled[1];
     next.holdDuration = Math.max(MIN_HOLD, cycle - exit - value);
     return next;
   }
   if (key === 'exit') {
-    const value = clampSeconds(seconds, MIN_HOLD, cycle - entry - MIN_HOLD);
+    const value = clampSeconds(seconds, MIN_PHASE, cycle - entry - MIN_HOLD);
     if (value === null) return null;
-    const scale = value / (exit || 1);
-    next.fadeDuration = part(tl.fadeDuration) * scale;
-    next.restDuration = part(tl.restDuration) * scale;
+    const scaled = scaleStages(tl.fadeDuration, tl.restDuration, value);
+    next.fadeDuration = scaled[0];
+    next.restDuration = scaled[1];
     next.holdDuration = Math.max(MIN_HOLD, cycle - entry - value);
     return next;
   }
@@ -163,7 +186,7 @@ export function boundaryChange(tl, edge, seconds) {
   if (edge === 'entry') return phaseChange(tl, 'entry', seconds);
   // Длительность ухода — это расстояние от границы до конца цикла.
   const value = cycle - Math.min(Math.max(0, seconds), cycle);
-  return phaseChange(tl, 'exit', value || MIN_HOLD);
+  return phaseChange(tl, 'exit', Math.max(MIN_PHASE, value));
 }
 
 /**

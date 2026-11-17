@@ -188,7 +188,7 @@ body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
 }
 
 /* Полоса фаз занимает всё свободное место: она и есть главный орган правки. */
-.operator-timeline { flex: 1 1 auto; min-width: 180px; padding-bottom: 10px; }
+.operator-timeline { position: relative; flex: 1 1 auto; min-width: 180px; }
 .operator-track { position: relative; height: 20px; }
 .operator-phase-band {
   position: absolute; inset: 5px 0; border-radius: 3px;
@@ -246,11 +246,17 @@ body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
   background: rgba(217, 176, 97, .5);
 }
 
-/* Подпись под полосой: сегменты по ширине фаз, 9 px, без споров с таймкодом. */
-.operator-legend { position: relative; height: 11px; margin-top: 2px; }
+/* Подписи фаз: в покое строки их нет — только полоса и цифры. Наведение на
+   пульт (или фокус в поле) проявляет имена и длительности: под полосой для
+   фаз, над полем — для чисел. Абсолютное положение нужно, чтобы появление
+   текста не двигало саму строку. */
+.operator-legend {
+  position: absolute; left: 0; right: 0; top: calc(100% + 1px); height: 11px;
+  opacity: 0; transition: opacity .16s ease; pointer-events: none;
+}
 .operator-legend-item {
   position: absolute; top: 0; overflow: hidden; white-space: nowrap;
-  color: #9d8258; font-size: 9px; line-height: 11px;
+  color: #b08f5e; font-size: 9px; line-height: 11px;
   font-variant-numeric: tabular-nums; letter-spacing: .06em;
   text-overflow: clip;
 }
@@ -260,11 +266,21 @@ body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
 /* Цифры фаз: вход · держание · уход · цикл. Подпись над полем, чтобы поля
    вставали в ту же строку, что и полоса, и не растягивали пульт. */
 .operator-phases-fields { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
-.operator-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.operator-field > span {
-  color: rgba(255, 214, 140, .5); font-size: 9px; line-height: 1;
+/* Поле стоит в строке одно, без места под подпись: иначе цифры съезжали бы
+   вниз относительно кнопок. Подпись — всплывающая, над полем. */
+.operator-field { position: relative; display: flex; align-items: center; min-width: 0; }
+.operator-field-label {
+  position: absolute; left: 50%; bottom: calc(100% + 5px);
+  transform: translateX(-50%);
+  color: rgba(255, 214, 140, .62); font-size: 9px; line-height: 1;
   letter-spacing: .14em; text-transform: uppercase; white-space: nowrap;
+  opacity: 0; transition: opacity .16s ease; pointer-events: none;
 }
+
+/* Наведение на пульт — единственный момент, когда в строке появляется текст.
+   Фокус в поле держит подпись видимой, пока в нём набирают число. */
+.operator-panel:is(:hover, :focus-within) .operator-legend,
+.operator-panel:is(:hover, :focus-within) .operator-field-label { opacity: 1; }
 .operator-field input[type="number"] {
   width: 58px; padding: 4px 5px; border-radius: 6px;
   border: 1px solid rgba(255, 216, 150, .16);

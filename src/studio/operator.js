@@ -4,7 +4,7 @@ import { isInteractiveTarget } from "./ui/dom.js";
 import { icon } from "./ui/icons.js";
 import {
   phaseValues, phaseSegments, timelineCursorPct, timeLabel, clampSeconds,
-  phaseChange, boundaryChange, boundaryPct, MIN_HOLD, MAX_CYCLE,
+  phaseChange, boundaryChange, boundaryPct, MIN_PHASE, MIN_HOLD, MAX_CYCLE,
 } from "./operator-timeline.js";
 
 /** Не реагировать на обычную перемотку; автопереход только при пересечении шва воспроизведением. */
@@ -31,11 +31,14 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
   panel.className = "operator-panel";
   panel.setAttribute("aria-label", "Пульт: транспорт и фазы текущего ролика");
 
+  // Подпись поля видна только при наведении на пульт (или фокусе в поле): в
+  // строке из четырёх чисел подписи «Вход»/«Держ.»/«Уход»/«Цикл» занимали
+  // больше места, чем сами числа, и всё время спорили с кадром.
   const field = (key, label, title, min, max) => `
     <label class="operator-field" data-field="${key}" title="${title}">
-      <span>${label}</span>
+      <span class="operator-field-label">${label}</span>
       <input type="number" data-phase="${key}" min="${min}" max="${max}" step="0.1"
-        inputmode="decimal" aria-label="${title}">
+        inputmode="decimal" aria-label="${label}: ${title}">
     </label>`;
 
   panel.innerHTML = `
@@ -62,9 +65,9 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
       </div>
 
       <div class="operator-phases-fields">
-        ${field('entry', 'Вход', 'Длительность входа: прорисовка контура и появление из тени', MIN_HOLD, MAX_CYCLE)}
+        ${field('entry', 'Вход', 'Длительность входа: прорисовка контура и появление из тени', MIN_PHASE, MAX_CYCLE)}
         ${field('hold', 'Держ.', 'Длительность удержания: собранная заставка в кадре', MIN_HOLD, MAX_CYCLE)}
-        ${field('exit', 'Уход', 'Длительность ухода: тень и пауза перед следующим кругом', MIN_HOLD, MAX_CYCLE)}
+        ${field('exit', 'Уход', 'Длительность ухода: тень и пауза перед следующим кругом', MIN_PHASE, MAX_CYCLE)}
         ${field('cycle', 'Цикл', 'Полная длительность цикла ролика', 1, MAX_CYCLE)}
       </div>
 
@@ -155,7 +158,9 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
       mark.title = `${segment.label} · до ${timeLabel(tick)} с`;
       return mark;
     })));
-    // Подписи фаз под полосой: имя и длительность, без отдельных «с» у каждой.
+    // Подписи фаз: в строке их не видно — они проявляются при наведении на
+    // пульт. Лежат они под полосой и не участвуют в раскладке, поэтому полоса
+    // стоит ровно по центру кнопок, а не съезжает вверх на высоту текста.
     legendEl.replaceChildren(...segments.map((segment) => {
       const cell = document.createElement("span");
       cell.className = `operator-legend-item operator-legend-${segment.key}`;
@@ -189,6 +194,12 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
       const value = key === "cycle" ? values.cycle : values[key];
       input.value = value.toFixed(1);
     }
+    // Ролик-лаборатория живёт своим фильмом: длина сцены считается из него, и
+    // правка «Держ.» отвязывает её от фильма до следующей правки его настроек.
+    // Об этом честно написано в подсказке поля, а не спрятано в коде сцены.
+    inputs.hold.title = state.ownDuration
+      ? "Длительность удержания. У этого ролика длина задаётся его фильмом: правка здесь отвязывает её от фильма"
+      : "Длительность удержания: собранная заставка в кадре";
     const paused = state.config.playback.paused;
     playButton.innerHTML = icon(paused ? "play" : "pause", 14);
     playButton.setAttribute("aria-label", paused ? "Продолжить" : "Пауза");
@@ -292,7 +303,8 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
         refresh();
         return;
       }
-      const seconds = clampSeconds(input.value, MIN_HOLD, MAX_CYCLE);
+      const min = key === "hold" ? MIN_HOLD : MIN_PHASE;
+      const seconds = clampSeconds(input.value, min, MAX_CYCLE);
       if (seconds === null) { refresh(); return; }
       applyTimeline(phaseChange(state.config.timeline, key, seconds));
     };

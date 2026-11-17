@@ -392,6 +392,8 @@ let recording = null; // один цикл текущей сцены, перек
 operator = createOperatorControls({
   getState: () => ({ id: sceneId, time: runtime.time, config: cfg, cycle: runtime.cycle,
     recording: !!recording, master: masterId(), quality: scene.quality,
+    // Длину ролика задаёт он сам (фильм лаборатории), а не пульт.
+    ownDuration: !!scene.holdsOwnDuration?.(),
     delivery, media: scene.mediaStatus?.() || null }),
   seek: (value) => { cfg.playback.paused = true; runtime.renderAt(value, 1 / OUTPUT.fps); },
   // Фазы ролика: вход, удержание, уход. Пульт присылает уже посчитанный
@@ -399,6 +401,9 @@ operator = createOperatorControls({
   // сохранить и перерисовать кадр нужно ровно здесь, в одном месте.
   setPhase: (next) => {
     if (recording || transition) return false;
+    // Удержание у ролика, который живёт своим фильмом, сначала надо отвязать от
+    // длины фильма — иначе сцена вернёт старое значение следующим же кадром.
+    if (Math.abs(next.holdDuration - cfg.timeline.holdDuration) > 1e-9) scene.overrideDuration?.(next.holdDuration);
     Object.assign(cfg.timeline, next);
     saveScene();
     panels.refresh();
@@ -408,11 +413,13 @@ operator = createOperatorControls({
     return true;
   },
   setDuration: (value) => {
+    if (recording || transition) return false;
     // Цикл меняется только удержанием: вход и уход остаются как настроены,
     // иначе правка одного числа незаметно переписывала бы два других.
     const tl = cfg.timeline;
     const fixed = runtime.cycle - tl.holdDuration;
     const next = Math.max(MIN_HOLD, Math.min(MAX_CYCLE - fixed, value - fixed));
+    scene.overrideDuration?.(next);
     tl.holdDuration = next;
     saveScene();
     panels.refresh();

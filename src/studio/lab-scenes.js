@@ -46,6 +46,15 @@ class LabScene {
   }
   setCaptionSource() {}
   setCaptionVisible() {}
+  /**
+   * Держит ли сцена длительность удержания за собой.
+   *
+   * Лаборатории живут собственным фильмом: их длина считается из «момента
+   * удара», скорости и паузы, и каждый кадр переписывает `holdDuration`.
+   * Студии это важно знать: иначе правка «Держ.» в пульте молча отменялась
+   * следующим же кадром — число вводилось и через кадр возвращалось.
+   */
+  holdsOwnDuration() { return false; }
   resize() {}
   whenReady() { return this._readyPromise || Promise.resolve(); }
   update(t) { this.time = t; }
@@ -91,10 +100,29 @@ export class Lab2Scene extends LabScene {
   update(t) {
     super.update(t);
     if (!this.ready) return;
-    // Длительность ролика зависит от «Момента удара», скорости и паузы — таймлайн студии следует за ней.
+    // Длительность ролика зависит от «Момента удара», скорости и паузы — таймлайн
+    // студии следует за ней. Исключение одно: длительность уже задана в пульте
+    // явно, и фильм после этого не менялся — тогда значение остаётся за пультом,
+    // иначе поле «Держ.» возвращало бы старое число на следующем же кадре.
     const duration = totalDuration(this.lab);
+    if (this.filmDuration === undefined) this.filmDuration = duration;
+    if (Math.abs(this.filmDuration - duration) > 1e-3) {
+      // Параметры фильма поменялись в панели: длина ролика снова следует за ним.
+      this.filmDuration = duration;
+      this.durationFromPanel = false;
+    }
+    if (this.durationFromPanel) return;
     if (Math.abs(this.cfg.timeline.holdDuration - duration) > 1e-3) this.cfg.timeline.holdDuration = duration;
   }
+
+  /** Длительность задаётся пультом: следующий кадр её не перетирает. */
+  overrideDuration(seconds) {
+    this.durationFromPanel = true;
+    if (this.ready) this.filmDuration = totalDuration(this.lab);
+    return Number.isFinite(seconds) && seconds > 0;
+  }
+
+  holdsOwnDuration() { return true; }
 
   render() {
     if (!this.ready) { this._black(); return; }
@@ -131,6 +159,9 @@ export class Lab5Scene extends LabScene {
     this.film = normalizeSettings(lab5Source(this.cfg));
     this.engine?.setSettings(this.film);
   }
+
+  /** Фильм 51 с: длину задаёт его собственный таймлайн, а не пульт. */
+  holdsOwnDuration() { return true; }
 
   /** Покадровый экспорт: дожидаемся перемотки видеоэкранов монолитов. */
   async prepareFrame(t) {
