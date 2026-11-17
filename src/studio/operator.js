@@ -3,7 +3,7 @@ import { SCENE_NAV } from "./scenes/nav.js";
 import { isInteractiveTarget } from "./ui/dom.js";
 import { icon } from "./ui/icons.js";
 import {
-  phaseValues, phaseSegments, timeLabel, clampSeconds,
+  phaseValues, phaseSegments, timelineCursorPct, timeLabel, clampSeconds,
   phaseChange, boundaryChange, boundaryPct, MIN_PHASE, MIN_HOLD, MAX_CYCLE,
 } from "./operator-timeline.js";
 
@@ -54,6 +54,7 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
         <div class="operator-track">
           <div class="operator-phase-band" data-role="band" aria-hidden="true"></div>
           <input type="range" data-action="seek" min="0" step="0.0166666667" aria-label="Перемотка текущего ролика">
+          <div class="operator-cursor" data-role="cursor" aria-hidden="true"></div>
           <button type="button" class="operator-grip operator-grip-entry" data-edge="entry"
             role="slider" aria-label="Граница входа" title="Граница входа — потяните или задайте числом справа"></button>
           <button type="button" class="operator-grip operator-grip-exit" data-edge="exit"
@@ -80,6 +81,7 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
   document.body.appendChild(panel);
 
   const range = panel.querySelector('[data-action="seek"]');
+  const cursorEl = panel.querySelector('[data-role="cursor"]');
   const bandEl = panel.querySelector('[data-role="band"]');
   const legendEl = panel.querySelector('[data-role="legend"]');
   const trackEl = panel.querySelector(".operator-track");
@@ -172,8 +174,9 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
     const local = localTime(state);
     if (!dragging) range.value = String(Math.min(local, max));
     renderBar(state.config.timeline);
-    // Положение показывает сама ручка перемотки: вторая «бегущая» линия рядом
-    // с ней читалась как лишняя метка, которая катается по полосе.
+    // Положение показывает один курсор. Штатный бегунок ползунка скрыт в CSS:
+    // два индикатора подряд читались как лишние метки.
+    cursorEl.style.left = `${timelineCursorPct(local, state.config.timeline)}%`;
     timeEl.textContent = `${local.toFixed(2)} / ${state.cycle.toFixed(2)} с`;
     // Поля фаз: не перебиваем набор — пока в поле курсор, значение не трогаем.
     const values = phaseValues(state.config.timeline);

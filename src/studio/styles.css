@@ -194,8 +194,9 @@ body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
   position: absolute; inset: 5px 0; border-radius: 3px;
   border: 1px solid rgba(217, 176, 97, .22); pointer-events: none;
 }
-/* Перемотка — прозрачный range поверх полосы: бегунок у него тонкий, чтобы не
-   спорить с ручками границ. */
+/* Перемотка — прозрачный range поверх полосы. Своего бегунка у неё нет: он
+   выглядел как «лишняя метка», которая катается по таймлайну. Положение
+   показывает один курсор (.operator-cursor), нарисованный пультом. */
 .operator-track input[type="range"] {
   position: absolute; inset: 0; width: 100%; height: 20px; margin: 0;
   background: transparent; -webkit-appearance: none; appearance: none;
@@ -203,13 +204,18 @@ body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
 }
 .operator-track input[type="range"]::-webkit-slider-runnable-track { height: 20px; background: transparent; }
 .operator-track input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 3px; height: 18px; margin-top: 1px;
-  border-radius: 2px; background: #ffe3a1; box-shadow: 0 0 8px rgba(255, 214, 140, .85);
+  -webkit-appearance: none; width: 0; height: 0; border: 0; background: transparent;
+  box-shadow: none; margin-top: 10px;
 }
 .operator-track input[type="range"]::-moz-range-track { height: 20px; background: transparent; }
 .operator-track input[type="range"]::-moz-range-thumb {
-  width: 3px; height: 18px; border: 0; border-radius: 2px;
-  background: #ffe3a1; box-shadow: 0 0 8px rgba(255, 214, 140, .85);
+  width: 0; height: 0; border: 0; background: transparent; box-shadow: none;
+}
+/* Курсор — единственная движущаяся метка на полосе: тонкая линия без «усов». */
+.operator-cursor {
+  position: absolute; top: 3px; width: 1px; height: 14px; margin-left: -.5px;
+  background: rgba(255, 236, 190, .85);
+  pointer-events: none; z-index: 2;
 }
 
 /* Ручки границ — направляющие, а не кнопки хрома: у них своя геометрия,
