@@ -70,7 +70,9 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
 
       <div class="operator-tail">
         <output data-role="media" class="operator-media" aria-live="polite" hidden></output>
-        <button type="button" data-action="auto" aria-pressed="false" title="Автоматическая смена роликов по кругу: показать всю программу без ручного переключения">Авто</button>
+        <button type="button" data-action="auto" class="operator-icon" aria-pressed="false"
+          title="Автопоказ: ролики сменяются по кругу без ручного переключения"
+          aria-label="Автопоказ роликов по кругу">${icon("repeat", 14)}</button>
         <button type="button" data-action="pin" aria-pressed="false" class="operator-icon" title="Не скрывать пульт (R)">${icon("pinOff", 14)}</button>
       </div>
     </div>`;

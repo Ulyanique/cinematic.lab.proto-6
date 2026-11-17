@@ -55,24 +55,32 @@
 /* Ручки границ фаз (.operator-grip) — не кнопки интерфейса, а направляющие:
    у них своя геометрия и псевдоэлементы, поэтому из общей кнопки исключены. */
 .operator-panel button:not(.operator-grip) {
-  border-radius: var(--ui-radius-control);
-  border: 1px solid var(--ui-btn-border);
-  background: var(--ui-btn-bg);
-  color: #d5d1c8;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 214, 140, .25);
+  background: rgba(0, 0, 0, .45);
+  color: rgba(255, 236, 199, .7);
   font: inherit;
   cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   transition: background .15s ease, border-color .15s ease, color .15s ease;
 }
 .operator-panel button:not(.operator-grip):is(:hover, :focus-visible) {
-  background: var(--ui-btn-bg-hover);
-  border-color: var(--ui-btn-border-hover);
-  color: #fff;
+  border-color: rgba(255, 214, 140, .7);
+  background: rgba(0, 0, 0, .6);
+  color: #fff3dc;
 }
 .operator-panel button:not(.operator-grip):is([aria-pressed="true"], .is-on) {
-  background: var(--ui-btn-active-bg);
-  border-color: var(--ui-btn-active-border);
-  color: var(--ui-btn-active-text);
+  border-color: rgba(255, 214, 140, .7);
+  background: rgba(255, 214, 140, .15);
+  color: #fff3dc;
 }
+
 
 .export-viewer-actions button:disabled {
   opacity: .4; cursor: default;
@@ -142,14 +150,24 @@ body.operator-idle:not(.ui-on) .clip-switch,
 body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
 .clip-switch, .studio-buttons { transition: opacity .3s ease; }
 .operator-panel {
-  position: fixed; z-index: 24; left: 50%; bottom: 16px;
-  transform: translateX(-50%); width: min(1320px, calc(100vw - 32px));
-  border: 1px solid var(--ui-line); border-radius: var(--ui-radius-panel);
-  background: var(--ui-surface); backdrop-filter: blur(16px);
-  box-shadow: var(--ui-shadow); padding: 8px 12px;
+  position: fixed; z-index: 24; left: 0; right: 0; bottom: 0;
+  width: 100%; padding: 34px 22px 14px;
+  /* Плашки нет: под таймлайном мягкое затемнение, которое кверху уходит в
+     прозрачность. Панель шире содержимого — тень расходится по всему низу
+     кадра и не обрывается по краям кнопок. */
+  border: 0; border-radius: 0; background: transparent;
+  background-image: linear-gradient(to top,
+    rgba(0, 0, 0, .62) 0%,
+    rgba(0, 0, 0, .40) 34%,
+    rgba(0, 0, 0, .16) 68%,
+    rgba(0, 0, 0, 0) 100%);
+  box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
   color: #d8d5ce; font: var(--ui-fs-base)/1.4 var(--ui-font);
   transition: opacity .25s ease;
+  pointer-events: none;
 }
+/* Кликается только содержимое строки: тень под ней не перехватывает мышь. */
+.operator-panel > * { pointer-events: auto; }
 
 /* ── пульт: одна строка — транспорт · таймлайн · цифры фаз ───────────── */
 /* Всё, что относится ко времени ролика, умещается в одну строку: слева
@@ -265,7 +283,7 @@ body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
 .operator-phases-fields .operator-field[data-field="cycle"] input { color: #d8cfb8; }
 
 /* Хвост строки: статус роликов и переключатели. */
-.operator-tail { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.operator-tail { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 .operator-media {
   min-width: 0; padding: 3px 7px; border-radius: var(--ui-radius-control);
   border: 1px solid var(--ui-line); background: var(--ui-surface-raised);
@@ -274,21 +292,27 @@ body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
 }
 .operator-media[hidden] { display: none; }
 .operator-media.is-error { border-color: var(--ui-danger); color: #ffd0c8; }
-/* «Авто» — длинная подпись, а не иконка: ей нужен обычный отступ кнопки. */
-.operator-panel [data-action="auto"] { padding: 6px 10px; font-size: 10px; letter-spacing: .12em; }
 .operator-busy .operator-track input,
 .operator-busy .operator-grip,
 .operator-busy .operator-field input { opacity: .4; pointer-events: none; }
 
 /* На узком экране строка переносится: сначала полоса во всю ширину,
    затем цифры под ней — пульт не должен упираться в край кадра. */
+/* Тень расходится по всему низу кадра, а строка держится ближе к краям, чем
+   раньше: она длиннее плашки и не выглядит приклеенной к центру. */
+@media (min-width: 1081px) {
+  .operator-panel { padding: 34px 26px 14px; }
+}
+
 @media (max-width: 1080px) {
   .operator-bar { flex-wrap: wrap; row-gap: 8px; }
   .operator-timeline { flex: 1 1 100%; order: 2; }
   .operator-phases-fields { order: 3; }
   .operator-tail { order: 1; margin-left: auto; }
+  .operator-panel { bottom: 0; padding: 26px 14px 12px; }
 }
 @media (max-width: 640px) {
+  .operator-panel { padding: 22px 10px 10px; }
   .operator-transport output { min-width: 68px; font-size: 10px; }
   .operator-field input[type="number"] { width: 52px; }
   .operator-phases-fields { flex: 1 1 100%; justify-content: space-between; }
@@ -1247,8 +1271,5 @@ body.panels-on .clip-switch { opacity: 1; }
   display: inline-grid;
   place-items: center;
 }
-/* Квадратные кнопки-иконки пульта: плотнее обычной кнопки хрома, чтобы
-   строка не разъезжалась по высоте. */
-.operator-panel button.operator-icon {
-  min-width: 28px; padding: 6px; justify-items: center;
-}
+/* Круглая кнопка пульта: иконка по центру, размер задаёт общее правило. */
+.operator-panel button.operator-icon { padding: 0; }
