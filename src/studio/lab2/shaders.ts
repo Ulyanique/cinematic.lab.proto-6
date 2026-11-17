@@ -526,7 +526,7 @@ export const finalPass = {
         col*=iris;
         // Короткая вспышка при открытии: гаснет, когда кадр раскрыт.
         float spark=smoothstep(0.0,0.12,1.-uIris)*smoothstep(0.0,0.65,uIris);
-        col+=vec3(1.0,0.72,0.35)*exp(-dist*dist*46.0)*spark*0.35;
+        col+=vec3(1.0,0.72,0.35)*exp(-dist*dist*100.0)*spark*0.16;
       }
 
       // линия-зажигание: горячее ядро + анаморфный шлейф
