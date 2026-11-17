@@ -1387,7 +1387,7 @@ export class Intro {
     const dur = this.duration;
     // Экспорт — честный уход в чёрный; превью с зацикливанием — «провал в темень» до 12 %
     // и сразу новый круг: зритель не видит 0.4 с абсолютно чёрного экрана на каждом стыке.
-    const fadeOutAt = this.forced && G.fadeOut ? dur : G.loop ? dur + 0.35 : -1;
+    const fadeOutAt = this.embedded ? -1 : this.forced && G.fadeOut ? dur : G.loop ? dur + 0.35 : -1;
     const fadeFloor = this.forced ? 0 : 0.12;
     const fadeOut = fadeOutAt > 0 ? 1 - (1 - fadeFloor) * easeInOutSine(seg(real, fadeOutAt - 0.35, fadeOutAt)) : 1;
     F.uFade.value = fadeIn * (1 - dip) * fadeOut;

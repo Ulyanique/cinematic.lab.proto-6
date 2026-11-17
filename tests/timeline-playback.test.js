@@ -24,3 +24,30 @@ test('intro waits at end until the next cycle', () => {
   assert.ok(oncePerCycleTime(16.27, 16.26, 13.6) < 0.02);
   assert.equal(oncePerCycleTime(9, 10, 13.6), 9);
 });
+
+import { lab2FrameTiming } from '../src/studio/lab2-timing.js';
+
+test('intro entrance and exit follow edited phase boundaries', () => {
+  const edited = { ...timeline, drawDuration: 6, holdDuration: 8, fadeDuration: 3 };
+  assert.deepEqual(lab2FrameTiming(0, edited, 4.5), { filmTime: 0, fade: 0 });
+  assert.equal(lab2FrameTiming(3, edited, 4.5).filmTime, 2.25);
+  assert.equal(lab2FrameTiming(6, edited, 4.5).filmTime, 4.5);
+  assert.equal(lab2FrameTiming(14, edited, 4.5).fade, 0);
+  assert.ok(Math.abs(lab2FrameTiming(15.5, edited, 4.5).fade - 0.5) < 1e-9);
+  assert.equal(lab2FrameTiming(17, edited, 4.5).fade, 1);
+});
+
+test('long background hold runs naturally and remains visible until exit', () => {
+  const background = { ...timeline, holdDuration: 53 };
+  assert.equal(lab2FrameTiming(10, background, 4.5).filmTime, 10);
+  assert.equal(lab2FrameTiming(40, background, 4.5).fade, 0);
+  assert.equal(lab2FrameTiming(60, background, 4.5).fade, 1);
+});
+
+test('zero entry or fade and a rest phase are well-defined', () => {
+  const edited = { drawDuration: 0, emergeDuration: 0, holdDuration: 2, fadeDuration: 0, restDuration: 1 };
+  assert.equal(lab2FrameTiming(0, edited, 4.5).filmTime, 4.5);
+  assert.equal(lab2FrameTiming(1.9, edited, 4.5).fade, 0);
+  assert.equal(lab2FrameTiming(2, edited, 4.5).fade, 1);
+  assert.equal(lab2FrameTiming(2.5, edited, 4.5).fade, 1);
+});
