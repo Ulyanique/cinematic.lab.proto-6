@@ -462,7 +462,10 @@ export const finalPass = {
       col=mix(vec3(lm2),col,uSat);
       col=max((col-0.18)*uCon+0.18,vec3(0.));
       // film grain / dither
-      float gr=h21(vUv*uRes+fract(uTime*7.13)*173.)-.5;
+      // Зерно меняется 24 раза в секунду и только по одной оси: полноэкранный
+      // шум на каждом кадре на спокойном фоне читался не как плёнка, а как
+      // дрожание света — особенно на фоновом ролике, где картинка почти стоит.
+      float gr=h21(vUv*uRes+floor(uTime*24.)*37.)-.5;
       col+=gr*uGrainK*(1.-0.4*col);
       col*=uFade;
 
