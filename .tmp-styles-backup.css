@@ -1,0 +1,1598 @@
+/*
+ * Единый набор токенов интерфейса.
+ *
+ * Пульт, панель настроек и редактор исторически рисовали «свой» хром: у пульта
+ * золотая рамка и скругления 14 px, у панели выбран нейтральный графит, у
+ * редактора — «рабочий» монохром. Из-за этого один и тот же экран выглядел как
+ * три разных приложения. Здесь собраны форма, типографика и состояния, общие
+ * для всего хрома; сцена, титры и образцы цвета токенами не управляются.
+ */
+:root {
+  --gold: #d9b061;
+  --gold-soft: rgba(217, 176, 97, 0.28);
+  --ink: #0b0a08;
+  --text: #e9dcc0;
+  --muted: rgba(233, 220, 192, 0.55);
+  color-scheme: dark;
+
+  /* поверхности: кадр не служит фоном для панелей — они всегда чуть плотнее */
+  --ui-surface: rgba(18, 18, 17, 0.96);
+  --ui-surface-solid: #141413;
+  --ui-surface-raised: rgba(255, 255, 255, 0.04);
+  --ui-surface-hover: rgba(255, 255, 255, 0.07);
+  --ui-line: rgba(255, 255, 255, 0.12);
+  --ui-line-strong: rgba(255, 255, 255, 0.22);
+  --ui-line-accent: rgba(217, 176, 97, 0.55);
+
+  /* типографика: одна шкала на все панели */
+  --ui-font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --ui-fs-micro: 9px;    /* надзаголовки-капсы */
+  --ui-fs-small: 11px;   /* подписи и подсказки */
+  --ui-fs-base: 12px;    /* элементы управления */
+  --ui-fs-title: 15px;   /* заголовки панелей */
+  --ui-tracking-caps: 0.13em;
+
+  /* форма и состояния */
+  --ui-radius-panel: 6px;
+  --ui-radius-control: 3px;
+  --ui-focus: #d4b47a;
+  --ui-danger: #d05a4a;
+  --ui-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  --ui-btn-bg: rgba(255, 255, 255, 0.025);
+  --ui-btn-border: rgba(255, 255, 255, 0.1);
+  --ui-btn-bg-hover: rgba(255, 255, 255, 0.07);
+  --ui-btn-border-hover: rgba(255, 255, 255, 0.25);
+  --ui-btn-active-bg: rgba(198, 165, 107, 0.12);
+  --ui-btn-active-border: rgba(198, 165, 107, 0.45);
+  --ui-btn-active-text: #e9d5ad;
+}
+
+/*
+ * Общая кнопка хрома: пульт, панель настроек и редактор берут форму и
+ * состояния отсюда, чтобы одинаковая команда выглядела одинаково везде.
+ * Точечные правила панелей задают только раскладку и плотность.
+ */
+/* Ручки границ фаз (.operator-grip) — не кнопки интерфейса, а направляющие:
+   у них своя геометрия и псевдоэлементы, поэтому из общей кнопки исключены. */
+:is(.editor-history, .export-viewer-actions) button:not(.operator-grip) {
+  border-radius: var(--ui-radius-control);
+  border: 1px solid var(--ui-btn-border);
+  background: var(--ui-btn-bg);
+  color: #d5d1c8;
+  font: inherit;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.export-viewer-actions) button:not(.operator-grip):is(:hover,
+:focus-visible){
+  background: var(--ui-btn-bg-hover);
+  border-color: var(--ui-btn-border-hover);
+  color: #fff;
+}
+[aria-pressed="true"],
+.active,
+.on){
+  background: var(--ui-btn-active-bg);
+  border-color: var(--ui-btn-active-border);
+  color: var(--ui-btn-active-text);
+}
+.export-viewer-actions) button:disabled{
+  opacity: .4; cursor: default;
+}
+/* Один и тот же фокус на всём хроме: он должен читаться, а не спорить с золотом. */
+:is(.operator-panel, .editor-panel-toggle, .editor-history, .export-viewer, .fp, .studio-buttons, .clip-switch) :focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#stage {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: block;
+  outline: none;
+  pointer-events: none; /* никакой реакции на мышь */
+}
+
+/* Фирменное поле: название под знаком, без даты и дополнительных строк.
+   На заставках спонсора весь текст собирается в кадре (заголовок, подзаголовок,
+   разделитель), поэтому DOM-титр там скрыт целиком. */
+body.scene-sponsor #caption { display: none; }
+body.scene-brand #caption .cap-rule,
+body.scene-brand #caption .cap-sub,
+body.scene-brand #caption .cap-date,
+body.scene-photo #caption .cap-title,
+body.scene-photo #caption .cap-rule,
+body.scene-photo #caption .cap-sub,
+body.scene-photo #caption .cap-date,
+body.scene-finale #caption .cap-rule,
+body.scene-finale #caption .cap-date { display: none; }
+/* Фоновые сцены: титр опущен в нижнюю треть, знак крупнее. */
+body.scene-brand #caption .cap-title {
+  left: calc(50% + var(--title-offset-x, 0%)); top: calc(76% + var(--title-offset-y, 0%));
+  font-size: calc(var(--u) * 4.6 * var(--title-scale, 1) * var(--title-fit, 1));
+  letter-spacing: var(--title-tracking, .16em); padding-left: var(--title-tracking, .16em);
+}
+body.scene-photo #caption .cap-title {
+  left: calc(50% + var(--title-offset-x, 0%)); top: calc(65% + var(--title-offset-y, 0%)); font-size: calc(var(--u) * 6.7 * var(--title-scale, 1) * var(--title-fit, 1));
+}
+body.scene-finale #caption .cap-title {
+  left: calc(50% + var(--title-offset-x, 0%)); top: calc(65% + var(--title-offset-y, 0%)); font-size: calc(var(--u) * 6.6 * var(--title-scale, 1) * var(--title-fit, 1));
+}
+body.scene-finale #caption .cap-sub {
+  left: calc(50% + var(--subtitle-offset-x, 0%)); top: calc(var(--finale-subtitle-y, 79%) + var(--subtitle-offset-y, 0%)); font-size: calc(var(--u) * 2.55 * var(--subtitle-scale, 1) * var(--subtitle-fit, 1));
+  letter-spacing: var(--subtitle-tracking, .18em); padding-left: var(--subtitle-tracking, .18em);
+}
+
+/* Мышь видна всегда. Только элементы пульта исчезают после бездействия. */
+body, body.ui-on { cursor: auto; }
+/* Настройки есть в каждой сцене. В простое кнопка приглушена, но кликабельна. */
+body.operator-idle:not(.ui-on) .operator-panel { opacity: 0; pointer-events: none; }
+body.operator-idle:not(.ui-on) .clip-switch,
+body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
+.clip-switch, .studio-buttons { transition: opacity .3s ease; }
+.operator-panel {
+  position: fixed; z-index: 24; left: 50%; bottom: 16px;
+  transform: translateX(-50%); width: min(1220px, calc(100vw - 32px));
+  border: 1px solid var(--ui-line); border-radius: var(--ui-radius-panel);
+  background: var(--ui-surface); backdrop-filter: blur(16px);
+  box-shadow: var(--ui-shadow); padding: 9px 14px 10px;
+  color: #d8d5ce; font: var(--ui-fs-base)/1.4 var(--ui-font);
+  transition: opacity .25s ease;
+}
+.operator-row { display: flex; align-items: center; gap: 9px; }
+.operator-row + .operator-row { margin-top: 9px; }
+.operator-label { font-size: var(--ui-fs-micro); letter-spacing: var(--ui-tracking-caps); color: #9d8258; white-space: nowrap; text-transform: uppercase; font-weight: 600; }
+.operator-scenes { display: flex; gap: 4px; flex: 1; }
+.operator-panel button { padding: 6px 9px; white-space: nowrap; }
+.operator-scenes small { font-size: 10px; opacity: .7; margin-left: 4px; }
+.operator-transport input[type="range"] { flex: 1; min-width: 60px; accent-color: #d9b061; cursor: pointer; }
+/* Таймлайн снизу: полоса фаз с метками входа, удержания и выхода.
+   Раньше перемотка была одной строкой с кнопками, и по ней нельзя было понять,
+   где кончается вход и сколько длится удержание. */
+.operator-timeline { margin-top: 8px; }
+.operator-phases { position: relative; height: 15px; }
+.operator-phase {
+  position: absolute; top: 0; height: 15px; overflow: hidden;
+  border-left: 1px solid rgba(217,176,97,.5);
+  font: 10px/15px "Inter", system-ui, sans-serif; color: #dcbe8a;
+  letter-spacing: .12em; text-transform: uppercase; white-space: nowrap;
+}
+.operator-phase:first-child { border-left-color: transparent; }
+.operator-phase b { font-weight: 600; padding-left: 6px; }
+/* Время фазы — рядом с именем и глуше: важнее ритм, а не цифра. */
+.operator-phase i { font-style: normal; margin-left: 6px; color: #9d8258; font-variant-numeric: tabular-nums; }
+.operator-phase-entry { color: #ecd3a2; }
+.operator-phase-hold { color: #b79c72; }
+.operator-phase-exit { color: #a98a62; }
+.operator-track { position: relative; height: 20px; }
+/* Транспорт — одна спокойная строка под таймлайном. Крупных селекторов
+   разрешения и кодека здесь больше нет: они переехали в настройки. */
+.operator-transport { gap: 8px; margin-top: 7px; }
+.operator-transport [data-role="time"] { flex: 0 0 auto; }
+.operator-transport .operator-duration { margin-left: auto; }
+.operator-transport > .operator-chain-picker { margin-left: 4px; }
+.operator-phase-band {
+  position: absolute; inset: 6px 0; border-radius: 3px;
+  border: 1px solid rgba(217,176,97,.22); pointer-events: none;
+}
+.operator-track input[type="range"] {
+  position: absolute; inset: 0; width: 100%; margin: 0; background: transparent;
+  -webkit-appearance: none; appearance: none; cursor: pointer; accent-color: #d9b061;
+}
+.operator-track input[type="range"]::-webkit-slider-runnable-track { height: 20px; background: transparent; }
+.operator-track input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 3px; height: 20px; margin-top: 0;
+  border-radius: 2px; background: #ffe3a1; box-shadow: 0 0 8px rgba(255,214,140,.85);
+}
+.operator-track input[type="range"]::-moz-range-thumb {
+  width: 3px; height: 20px; border: 0; border-radius: 2px;
+  background: #ffe3a1; box-shadow: 0 0 8px rgba(255,214,140,.85);
+}
+.operator-track input[type="range"]::-moz-range-track { height: 20px; background: transparent; }
+/* Курсор — отдельная тонкая линия поверх полосы: она показывает положение
+   точнее, чем бегунок, и не мешает перетаскиванию. */
+.operator-cursor {
+  position: absolute; top: 3px; width: 1px; height: 14px; margin-left: -.5px;
+  background: rgba(255,236,190,.9); box-shadow: 0 0 6px rgba(255,214,140,.6);
+  pointer-events: none;
+}
+/* Ручки границ: вход кончается там, где начинается удержание, выход — где
+   начинается уход. Раньше границу можно было менять только в редакторе, хотя
+   это монтажное решение — ему место на пульте. */
+.operator-grip {
+  position: absolute; top: -3px; width: 11px; height: 26px; margin-left: -5.5px;
+  padding: 0; border: 0; border-radius: 3px; background: transparent; cursor: ew-resize;
+  z-index: 3;
+}
+.operator-grip::before {
+  content: ""; position: absolute; inset: 4px 4px; border-radius: 2px;
+  background: rgba(255,227,161,.55); box-shadow: 0 0 7px rgba(255,214,140,.5);
+  transition: background .15s ease, inset .15s ease;
+}
+.operator-grip:hover::before, .operator-grip:focus-visible::before, .operator-grip.drag::before {
+  inset: 1px 3px; background: #ffe3a1; box-shadow: 0 0 10px rgba(255,214,140,.9);
+}
+.operator-grip:focus-visible { outline: none; }
+.operator-grip:disabled { display: none; }
+/* Линия от ручки к полосе: видно, к какой фазе она относится. */
+.operator-grip::after {
+  content: ""; position: absolute; left: 5px; top: 0; width: 1px; height: 26px;
+  background: rgba(255,227,161,.25);
+}
+
+.operator-marks { position: relative; height: 7px; }
+.operator-mark {
+  position: absolute; top: 0; width: 1px; height: 6px; margin-left: -.5px;
+  background: rgba(217,176,97,.55);
+}
+
+.operator-transport output { min-width: 98px; text-align: center; font-variant-numeric: tabular-nums; color: #ffe3a1; }
+/* Сетка такта: подпись уже и глуше, чтобы не спорить с таймкодом. */
+.operator-beat { min-width: 0 !important; color: #c9a97a !important; font-size: var(--ui-fs-base); opacity: .85; }
+/* Состояние источников фильма: та же строка транспорта, но читается как статус. */
+.operator-media {
+  min-width: 0 !important; padding: 3px 7px; border-radius: var(--ui-radius-control);
+  border: 1px solid var(--ui-line); background: var(--ui-surface-raised);
+  color: #c9c4b8; font-size: var(--ui-fs-small); font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.operator-media[hidden] { display: none; }
+.operator-media.is-error { border-color: var(--ui-danger); color: #ffd0c8; }
+.operator-duration { white-space: nowrap; color: #bca780; }
+.operator-master { white-space: nowrap; color: #bca780; display: flex; align-items: center; gap: 5px; }
+.operator-master select {
+  padding: 5px 6px; border: 1px solid rgba(217,176,97,.36); border-radius: 4px;
+  background: #110e0a; color: #ffe3a1; font: inherit; cursor: pointer;
+}
+.operator-duration input { width: 65px; padding: 5px; border: 1px solid rgba(217,176,97,.36); border-radius: 4px;
+  background: #110e0a; color: #ffe3a1; font: inherit; font-variant-numeric: tabular-nums; }
+.operator-busy .operator-scenes, .operator-busy .operator-transport input,
+.operator-busy .operator-timeline input,
+.operator-busy .operator-transport .operator-duration,
+.operator-busy [data-action="record"], .operator-busy [data-action="record-chain"] { opacity: .4; pointer-events: none; }
+/* Переход предпросмотра: рисуется тем же кодом, что и в экспорте, и лежит
+   поверх кадра сцены. Геометрию копирует syncTransitionOverlay(). */
+.transition-overlay {
+  position: fixed; transform: translate(-50%, -50%);
+  z-index: 12; pointer-events: none; display: block;
+}
+@media (max-width: 780px) {
+  .operator-panel { padding: 8px; }
+  .operator-row { flex-wrap: wrap; }
+  .operator-scenes { flex-wrap: wrap; }
+  .operator-scenes small { display: none; }
+  .operator-transport output { min-width: 80px; }
+  /* На узком экране подписи фаз не влезают целиком: оставляем только имя. */
+  .operator-phase i { display: none; }
+  .operator-phase b { padding-left: 4px; }
+}
+
+/* Необязательная режиссёрская панель; не входит в 1920×1080 WebGL-кадр. *//* ── кнопка настроек ── */
+/* Кнопки «Редактировать» и ⚙ стоят в одном углу кадра и делают похожую вещь:
+   открывают следующий уровень работы. Поэтому у них общая высота, форма,
+   поверхность и состояние — различаются только ширина и содержимое. */
+.editor-toggle,
+.cfg-toggle {
+  position: fixed;
+  top: 18px;
+  z-index: 20;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--ui-radius-control);
+  border: 1px solid var(--ui-line);
+  background: var(--ui-surface);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text);
+  cursor: pointer;
+  font: var(--ui-fs-base)/1 var(--ui-font);
+  opacity: 0.88;
+  transition: opacity .2s ease, border-color .15s ease, background .15s ease, color .15s ease;
+}
+.cfg-toggle:hover{ opacity: 1; border-color: var(--ui-line-strong); }
+.cfg-toggle.active,
+body.ui-on .cfg-toggle{
+  border-color: var(--ui-line-accent);
+  color: var(--ui-btn-active-text);
+  background: rgba(198, 165, 107, 0.14);
+  opacity: 1;
+}
+
+.cfg-toggle {
+  right: 18px;
+  width: 38px;
+  padding: 0;
+}
+
+/* ── панель ── */
+.cfg-panel {
+  position: fixed;
+  top: 68px;
+  right: 18px;
+  z-index: 19;
+  width: min(360px, calc(100vw - 36px));
+  max-height: calc(100vh - 88px);
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  background: rgba(10, 8, 6, 0.82);
+  border: 1px solid var(--gold-soft);
+  border-radius: 14px;
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transform: translateY(-6px) scale(0.985);
+  pointer-events: none;
+  transition: opacity .25s ease, transform .25s ease;
+}
+.cfg-panel.open {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.cfg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(217, 176, 97, 0.12);
+}
+.cfg-title {
+  font-size: 12px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.cfg-close {
+  background: none; border: 0; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px;
+}
+.cfg-close:hover { color: var(--text); }
+.cfg-scene-name {
+  font-style: normal;
+  letter-spacing: .08em;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+/* вкладки сцен: у каждой свой набор настроек */
+.cfg-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(217, 176, 97, 0.12);
+}
+.cfg-tab {
+  flex: 1;
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: .06em;
+  color: var(--muted);
+  background: rgba(217, 176, 97, 0.05);
+  border: 1px solid rgba(217, 176, 97, 0.18);
+  border-radius: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+  transition: color .18s, background .18s, border-color .18s;
+}
+.cfg-tab:hover { color: var(--text); border-color: var(--gold); }
+.cfg-tab.active { color: #120d05; background: var(--gold); border-color: var(--gold); }
+
+.cfg-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(217, 176, 97, 0.12);
+}
+.cfg-tools button,
+.cfg-io-actions button {
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: rgba(217, 176, 97, 0.06);
+  border: 1px solid rgba(217, 176, 97, 0.2);
+  border-radius: 999px;
+  padding: 6px 11px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.cfg-tools button:hover,
+.cfg-io-actions button:hover { border-color: var(--gold); background: rgba(217, 176, 97, 0.14); }
+.cfg-tools button.on { color: #120d05; background: var(--gold); border-color: var(--gold); }
+
+.cfg-io {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(217, 176, 97, 0.12);
+}
+.cfg-io[hidden] { display: none; }
+.cfg-io-actions[hidden], .cfg-io button[hidden] { display: none; }
+.cfg-textarea {
+  width: 100%;
+  height: 170px;
+  resize: vertical;
+  background: rgba(0, 0, 0, 0.35);
+  color: #f3e7cc;
+  border: 1px solid rgba(217, 176, 97, 0.2);
+  border-radius: 8px;
+  padding: 8px;
+  font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.cfg-textarea:focus { outline: none; border-color: var(--gold); }
+.cfg-io-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.cfg-io-hint { margin: 0 0 8px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+
+.cfg-body {
+  overflow-y: auto;
+  padding: 4px 8px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(217, 176, 97, 0.3) transparent;
+}
+
+/* Кадр и запись: общие для всех сцен параметры, вынесенные из пульта вверх
+   в настройки. Блок стоит первым, потому что это первое, что настраивают
+   перед записью. */
+.cfg-frame { padding: 10px 12px 12px; border-bottom: 1px solid rgba(217,176,97,.16); flex: 0 0 auto; }
+.cfg-frame-head {
+  margin: 0 0 4px; font-size: 11px; font-weight: 600; letter-spacing: .15em;
+  text-transform: uppercase; color: var(--gold, #d9b061);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+}
+.cfg-frame-summary {
+  font-size: 10px; letter-spacing: .04em; text-transform: none; color: var(--muted, #8d8578);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.cfg-frame .cfg-io-hint { margin: 0 0 6px; }
+.cfg-frame-rows { display: grid; gap: 6px; }
+.cfg-frame-rows .cfg-row { padding: 2px 0; }
+.cfg-frame-rows select {
+  padding: 5px 7px; border: 1px solid rgba(217,176,97,.36); border-radius: 5px;
+  background: #110e0a; color: #ffe3a1; font: inherit; cursor: pointer; max-width: 190px;
+}
+
+.cfg-sec { border-bottom: 1px solid rgba(217, 176, 97, 0.08); }
+.cfg-sec > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 8px;
+  font-size: 12px;
+  letter-spacing: .08em;
+  color: var(--text);
+  display: flex;
+  justify-content: space-between;
+}
+.cfg-sec > summary::-webkit-details-marker { display: none; }
+.cfg-sec > summary::after { content: "+"; color: var(--muted); }
+.cfg-sec[open] > summary::after { content: "–"; }
+.cfg-sec > summary:hover { color: var(--gold); }
+
+.cfg-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 6px 8px 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.cfg-row:hover { color: var(--text); }
+.cfg-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cfg-ctl { display: flex; align-items: center; gap: 8px; grid-column: 1 / -1; }
+.cfg-range .cfg-name { grid-column: 1 / -1; }
+.cfg-ctl output {
+  min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; color: var(--gold); font-size: 11px;
+}
+.cfg-range input[type="range"] {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 2px;
+  background: linear-gradient(90deg, var(--gold) var(--p, 50%), rgba(255,255,255,0.12) var(--p, 50%));
+  border-radius: 2px;
+  outline: none;
+}
+.cfg-range input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #f3dc9e; border: 0; box-shadow: 0 0 0 3px rgba(217,176,97,.18);
+  cursor: pointer;
+}
+.cfg-range input[type="range"]::-moz-range-thumb {
+  width: 12px; height: 12px; border-radius: 50%; background: #f3dc9e; border: 0; cursor: pointer;
+}
+.cfg-color input[type="color"] {
+  width: 34px; height: 22px; padding: 0; border: 1px solid rgba(217,176,97,.3); border-radius: 6px; background: none; cursor: pointer;
+}
+.cfg-bool input[type="checkbox"] { accent-color: var(--gold); width: 16px; height: 16px; cursor: pointer; }
+
+/* ── тост ── */
+/* Тост — часть того же хрома, что пульт и панели: та же поверхность, рамка и
+   типографика. «Таблетка» выбивалась из прямоугольной сетки панелей. */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translate(-50%, 12px);
+  z-index: 30;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 9px 14px;
+  font: var(--ui-fs-base)/1.4 var(--ui-font);
+  color: var(--text);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-panel);
+  box-shadow: var(--ui-shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s, transform .3s;
+}
+/* В редакторе тост поднимается над панелью инструментов, а не ложится на неё. */
+body.editor-on .toast { bottom: 96px; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.error { border-color: var(--ui-danger); color: #ffd0c8; }
+
+/* ── титр: каждая графема гравируется контуром, затем получает заливку. ── */
+#caption {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  pointer-events: none; opacity: 0; font-family: "Cormorant Garamond", Georgia, serif;
+  --u: 10px;
+}
+/* Титр в кадре рисует WebGL (CaptionLayer) — DOM-слой виден только в редакторе,
+   где нужны измеримые буквы и рамки. Так экспорт и превью идут одним путём. */
+body.editor-on #caption { opacity: 1; }
+#caption > * { position: absolute; left: 50%; white-space: nowrap; line-height: 1; text-align: center; }
+#caption [data-text] {
+  transform: translate(-50%, calc(-50% + var(--lift, 0px))); color: transparent;
+}
+#caption [data-text]:empty::before { content: "\00a0"; visibility: hidden; }
+#caption .cap-glyph {
+  display: inline-block; position: relative; white-space: pre; vertical-align: baseline;
+  clip-path: inset(-0.5em calc((1 - var(--o, 0)) * 100%) -0.5em 0);
+}
+/* Перед обводкой — короткий свет кончика пера, а не общий блик всей строки. */
+#caption .cap-glyph::before {
+  content: ""; position: absolute; top: 0.12em; bottom: 0.08em;
+  left: calc(var(--o, 0) * 100%); width: calc(var(--u) * 0.45);
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, rgba(255, 231, 164, 0.55), transparent);
+  filter: blur(calc(var(--u) * 0.10)); opacity: var(--gpen, 0);
+  pointer-events: none;
+}
+#caption .cap-glyph::after {
+  /* Запас по вертикали нужен шрифтам с выносными элементами «р», «у», «д». */
+  content: attr(data-glyph); position: absolute; inset: -0.5em 0;
+  box-sizing: border-box; padding-top: 0.5em; -webkit-text-stroke: 0;
+  clip-path: inset(0 calc((1 - var(--f, 0)) * 100%) 0 0);
+}
+#caption .cap-title {
+  left: calc(50% + var(--title-offset-x, 0%)); top: calc(55% + var(--title-offset-y, 0%)); font-weight: 600;
+  font-size: calc(var(--u) * 7.2 * var(--title-scale, 1) * var(--title-fit, 1));
+  letter-spacing: var(--title-tracking, 0em); padding-left: var(--title-tracking, 0em);
+  -webkit-text-stroke: calc(var(--u) * 0.055) var(--title-color, #e0b25a);
+  filter: drop-shadow(0 calc(var(--u) * 0.10) calc(var(--u) * 0.26) rgba(0, 0, 0, 0.5));
+}
+.cap-title .cap-glyph::after {
+  background: var(--title-color, linear-gradient(180deg, #fff4d8 0%, #f7e2b4 22%, #e6c184 44%, #cfa260 58%, #e9cb8d 76%, #d3a65f 90%, #bf8f4c 100%));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+/* Металл только для штатного названия без пользовательского цвета.
+   Позиционируем градиент на высоте строки, а не растянутой маски глифа. */
+#caption[data-title-metallic="true"] .cap-title .cap-glyph::after {
+  background-image: var(--title-metallic-gradient);
+  background-size: 100% 50%; background-position: center; background-repeat: no-repeat;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.cap-rule {
+  top: 0; transform: translate(-50%, calc(-50% + var(--lift, 0px)));
+  width: calc(var(--u) * 34); display: flex; align-items: center; gap: calc(var(--u) * 1);
+  clip-path: inset(0 calc((1 - var(--p, 0)) * 50%) 0 calc((1 - var(--p, 0)) * 50%));
+}
+.cap-rule span { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, #d9b061, transparent); }
+.cap-rule i {
+  flex: none; width: calc(var(--u) * 0.9); height: calc(var(--u) * 0.9);
+  border: 1px solid #e0b25a; transform: rotate(45deg); opacity: var(--p, 0);
+}
+.r1 { top: 66%; }
+/* Нижняя линия: промежуток сверху и снизу от самой линии равны (по 4% высоты
+   кадра). Прежние 79% давали перекос в 0,3% — на глаз это незаметно, но на
+   стене читается как «дата прилипла к линии», поэтому ставим точное значение. */
+.r2 { top: 78.7%; }
+#caption .cap-sub {
+  left: calc(50% + var(--subtitle-offset-x, 0%)); top: calc(72% + var(--subtitle-offset-y, 0%)); font-weight: 400;
+  font-size: calc(var(--u) * 2.6 * var(--subtitle-scale, 1) * var(--subtitle-fit, 1)); letter-spacing: var(--subtitle-tracking, 0.22em); padding-left: var(--subtitle-tracking, 0.22em);
+  text-transform: uppercase; -webkit-text-stroke: calc(var(--u) * 0.04) var(--subtitle-color, #d9b061);
+}
+.cap-sub .cap-glyph::after { color: var(--subtitle-color, #ecd08c); }
+#caption .cap-date {
+  left: calc(50% + var(--date-offset-x, 0%)); top: calc(84% + var(--date-offset-y, 0%)); font-weight: 400;
+  font-size: calc(var(--u) * 1.95 * var(--date-scale, 1) * var(--date-fit, 1)); letter-spacing: var(--date-tracking, 0.22em); padding-left: var(--date-tracking, 0.22em);
+  text-transform: uppercase; -webkit-text-stroke: calc(var(--u) * 0.04) var(--date-color, #e6c489);
+}
+.cap-date .cap-glyph::after { color: var(--date-color, #e6c489); }
+.cfg-select select {
+  max-width: 180px; padding: 5px 8px; color: var(--text);
+  background: #252018; border: 1px solid rgba(217,176,97,.35);
+  border-radius: 5px; font: inherit; cursor: pointer;
+}
+/* Контур рисуется по пути глифа, а не прямоугольной маской. Заливка остаётся отдельной. */
+#caption.contours-ready .cap-glyph.has-contour { -webkit-text-stroke: 0; clip-path: none; }
+#caption .glyph-contour { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+#caption .glyph-contour path { fill: none; stroke: #e0b25a; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; stroke-dashoffset: calc(1 - var(--o, 0)); }
+#caption .cap-title .glyph-contour path { stroke: var(--title-color, #e0b25a); }
+#caption .cap-sub .glyph-contour path { stroke: var(--subtitle-color, #d9b061); }
+#caption .cap-date .glyph-contour path { stroke: var(--date-color, #d9b061); }
+
+/* Интерфейс конструктора: нейтральные поверхности, золото только для состояния. */
+.cfg-toggle {
+  width: 38px; height: 38px; border-radius: 4px;
+  background: rgba(18, 18, 17, .94); border-color: rgba(255, 255, 255, .16);
+  color: #d8d4cb; box-shadow: none;
+}
+.cfg-toggle:hover, .cfg-toggle.active, body.ui-on .cfg-toggle {
+  color: #e5c788; border-color: rgba(217, 176, 97, .55); background: #1b1a17;
+}
+.cfg-panel {
+  top: 66px; right: 18px; width: min(342px, calc(100vw - 36px));
+  max-height: calc(100vh - 202px); min-height: 0;
+  border-radius: 5px; background: rgba(18, 18, 17, .97);
+  border: 1px solid var(--ui-line);
+  box-shadow: var(--ui-shadow);
+  color: #e9e6df; backdrop-filter: blur(14px);
+  font: var(--ui-fs-base)/1.4 var(--ui-font);
+}
+.cfg-head { padding: 17px 18px 13px; border-color: rgba(255,255,255,.08); }
+.cfg-heading { display: grid; gap: 5px; }
+.cfg-kicker { color: #918d84; font-size: var(--ui-fs-micro); font-weight: 600; letter-spacing: var(--ui-tracking-caps); }
+.cfg-scene-name { margin: 0; color: #c9b68e; }
+.cfg-title { color: #f1efe9; font-size: var(--ui-fs-title); line-height: 1.2; font-weight: 550; letter-spacing: 0; text-transform: none; }
+.cfg-close { color: #aaa69d; font-size: 22px; padding: 5px; }
+.cfg-tabs { gap: 0; padding: 0 14px; border-color: rgba(255,255,255,.09); }
+.cfg-tab {
+  padding: 12px 0 10px; border: 0; border-bottom: 2px solid transparent;
+  border-radius: 0; background: transparent; color: #918d84;
+  font-size: 11px; letter-spacing: .04em;
+}
+.cfg-tab:hover { border-color: rgba(217,176,97,.35); color: #f0ede6; }
+.cfg-tab.active { background: transparent; border-color: #c6a56b; color: #e9d5ad; }
+.cfg-tools {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px; padding: 13px 16px 15px; border-color: rgba(255,255,255,.09);
+}
+.cfg-tools-label {
+  grid-column: 1 / -1; margin-bottom: 4px; color: #918d84;
+  font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+}
+/* Только плотность: форма, фон и состояния приходят из общей кнопки хрома. */
+.cfg-tools button, .cfg-io-actions button { padding: 7px 9px; font-size: var(--ui-fs-small); text-align: left; }
+/* Быстрые команды раздела: та же кнопка хрома, но в одну строку. */
+.cfg-quick { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0 8px; }
+.cfg-quick button { padding: 6px 9px; font-size: var(--ui-fs-small); }
+/* Слоты видеомонолитов: подпись шире обычной, варианты — полной строкой. */
+.cfg-row.cfg-select[data-key] { display: grid; }
+.cfg-select select { width: 100%; max-width: none; }
+.cfg-slots {
+  grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  margin-top: 4px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.07);
+}
+.cfg-slots-label { font-size: 10px; color: #918d84; margin-right: 2px; }
+.cfg-slots button { padding: 5px 7px; font-size: 10.5px; text-align: center; }
+.cfg-io { flex: 0 1 auto; min-height: 0; overflow-y: auto; padding: 12px 16px; border-color: rgba(255,255,255,.09); }
+.cfg-textarea { border-radius: 3px; background: #0e0e0d; border-color: rgba(255,255,255,.14); }
+.cfg-body { min-height: 0; padding: 4px 16px 14px; scrollbar-color: rgba(255,255,255,.2) transparent; }
+.cfg-sec { border-color: rgba(255,255,255,.08); }
+.cfg-sec > summary { padding: 13px 1px; color: #d9d6cf; font-size: 12px; letter-spacing: 0; font-weight: 500; }
+.cfg-sec > summary::after { color: #88857f; font-size: 14px; font-weight: 400; }
+.cfg-sec > summary:hover { color: #e9d5ad; }
+.cfg-row { padding: 5px 1px 12px; color: #a9a59d; }
+.cfg-ctl output { min-width: 43px; color: #d5c19c; }
+.cfg-range input[type="range"] { height: 2px; background: rgba(255,255,255,.23); }
+.cfg-range input[type="range"]::-webkit-slider-thumb { width: 10px; height: 10px; background: #d5bd8c; box-shadow: none; }
+.cfg-range input[type="range"]::-moz-range-thumb { width: 10px; height: 10px; background: #d5bd8c; }
+.cfg-select select { background: #20201e; border-color: rgba(255,255,255,.16); border-radius: 3px; color: #e9e6df; }
+.cfg-panel :focus-visible, .cfg-toggle:focus-visible, .operator-panel :focus-visible {
+  outline: 2px solid #d4b47a; outline-offset: 2px;
+}
+
+/* Плотность пульта. Поверхность, рамка и тень — из общих токенов выше,
+   поэтому пульт и панель настроек не расходятся по виду. */
+.operator-panel {
+  width: min(1140px, calc(100vw - 36px)); bottom: 16px;
+  padding: 9px 14px 11px; border-radius: var(--ui-radius-panel);
+}
+.operator-row { gap: 7px; }
+.operator-row + .operator-row { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.08); }
+.operator-label { color: #9d8258; font-size: var(--ui-fs-micro); letter-spacing: var(--ui-tracking-caps); text-transform: uppercase; font-weight: 600; }
+.operator-panel button { padding: 6px 9px; }
+.operator-scenes small { opacity: .75; }
+.operator-transport input[type="range"] { accent-color: #c6a56b; }
+.operator-transport output { color: #d5d1c8; font-size: 11px; }
+.operator-duration { color: #99958d; }
+.operator-duration input {
+  background: #10100f; color: #ded9cf; border-color: rgba(255,255,255,.14); border-radius: 3px;
+}
+/* Запись — главное действие пульта: единственная кнопка с акцентной рамкой.
+   Остальные команды остаются нейтральными, чтобы акцент не размывался. */
+.operator-panel [data-action="record"], .operator-panel [data-action="record-chain"] {
+  border-color: var(--ui-line-accent);
+  color: #f0dcb2;
+  font-weight: 500;
+}
+@media (max-width: 780px) {
+  .cfg-panel { max-height: min(58vh, calc(100vh - 110px)); }
+  .operator-panel { width: calc(100vw - 24px); bottom: 12px; max-height: 36vh; overflow-y: auto; padding: 8px 10px; }
+  .operator-scenes { min-width: 0; }
+  .operator-transport input[type="range"] { min-width: 120px; }
+}
+@media (max-height: 500px) {
+  .cfg-panel { max-height: calc(100vh - 80px); }
+}
+
+.cfg-text input { width: 100%; max-width: 180px; padding: 6px 8px; background: #20201e; color: #e9e6df; border: 1px solid rgba(255,255,255,.16); border-radius: 3px; font: inherit; }
+.cfg-image-ctl { display: inline-flex; align-items: center; gap: 5px; }
+.cfg-image-ctl button {
+  padding: 5px 9px; border-radius: 3px; border: 1px solid rgba(255,255,255,.16);
+  background: #20201e; color: #e9e6df; font: inherit; font-size: 11px; cursor: pointer;
+}
+.cfg-image-ctl button:hover { border-color: rgba(217,176,97,.5); color: #f4e2bc; }
+
+.operator-chain-picker { position: relative; }
+.operator-chain-picker > summary {
+  list-style: none; padding: 6px 8px; border-radius: 3px;
+  border: 1px solid rgba(255,255,255,.12); color: #bcb8b0; cursor: pointer;
+  font-size: 11px; user-select: none;
+}
+.operator-chain-picker > summary::-webkit-details-marker { display: none; }
+.operator-chain-picker[open] > summary, .operator-chain-picker > summary:hover {
+  background: rgba(255,255,255,.06); color: #f1eee7;
+}
+.operator-chain-menu {
+  position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 30;
+  min-width: 168px; padding: 8px 10px; display: grid; gap: 6px;
+  background: rgba(18,18,17,.98); border: 1px solid rgba(255,255,255,.16);
+  border-radius: 5px; box-shadow: 0 10px 30px rgba(0,0,0,.55);
+}
+.operator-chain-menu label {
+  display: flex; align-items: center; gap: 7px; font-size: 11px; color: #dcd8cf; cursor: pointer; white-space: nowrap;
+}
+.operator-chain-menu input[type="checkbox"] { accent-color: #c6a56b; }
+
+/* Редактор — отдельный интерфейс, не часть экспортного кадра. */
+/* «Редактировать» — следующая ступень после слоёв, поэтому стоит под кнопкой
+   слоёв у левого края; в редакторе верхняя строка прячется (см. ниже). */
+.editor-toggle {
+  left: 14px;
+  top: 62px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--ui-pill-radius);
+  border: 1px solid rgba(255, 214, 140, .25);
+  background: rgba(0, 0, 0, .45);
+  color: rgba(255, 236, 199, .75);
+  font: 10px/1 var(--ui-font);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+/* В редакторе рамки на кадре важнее хрома, но панели остаются доступными:
+   «Настройки» в редакторе открывают инспектор поверх кадра. */
+.editor-layer { position: fixed; inset: 0; z-index: 17; pointer-events: none; }
+
+/* Пространство редактора: панели вынесены из кадра, а инспектор остаётся открытым. */
+.editor-sidebar { position: fixed; top: 68px; bottom: 140px; pointer-events: auto; z-index: 4;
+  background: #141310; border: 1px solid rgba(217,176,97,.23); border-radius: 6px;
+  color: #ddd7c9; overflow-y: auto; font: 12px/1.4 system-ui, sans-serif; }
+/* Акцент только на выбранном объекте; остальные остаются доступными на кадре. */
+.editor-box { border-color: rgba(255,221,156,.28); }
+#caption .cap-custom { opacity: calc(var(--custom-opacity, 1) * var(--custom-reveal, 1)); letter-spacing: var(--custom-tracking, 0em); padding-left: var(--custom-tracking, 0em); font-weight: 600; font-size: calc(var(--u) * 3.5 * var(--custom-scale, 1) * var(--custom-fit, 1));
+  -webkit-text-stroke: calc(var(--u) * .04) var(--custom-color, #ecd08c); }
+#caption .cap-custom .cap-glyph::after { color: var(--custom-color, #ecd08c); }
+#caption .cap-custom .glyph-contour path { stroke: var(--custom-color, #ecd08c); }
+
+/* Независимые надписи не наследуют подъём общего титра. */
+#caption .cap-custom[data-independent="true"] { transform: translate(-50%, calc(-50% + var(--lift, 0px) - var(--drift, 0px))); }
+
+/* Таймлайн редактора расположен вне кадра и не попадает в экспорт. */
+.editor-track-panel { position: fixed; left: 196px; right: 246px; bottom: 140px; height: min(130px, 16vh);
+  pointer-events: auto; z-index: 4; display: flex; flex-direction: column; overflow: hidden;
+  background: #141310; border: 1px solid rgba(217,176,97,.23); border-radius: 6px;
+  color: #ddd7c9; font: 11px/1.35 system-ui, sans-serif; }
+
+/* Сдержанная рабочая панель: акцент — на выбранном элементе, не на хроме. */
+.editor-toggle { top: 62px; left: 14px; padding: 0 14px; }
+
+.export-overlay { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: rgba(4, 3, 2, .68); }
+.export-dialog { min-width: 280px; padding: 24px; text-align: center; border: 1px solid #a98348; border-radius: 8px; color: #f2d49c; background: #17110b; box-shadow: 0 12px 48px #000a; }
+.export-dialog p { margin: 12px 0; }
+.export-dialog progress { display: block; width: 100%; margin-bottom: 16px; accent-color: #caa466; }
+.export-dialog button { padding: 8px 18px; color: #f2d49c; background: #312417; border: 1px solid #a98348; border-radius: 4px; cursor: pointer; }
+
+/* Рабочий ориентир: не входит в композит и не является стандартом конкретной площадки. */
+.editor-safe-frame { position: fixed; pointer-events: none; border: 1px dashed rgba(230, 216, 180, .46); z-index: 0; }
+
+/* Блокировка геометрии действует только в редакторе. */
+.editor-lock { flex: 0 0 25px; padding: 4px; border: 0; border-radius: 4px; background: transparent; color: #716b5f; cursor: pointer; }
+
+/* Мягкое проявление: готовая заливка без пишущего контура. */
+#caption .cap-custom[data-reveal-style^="fade"] .cap-glyph { -webkit-text-stroke: 0; }
+#caption .cap-custom[data-reveal-style^="fade"] .glyph-contour,
+#caption .cap-custom[data-reveal-style^="fade"] .cap-glyph::before { display: none; }
+
+/* Рабочее пространство: нейтральные панели, акцент на активном слое и времени. */
+.editor-sidebar, .editor-track-panel { background: #1c1d20; border: 1px solid #383b41; border-radius: 3px; color: #d8d9dc; }
+
+/* Настраиваемые разделители и таймлайн сразу под изображением композиции. */
+@media (min-width: 781px) {
+  .editor-layers { width: var(--workspace-layers, 176px); }
+  .editor-inspector { width: var(--workspace-inspector, 226px); }
+  .editor-track-panel { left: calc(var(--workspace-layers, 176px) + 20px); right: calc(var(--workspace-inspector, 226px) + 20px); top: var(--workspace-timeline-top, auto); bottom: 140px; height: auto; }
+  .editor-workspace-resize { position: fixed; top: 68px; bottom: 140px; width: 10px; z-index: 6; pointer-events: auto; cursor: col-resize; touch-action: none; outline: none; }
+  .editor-workspace-resize-layers { left: calc(var(--workspace-layers, 176px) + 10px); }
+  .editor-workspace-resize-inspector { right: calc(var(--workspace-inspector, 226px) + 10px); }
+  .editor-workspace-resize::after { content: ''; position: absolute; left: 4px; top: calc(50% - 24px); height: 48px; width: 2px; border-radius: 2px; background: #686a70; }
+  .editor-workspace-resize:hover::after, .editor-workspace-resize:focus-visible::after { background: #d2ad6a; }
+}
+/* Штатные элементы перечислены без выдуманной полосы времени. */
+.editor-track-lane.is-scenario { background: transparent; border-color: transparent; }
+
+/* Сворачиваемые разделы инспектора, не связанные с данными проекта. */
+.editor-property-group { border-bottom: 1px solid #41444a; }
+
+/* Масштаб и рука относятся только к предпросмотру композиции. */
+.editor-preview-clip { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+/* Линейка и фазы используют ту же ширину, что дорожки рядом с прокруткой. */
+.editor-track-scale, .editor-phase-row { padding-right: calc(12px + var(--timeline-scrollbar, 0px)); }
+/* В редакторе перемотка и шаги находятся на таймлайне; остальные функции пульта остаются. */
+body.editor-on .operator-transport [data-action="prev"],
+body.editor-on .operator-transport [data-action="next"],
+body.editor-on .operator-transport [data-role="time"] { display: none; }
+/* В широком редакторе пульт занимает одну строку, освобождая место дорожкам. */
+@media (min-width: 1200px) {
+  body.editor-on .operator-panel { display: flex; align-items: center; gap: 12px; }
+  body.editor-on .operator-panel .operator-row { flex-wrap: nowrap; min-width: 0; }
+  body.editor-on .operator-panel .operator-row:first-child { flex: 1 1 auto; }
+  body.editor-on .operator-panel .operator-row + .operator-row { flex: 0 0 auto; margin: 0; padding: 0; border: 0; }
+  /* Транспорт идёт третьим ребёнком после таймлайна, поэтому сброс выше его не
+     берёт: без этого остаток margin-top роняет строку ниже общей оси. */
+  body.editor-on .operator-panel .operator-transport { margin-top: 0; }
+  body.editor-on .editor-track-panel { bottom: 80px; }
+}
+
+/* Монохромный рабочий хром. Не применяется к сцене, титрам и выбору цвета. */
+.editor-sidebar, .editor-track-panel, .editor-preview-tools, .editor-quick-help {
+  background: #191919; border-color: #3b3b3b; color: #e0e0e0;
+}
+select){ accent-color: #dedede; }
+input[type="number"],
+select){ color: #eee; background: #151515; border-color: #555; }
+output){ color: #ccc; }
+/* Пульт и верхние команды остаются функциональными, но не конкурируют с кадром. */
+body.editor-on .operator-panel { background: rgba(20,20,20,.96); border-color: #444; color: #ddd; }
+.operator-duration){ color: #aaa; }
+:focus-visible){ background: #454545; border-color: #aaa; color: #fff; }
+[aria-pressed="true"]){ background: var(--ui-btn-active-bg); border-color: #aaa; color: var(--ui-btn-active-text); }
+:focus-visible,
+[aria-pressed="true"]){ background: #444; border-color: #aaa; color: #fff; }
+
+/* Композиции и экспорт — одна верхняя лента, перемотка остаётся на таймлайне. */
+body.editor-on .operator-panel {
+  left: 10px; right: 10px; top: 59px; bottom: auto; transform: none;
+  width: auto; height: 44px; max-height: none; padding: 4px 8px;
+  display: flex; align-items: center; gap: 10px; overflow-x: auto; overflow-y: hidden;
+  box-shadow: none; border-radius: 3px; white-space: nowrap; scrollbar-width: thin;
+}
+/* В редакторе пульт — одна строка высотой 44 px: фазы и засечки туда не
+   влезают, поэтому остаётся только сама дорожка перемотки. */
+body.editor-on .operator-panel .operator-timeline { flex: 1 0 160px; min-width: 140px; margin: 0; }
+/* Режим холста — только раскладка UI, без изменения проекта или рендера. */
+body.editor-focus .editor-sidebar,
+body.editor-focus .editor-track-panel,
+body.editor-focus .editor-workspace-resize { display: none; }
+/* Краткий интерфейс: пояснения доступны по раскрытию, свойства собраны по смыслу. */
+.editor-track-head small { display: none; }
+
+/* Штатные строки: готовые буквы проявляются целиком, без рисующего контура. */
+#caption :is(.cap-title, .cap-sub, .cap-date)[data-reveal-style^="fade"] { opacity: var(--caption-reveal, 0); -webkit-text-stroke: 0; }
+#caption :is(.cap-title, .cap-sub, .cap-date)[data-reveal-style^="fade"] .cap-glyph { -webkit-text-stroke: 0; clip-path: none; }
+#caption :is(.cap-title, .cap-sub, .cap-date)[data-reveal-style^="fade"] .glyph-contour,
+#caption :is(.cap-title, .cap-sub, .cap-date)[data-reveal-style^="fade"] .cap-glyph::before { display: none; }
+.operator-archive { display: inline-flex; align-items: center; padding: 5px 8px; color: #c9c9c9; text-decoration: none; border: 1px solid #555; border-radius: 3px; white-space: nowrap; font-size: 11px; }
+.operator-archive:hover, .operator-archive:focus-visible { color: #fff; background: #333; outline: 2px solid #eee; outline-offset: 1px; }
+.operator-busy .operator-archive { pointer-events: none; opacity: .4; }
+
+/* Persistent recovery action, independent of short-lived toast notifications. */
+.storage-warning:not([hidden]) { position: fixed; z-index: 10000; left: 50%; bottom: 1rem; transform: translateX(-50%); width: min(90vw, 650px); box-sizing: border-box; padding: 12px 16px; background: #33251b; color: #fff2d5; border: 1px solid #d5a24b; border-radius: 8px; font: 14px/1.4 sans-serif; text-align: center; }
+.storage-warning button { margin: 6px; padding: 6px 10px; cursor: pointer; }
+.export-dialog small { display: block; margin-bottom: 12px; line-height: 1.4; }
+
+/* Отдельный макет спонсоров содержит собственные тексты в рендере. */
+body.scene-partners #caption { display: none; }
+
+/* Интерфейс уважает системный запрос на покой: служебные анимации и переходы
+   гаснут до мгновенной смены состояния. Движение самой сцены — содержательное
+   и управляется настройкой «Движение», поэтому его здесь не трогаем. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Просмотр готового экспорта: диалог поверх всего кадра. ── */
+.export-viewer {
+  position: fixed; inset: 0; z-index: 120;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px; background: rgba(5, 3, 2, .96);
+}
+.export-viewer:fullscreen { padding: 22px; gap: 14px; background: #000; }
+.export-viewer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.export-viewer-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.export-viewer-title strong {
+  font: 600 15px/1.25 system-ui, sans-serif; color: #ffe7a6;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.export-viewer-title span { font: 11px/1.3 system-ui, sans-serif; color: rgba(233, 220, 192, .72); }
+.export-viewer-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.export-viewer-actions button {
+  background: transparent; color: #e9dcc0; border: 1px solid rgba(217, 176, 97, .35);
+  border-radius: 6px; padding: 6px 11px; cursor: pointer; font: inherit; font-size: 13px;
+}
+.export-viewer-actions button:hover, .export-viewer-actions button:focus-visible { border-color: #d9b061; color: #ffe7a6; }
+.export-viewer-actions [data-viewer="close"] { font-size: 20px; line-height: 1; padding: 2px 9px; border: 0; }
+.export-viewer video {
+  flex: 1; min-height: 0; width: 100%;
+  object-fit: contain; background: #000;
+  border: 1px solid #3a3126; border-radius: 8px;
+}
+.export-viewer-hint { margin: 0; color: rgba(233, 220, 192, .55); font: 11px/1.4 system-ui, sans-serif; text-align: center; }
+@media (max-width: 640px) {
+  .export-viewer { padding: 8px; gap: 8px; }
+  .export-viewer-head { flex-wrap: wrap; }
+  .export-viewer-actions button { padding: 5px 8px; font-size: 12px; }
+}
+
+/* ============================================================================
+ * Единый хром: редактор, пульт и настройки — один интерфейс.
+ *
+ * Файл выше вырос из трёх проектов и местами объявляет вид одного и того же
+ * элемента два-три раза (например, у редактора было три «палитры» подряд:
+ * золотая, графитовая и монохромная). Ниже — один слой, который приводит
+ * панели редактора к тем же токенам, что пульт и настройки: та же
+ * поверхность, рамка, радиус, шрифт и шкала подписей. Сцена, титры и образцы
+ * цвета остаются нетронутыми: это содержимое кадра, а не хром.
+ * ========================================================================== */
+
+/* Панели редактора: поверхность и форма как у пульта и панели настроек. */
+:is(.editor-sidebar, .editor-track-panel, .editor-preview-tools, .editor-quick-help, .editor-context-menu) {
+  background: var(--ui-surface-solid);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-panel);
+  color: #dcd9d2;
+  font: var(--ui-fs-base)/1.4 var(--ui-font);
+  box-shadow: none;
+}
+.cfg-kicker,
+.operator-label{ color: #918d84; font-size: var(--ui-fs-micro); letter-spacing: var(--ui-tracking-caps); font-weight: 600; text-transform: uppercase; }
+
+/* Поля ввода: одна форма на все панели (настройки, инспектор, таймлайн). */
+:is(.editor-inspector, .editor-track-panel, .editor-quick-help, .cfg-panel) :is(input[type="text"], input[type="number"], input[type="search"], select, textarea) {
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-control);
+  color: #f0ede6;
+  font: var(--ui-fs-base)/1.4 var(--ui-font);
+}
+.cfg-panel) :is(input,
+select,
+textarea):focus-visible{
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+.cfg-panel) :is(label,
+output){ color: #b9b4aa; }
+
+/* Подписи строк и разделов получают ту же шкалу, что и настройки. */
+.cfg-sec > summary,
+.editor-property-group > summary { color: #e0ddd6; font-size: var(--ui-fs-base); font-weight: 500; }
+.cfg-sec > summary:hover{ color: var(--ui-btn-active-text); }
+.cfg-row{ color: #a9a59d; font-size: var(--ui-fs-small); }
+.cfg-io-hint{ color: #918d84; font-size: var(--ui-fs-small); line-height: 1.5; }
+
+/* Полосы и дорожки редактора: те же линии, что у таймлайна пульта. */
+:is(.editor-track-lane, .editor-phase-lane) {
+  background: rgba(255, 255, 255, .035);
+  border: 1px solid var(--ui-line);
+  border-radius: 2px;
+}
+
+/* В редакторе пульт и верхние кнопки — тот же хром, без отдельной «серой» темы.
+   Монохромная перекраска ниже по файлу обнуляла золото и делала редактор
+   похожим на другое приложение; здесь она приводится к общим токенам. */
+body.editor-on .operator-panel {
+  background: var(--ui-surface-solid);
+  border-color: var(--ui-line);
+  color: #dcd9d2;
+}
+:focus-visible),
+:focus-visible){
+  background: var(--ui-btn-bg-hover);
+  border-color: var(--ui-btn-border-hover);
+  color: #fff;
+}
+[aria-pressed="true"]){
+  background: var(--ui-btn-active-bg);
+  border-color: var(--ui-btn-active-border);
+  color: var(--ui-btn-active-text);
+}
+.operator-duration){ color: #918d84; }
+
+/* Ориентир безопасных полей — направляющая, а не элемент кадра: тонкая линия
+   в цвет акцента, чтобы не читалась как часть композиции. */
+.editor-safe-frame { border-color: rgba(212, 180, 122, .4); }
+
+/* Слой эффектов и переходов рисуется в кадре: его геометрию не трогаем. */
+.fx-overlay { pointer-events: none; }
+
+/* ============================================================================
+ * Студия: тонкий хром поверх кадра.
+ *
+ * Раскладка повторяет референс (cinematic.lab.proto-2): по центру сверху —
+ * выпадающий список роликов, по краям — две круглые кнопки, панели висят
+ * поверх кадра и тянутся за заголовок. Палитра одна: янтарь на почти чёрном,
+ * стекло (backdrop-blur), скругления 16 px у панелей и 999 px у «таблеток».
+ * ========================================================================== */
+:root {
+  --ui-amber: #ffd68c;
+  --ui-amber-soft: rgba(255, 214, 140, .35);
+  --ui-amber-line: rgba(255, 226, 175, .22);
+  --ui-glass: rgba(10, 8, 5, .8);
+  --ui-glass-solid: rgba(10, 8, 5, .92);
+  --ui-panel-radius: 16px;
+  --ui-pill-radius: 999px;
+}
+
+/* ── верхняя строка: ролик по центру, кнопки по краям ─────────────────── */
+.clip-switch {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 26;
+  width: min(320px, calc(100vw - 220px));
+  transition: opacity .4s ease;
+}
+body.panels-on .clip-switch { opacity: 1; }
+body.ui-hidden .clip-switch,
+body.ui-hidden .studio-buttons { opacity: 0; pointer-events: none; }
+.clip-switch-inner { position: relative; }
+.clip-switch select {
+  appearance: none;
+  width: 100%;
+  padding: 8px 30px 8px 14px;
+  border-radius: var(--ui-pill-radius);
+  border: 1px solid var(--ui-amber-soft);
+  background: rgba(0, 0, 0, .7);
+  color: rgba(255, 236, 199, .9);
+  font: 10px/1 var(--ui-font);
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  outline: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  transition: border-color .18s ease, color .18s ease;
+}
+.clip-switch select:is(:hover, :focus-visible) { border-color: rgba(255, 214, 140, .7); color: #fff3dc; }
+.clip-switch::after {
+  content: "⌄";
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  transform: translateY(-52%);
+  color: rgba(255, 236, 199, .6);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.studio-buttons { position: fixed; inset: 0; z-index: 26; pointer-events: none; }
+.studio-btn {
+  position: fixed;
+  top: 14px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 214, 140, .25);
+  background: rgba(0, 0, 0, .45);
+  color: rgba(255, 236, 199, .7);
+  pointer-events: auto;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: border-color .18s ease, background .18s ease, color .18s ease;
+}
+/* Левая кнопка — слои, правая — настройки: панели открываются с той же
+   стороны, где стоит кнопка, поэтому рука ищет их там же. */
+.studio-btn-layers { left: 14px; }
+.studio-btn-settings { right: 14px; }
+.studio-btn:is(:hover, :focus-visible) { border-color: rgba(255, 214, 140, .7); color: #fff3dc; }
+.studio-btn[aria-pressed="true"] {
+  border-color: rgba(255, 214, 140, .7);
+  background: rgba(255, 214, 140, .15);
+  color: #fff3dc;
+}
+.studio-btn:focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 2px; }
+
+/* ── плавающая панель ────────────────────────────────────────────────── */
+.fp {
+  position: fixed;
+  z-index: 27;
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100vw - 16px);
+  overflow: hidden;
+  border-radius: var(--ui-panel-radius);
+  border: 1px solid rgba(255, 226, 175, .1);
+  background: var(--ui-glass);
+  color: rgba(255, 248, 235, .9);
+  font: 12px/1.4 var(--ui-font);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .55);
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  transition: opacity .3s ease;
+}
+.fp[hidden] { display: none; }
+/* Без наведения и фокуса панель отходит назад, чтобы не спорить с кадром. */
+.fp.is-dim { opacity: .5; }
+.fp.is-drag { box-shadow: 0 26px 70px rgba(0, 0, 0, .7); }
+
+.fp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.fp.is-drag .fp-head { cursor: grabbing; }
+.fp-icon { display: grid; place-items: center; color: rgba(255, 214, 140, .7); }
+.fp-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+  color: rgba(255, 236, 199, .8);
+}
+.fp-right { display: flex; align-items: center; gap: 4px; }
+.fp-scene {
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(255, 214, 140, .55);
+  white-space: nowrap;
+}
+.fp-btn {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(255, 236, 199, .5);
+  cursor: pointer;
+}
+.fp-btn:is(:hover, :focus-visible) { background: rgba(255, 255, 255, .1); color: #fff3dc; }
+.fp-body {
+  max-height: min(72vh, 640px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+.panel-scroll::-webkit-scrollbar { width: 6px; }
+.panel-scroll::-webkit-scrollbar-thumb { background: rgba(255, 220, 160, .18); border-radius: 3px; }
+
+/* ── левая панель: группы и строки слоёв ─────────────────────────────── */
+.lyr-group + .lyr-group { border-top: 1px solid rgba(255, 255, 255, .05); }
+.lyr-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 214, 140, .6);
+  font: 10px/1 var(--ui-font);
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.lyr-group-head:hover { color: #fff3dc; }
+.lyr-group-head svg { transition: transform .18s ease; }
+.lyr-group-head[aria-expanded="false"] svg { transform: rotate(180deg); }
+.lyr-list { margin: 0; padding: 0 0 4px; list-style: none; }
+.lyr-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px 5px 8px;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.lyr-row:is(:hover, :focus-visible) { background: rgba(255, 255, 255, .05); outline: none; }
+.lyr-row.is-selected { border-left-color: var(--ui-amber); background: rgba(255, 214, 140, .1); }
+.lyr-eye {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(255, 214, 140, .8);
+  cursor: pointer;
+}
+.lyr-eye:is(:hover, :focus-visible) { background: rgba(255, 255, 255, .1); }
+.lyr-eye.is-empty { color: rgba(255, 236, 199, .18); cursor: default; }
+.lyr-row.is-off .lyr-eye { color: rgba(255, 236, 199, .3); }
+.lyr-text { display: grid; min-width: 0; flex: 1; }
+.lyr-text b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+  font-size: 12px;
+  color: #fff6e6;
+}
+.lyr-row.is-off .lyr-text b { color: rgba(255, 236, 199, .35); text-decoration: line-through; text-decoration-color: rgba(255, 255, 255, .2); }
+.lyr-text i {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+  font-size: 10px;
+  color: rgba(255, 236, 199, .35);
+}
+
+/* ── правая панель: поля выбранного слоя ─────────────────────────────── */
+.ins-scene {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+  background: var(--ui-glass-solid);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.ins-scene-label {
+  font-size: 10px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: rgba(255, 236, 199, .4);
+  white-space: nowrap;
+}
+.ins-hint {
+  margin: 0;
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: rgba(255, 236, 199, .4);
+}
+.ins-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 12px;
+  min-height: 26px;
+}
+.ins-row.ins-range,
+.ins-row.ins-text,
+.ins-row.ins-image { flex-wrap: wrap; }
+.ins-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 236, 199, .7);
+  font: inherit;
+  text-align: left;
+  cursor: default;
+}
+.ins-label span { overflow: hidden; text-overflow: ellipsis; }
+.ins-dot { width: 4px; height: 4px; flex: 0 0 auto; border-radius: 50%; background: transparent; }
+.ins-dot.is-on { background: var(--ui-amber); }
+
+/* поля: одна форма на все типы */
+.ins-row :is(input[type="text"], input[type="number"], select, textarea),
+.ins-text,
+.ins-hex {
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: rgba(255, 255, 255, .05);
+  color: #fff6e6;
+  font: 11px/1.3 var(--ui-font);
+  padding: 3px 6px;
+  outline: none;
+}
+.ins-row :is(input, select):focus { border-color: rgba(255, 214, 140, .5); }
+.ins-text { flex: 1 1 100%; min-width: 0; }
+.ins-select { max-width: 190px; cursor: pointer; background: #15110a; }
+.ins-option-empty { color: rgba(255, 236, 199, .5); }
+.ins-range { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; }
+.ins-range .ins-number { width: 66px; text-align: right; font-variant-numeric: tabular-nums; }
+.ins-color { display: flex; align-items: center; gap: 6px; }
+.ins-hex { width: 78px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; }
+.ins-row input[type="color"] {
+  width: 26px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+.ins-row input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.ins-row input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 5px; }
+.ins-image { display: flex; gap: 6px; flex: 1 1 100%; }
+.ins-image button {
+  padding: 3px 9px;
+  border-radius: var(--ui-pill-radius);
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: transparent;
+  color: rgba(255, 236, 199, .7);
+  font: 10px/1.5 var(--ui-font);
+  cursor: pointer;
+}
+.ins-image button:hover { border-color: rgba(255, 214, 140, .45); color: #fff3dc; }
+
+/* переключатель 28×16 — как в референсе */
+.ins-switch {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  flex: 0 0 auto;
+  padding: 0;
+  border-radius: var(--ui-pill-radius);
+  border: 1px solid rgba(255, 255, 255, .15);
+  background: rgba(255, 255, 255, .05);
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease;
+}
+.ins-switch span {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .4);
+  transition: left .16s ease, background .16s ease;
+}
+.ins-switch[aria-checked="true"] { border-color: rgba(255, 214, 140, .6); background: rgba(255, 214, 140, .3); }
+.ins-switch[aria-checked="true"] span { left: 13px; background: #ffe3a0; }
+
+/* ползунок: тонкая дорожка и янтарная заливка до бегунка */
+.rng {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  min-width: 40px;
+  height: 14px;
+  background: transparent;
+  cursor: pointer;
+}
+.rng::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(240, 190, 100, .85) var(--p, 0%), rgba(255, 255, 255, .14) var(--p, 0%));
+}
+.rng::-moz-range-track { height: 2px; border-radius: 2px; background: rgba(255, 255, 255, .14); }
+.rng::-moz-range-progress { height: 2px; background: rgba(240, 190, 100, .85); }
+.rng::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px;
+  height: 11px;
+  margin-top: -4.5px;
+  border: 0;
+  border-radius: 50%;
+  background: #ffe3a0;
+  box-shadow: 0 0 0 3px rgba(255, 200, 110, .15);
+}
+.rng::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border: 0;
+  border-radius: 50%;
+  background: #ffe3a0;
+}
+
+/* ── пульт: транспорт снизу, без дублирования выбора ролика ──────────── */
+.operator-panel {
+  background: var(--ui-glass);
+  border: 1px solid rgba(255, 226, 175, .1);
+  border-radius: var(--ui-panel-radius);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .55);
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  color: rgba(255, 248, 235, .88);
+}
+.operator-panel button {
+  border-radius: var(--ui-pill-radius);
+  border: 1px solid rgba(255, 214, 140, .25);
+  background: rgba(0, 0, 0, .35);
+  color: rgba(255, 236, 199, .8);
+  font: 10px/1 var(--ui-font);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  padding: 7px 12px;
+}
+.operator-panel button:is(:hover, :focus-visible) {
+  border-color: rgba(255, 214, 140, .6);
+  background: rgba(0, 0, 0, .6);
+  color: #fff3dc;
+}
+.operator-panel button:is([aria-pressed="true"], [aria-current="page"]) {
+  border-color: rgba(255, 214, 140, .6);
+  background: rgba(255, 214, 140, .15);
+  color: #fff3dc;
+}
+.operator-label { color: rgba(255, 214, 140, .5); letter-spacing: .28em; }
+.operator-transport output,
+.operator-transport [data-role="time"] { color: #ffe3a1; font-variant-numeric: tabular-nums; letter-spacing: .08em; }
+.operator-duration { color: rgba(255, 236, 199, .45); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+.operator-duration input {
+  width: 58px;
+  padding: 4px 5px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: rgba(255, 255, 255, .05);
+  color: #fff6e6;
+  font: 11px/1.2 var(--ui-font);
+}
+.operator-media { border-color: rgba(255, 255, 255, .1); background: rgba(255, 255, 255, .05); color: rgba(255, 236, 199, .7); }
+.operator-beat { color: rgba(255, 214, 140, .6) !important; }
+
+/* на узком экране верхняя строка не должна наезжать на кнопки */
+@media (max-width: 640px) {
+  .clip-switch { width: min(240px, calc(100vw - 140px)); }
+  .fp { max-width: calc(100vw - 24px); }
+}
+
+/* ── вкладки правой панели: слой / кадр / JSON ───────────────────────── */
+.ins-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+  background: var(--ui-glass-solid);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.ins-tab {
+  flex: 1;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 236, 199, .45);
+  font: 10px/1.4 var(--ui-font);
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease;
+}
+.ins-tab:is(:hover, :focus-visible) { color: #fff3dc; }
+.ins-tab.is-active { background: rgba(255, 214, 140, .15); color: #fff3dc; }
+
+.ins-frame-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: rgba(255, 236, 199, .4);
+}
+.ins-frame-head b { font-weight: 400; letter-spacing: .04em; text-transform: none; color: rgba(255, 214, 140, .8); }
+
+.ins-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid rgba(255, 255, 255, .05);
+}
+.ins-actions-tight { border-top: 0; }
+.ins-actions button {
+  padding: 5px 11px;
+  border-radius: var(--ui-pill-radius);
+  border: 1px solid rgba(255, 214, 140, .22);
+  background: rgba(0, 0, 0, .3);
+  color: rgba(255, 236, 199, .78);
+  font: 10px/1.4 var(--ui-font);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+.ins-actions button:is(:hover, :focus-visible) { border-color: rgba(255, 214, 140, .6); color: #fff3dc; background: rgba(0, 0, 0, .5); }
+.ins-actions button:disabled { opacity: .35; cursor: default; }
+.ins-json {
+  width: calc(100% - 24px);
+  margin: 0 12px 8px;
+  height: 180px;
+  padding: 8px;
+  resize: vertical;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: rgba(0, 0, 0, .35);
+  color: #fff3dc;
+  font: 10px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.ins-json:focus { outline: none; border-color: rgba(255, 214, 140, .5); }
+
+/* поиск по слоям: тонкая строка над списком, не спорит с заголовком панели */
+.lyr-search { padding: 8px 10px 4px; }
+.lyr-search-input {
+  width: 100%;
+  padding: 5px 9px;
+  border-radius: var(--ui-pill-radius);
+  border: 1px solid rgba(255, 255, 255, .08);
+  background: rgba(255, 255, 255, .04);
+  color: #fff6e6;
+  font: 11px/1.3 var(--ui-font);
+  outline: none;
+}
+.lyr-search-input::placeholder { color: rgba(255, 236, 199, .3); }
+.lyr-search-input:focus { border-color: rgba(255, 214, 140, .5); }
+.lyr-row[hidden], .lyr-group[hidden] { display: none; }

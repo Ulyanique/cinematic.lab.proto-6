@@ -120,7 +120,6 @@ export class SponsorScene {
     return true;
   }
   setCaptionSource() {}
-  setCaptionOverride() {}
   setCaptionVisible() {}
 
   update(t) {

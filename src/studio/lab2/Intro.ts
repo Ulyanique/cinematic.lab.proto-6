@@ -195,6 +195,8 @@ export class Intro {
   embedded = false;
   embeddedSize: [number, number] | null = null;
   private disposed = false;
+  /** Порядок слоёв, пришедший из общей панели студии; `null` — собственный. */
+  private sharedDepthOrder: string[] | null = null;
   private cancelRecording: (() => void) | null = null;
   /** максимальная ширина рендера в превью; адаптивно снижается на слабых GPU */
   private qualityCap = 1920;
@@ -1053,6 +1055,15 @@ export class Intro {
     };
   }
 
+  /**
+   * Порядок слоёв из общей панели студии (от дальнего к ближнему).
+   * `null` возвращает собственный порядок лаборатории.
+   */
+  setDepthOrder(order: string[] | null) {
+    this.sharedDepthOrder = Array.isArray(order) ? order : null;
+    if (this.scene) this.applyOrder();
+  }
+
   /** Применить новую конфигурацию. Параметры «на лету» подхватываются в update(); структурные — пересобирают слой. */
   setConfig(cfg: Config) {
     this.cfg = cfg;
@@ -1096,10 +1107,24 @@ export class Intro {
     }
   }
 
-  /** Порядок слоёв: чем выше в списке, тем ближе к зрителю (renderOrder для светящихся, глубина для золота). */
+  /**
+   * Порядок слоёв: чем выше в списке, тем ближе к зрителю (renderOrder для
+   * светящихся, глубина для золота).
+   *
+   * Список приходит из левой панели «Слои»: лаборатория берёт общий порядок
+   * сцены (`depthOrder`) и раскладывает его на свои слои. Пока ручной порядок
+   * выключен, используется `cfg.order` — вид ролика не меняется.
+   */
   applyOrder() {
-    const order = this.cfg.order, N = order.length;
-    const band = (id) => 10 + (N - 1 - order.indexOf(id)) * 10;
+    const shared = this.sharedDepthOrder;
+    const order = shared?.length ? shared : this.cfg.order;
+    const N = order.length;
+    const fromPanel = Boolean(shared?.length);
+    // Без общей панели полосы остаются прежними (10, 20, 30 … от дальнего).
+    // С общей панелью база 40 держит лабораторию выше кадра-хоста, а ближний
+    // слой получает наибольший renderOrder: в лаборатории индекс 0 — самый
+    // близкий к зрителю.
+    const band = (id) => (fromPanel ? 40 : 10) + (N - 1 - order.indexOf(id)) * 10;
     const setRO = (list, id) => list.filter(Boolean).forEach((o, j) => { o.renderOrder = band(id) + Math.min(j, 9); });
     setRO([...this.arcs.map((a) => a.mesh), ...this.dots.map((d) => d.s)], 'rings');
     setRO(this.logoInner.children.filter((o) => o.isPoints), 'logo');

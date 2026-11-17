@@ -1,6 +1,5 @@
-import { OUTPUT, RECORDING_CHAIN } from "./scenes/catalog.js";
+import { OUTPUT } from "./scenes/catalog.js";
 import { SCENE_NAV } from "./scenes/nav.js";
-import { CHAIN_CANDIDATES } from "./recording-chain.js";
 import { beatDuration, beatInBar, beatEvents, nearestBeat } from "./beat-grid.js";
 import { isInteractiveTarget } from "./ui/dom.js";
 import { timelinePhases, timelineCursorPct, phaseTimeLabel, phaseTicks } from "./operator-timeline.js";
@@ -19,8 +18,7 @@ export function crossedBoundary(before, after, delay, cycle) {
  * общие настройки (кнопка ⚙) — это технические параметры кадра, а не часть
  * монтажа, и в пульте они занимали всю вторую строку.
  */
-export function createOperatorControls({ getState, seek, setDuration, setBoundary, togglePause,
-  record, recordChain, setChain }) {
+export function createOperatorControls({ getState, seek, setDuration, setBoundary, togglePause }) {
   const panel = document.createElement("section");
   panel.className = "operator-panel";
   panel.setAttribute("aria-label", "Пульт: транспорт текущего ролика");
@@ -52,14 +50,6 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
       <output data-role="beat" class="operator-beat" aria-live="off" title="Сетка такта: доля и такт"></output>
       <output data-role="media" class="operator-media" aria-live="polite" hidden></output>
       <label class="operator-duration" title="Длительность полного цикла ролика">Цикл <input type="number" data-action="duration" min="1" max="300" step="0.1" aria-label="Длительность цикла в секундах"> с</label>
-      <button type="button" data-action="record" title="Записать один цикл текущего ролика">● Ролик</button>
-      <button type="button" data-action="record-chain" title="Записать выбранную цепочку сцен с переходами одним файлом">● Все ролики</button>
-      <details class="operator-chain-picker">
-        <summary title="Выбрать состав сцен для автопоказа и записи цепочки">Состав</summary>
-        <div class="operator-chain-menu" role="group" aria-label="Сцены в цепочке">
-          ${CHAIN_CANDIDATES.map((c) => `<label><input type="checkbox" data-chain-scene="${c.id}"> ${c.code} ${c.label}</label>`).join("")}
-        </div>
-      </details>
     </div>`;
   document.body.appendChild(panel);
   const range = panel.querySelector('[data-action="seek"]');
@@ -215,17 +205,7 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
     }
     panel.classList.toggle("operator-busy", state.recording);
     for (const grip of grips) grip.disabled = state.recording;
-    panel.querySelector('[data-action="record"]').textContent = state.recordingKind === "single" ? "◉ Ролик…" : "● Ролик";
-    const activeChain = state.chain || RECORDING_CHAIN;
-    const chainCodes = activeChain.map((id) => CHAIN_CANDIDATES.find((c) => c.id === id)?.code || id).join(" → ");
-    for (const cb of panel.querySelectorAll("[data-chain-scene]")) {
-      cb.checked = activeChain.includes(cb.dataset.chainScene);
-      cb.disabled = state.recording || (cb.checked && activeChain.length <= 1);
-    }
-    const chainBtn = panel.querySelector('[data-action="record-chain"]');
-    chainBtn.textContent = state.recordingKind === "sequence" ? "◉ Все ролики…" : "● Все ролики";
-    chainBtn.title = `Записать ${chainCodes} с переходами одним файлом`;
-    autoButton.title = `Автоматическая цепочка ${chainCodes}`;
+    autoButton.title = "Автоматическая смена роликов по кругу: показать всю программу без ручного переключения";
   }
 
   function jump(value) {
@@ -298,15 +278,6 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
   });
   window.addEventListener("pointerup", () => { dragging = false; });
   range.addEventListener("input", () => jump(Number(range.value)));
-  panel.addEventListener("change", (event) => {
-    if (!(event.target instanceof HTMLInputElement) || !event.target.dataset.chainScene) return;
-    if (getState().recording) { refresh(); return; }
-    const next = [...panel.querySelectorAll("[data-chain-scene]")]
-      .filter((cb) => cb.checked)
-      .map((cb) => cb.dataset.chainScene);
-    setChain?.(next);
-    refresh();
-  });
   duration.addEventListener("focus", () => { editing = true; });
   duration.addEventListener("blur", () => { editing = false; refresh(); });
   duration.addEventListener("change", () => {
@@ -333,8 +304,7 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
       togglePause(); refresh();
     } else if (!state.recording && (action === "prev" || action === "next")) {
       jump(localTime(state) + (action === "next" ? 1 : -1) / OUTPUT.fps);
-    } else if (action === "record") record();
-    else if (action === "record-chain") recordChain();
+    }
   });
   window.addEventListener("keydown", (event) => {
     if (isInteractiveTarget(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;

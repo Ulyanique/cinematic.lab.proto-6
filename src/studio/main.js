@@ -25,32 +25,30 @@ import {
   SCHEMA, cloneDefaults as cloneSchemaDefaults, configToJSON, parseConfigJSON, parseProjectJSON,
 } from "./config.js";
 import { isProjectPayload } from "./ui/dom.js";
+import { depthOrder, depthOrderStep, depthOrderReset } from "./depth-order.js";
 import {
   saveSceneSnapshot, loadSceneSnapshot, hasSceneSnapshot, encodeConfigShareHash,
 } from "./scene-snapshots.js";
 import { AnimationRuntime, cycleDuration, setRenderHook } from "./runtime.js";
 import { Lab2Scene, Lab5Scene } from "./lab-scenes.js";
 import { LAB2_ID, LAB5_ID, isLabScene } from "./scenes/labs.js";
-import { FxStack, fxActive, applyFxPreset } from "./fx-stack.js";
+import { FxStack, fxActive, applyFxPreset, EFFECT_KEYS } from "./fx-stack.js";
 import { frameCount, estimateVideoBytes, videoBitrateFor } from "./video-math.js";
 import { deliveryOption as deliveryOptionLight, deliveryFilename } from "./delivery-light.js";
 import { masterSize, masterId, setMasterPreset, loadMasterPreset } from "./output-profile.js";
 import { transitionDuration, drawOutgoingFrame } from "./scene-transition.js";
 import { OUTPUT, sceneById } from "./scenes/catalog.js";
 import { SCENE_NAV, sceneNav, DEFAULT_SCENE_ID } from "./scenes/nav.js";
-import { loadRecordingChain, saveRecordingChain, chainBaseFilename } from "./recording-chain.js";
 import { decodeConfigShareHash } from "./scene-snapshots.js";
 import { createOperatorControls, crossedBoundary } from "./operator.js";
-import { movePhaseBoundary } from "./editor-timeline.js";
+import { movePhaseBoundary } from "./timeline-math.js";
 import { loadQuality, saveQuality } from "./quality-presets.js";
 import { loadDelivery, saveDelivery } from "./delivery-light.js";
 import { photoShutterSamples, shutterTimes } from "./photo-shutter.js";
-import { layoutEditorPreview } from "./editor-layout.js";
 
 // Панели студии и пульт создаются ниже, но правка конфига может прийти из
 // панели в любой момент: объявляем их заранее, чтобы необработанная ссылка не
 // превращалась в ReferenceError.
-let editor;
 let panels;
 let operator;
 
@@ -59,7 +57,7 @@ loadMasterPreset();
 const fabricReady = loadFabricTexture();
 const partnersReady = loadPartnersBackground();
 
-// По умолчанию студия открывается на первой анимации программы — «Рой»
+// По умолчанию студия открывается на первой анимации программы — «Интро»
 // (лаборатория 10). Раньше стартовым был «Интро», и первым в списке стоял он.
 const requestedScene = new URLSearchParams(location.search).get("scene") || DEFAULT_SCENE_ID;
 let activeScene = sceneById(requestedScene);
@@ -120,11 +118,43 @@ function commitSceneConfig(id, mutate, options = {}) {
   panels?.refresh?.();
 }
 
+/**
+ * Сброс настроек к стандартным — одна команда на все случаи: поле, раздел
+ * (слой), отдельный эффект и вся сцена.
+ *
+ * Раньше сброс был только у сцены целиком: чтобы вернуть один ползунок,
+ * приходилось править его вручную, а «вернуть стандартный вид» стоил всей
+ * работы над кадром. Здесь просто копируются значения из умолчаний — тем же
+ * путём, что и любая правка, поэтому кадр, пульт и сохранение не разъезжаются.
+ *
+ * @param {string} id сцена
+ * @param {{ section?: string, key?: string }} scope
+ */
+function resetSceneConfig(id, scope = {}) {
+  id = sceneById(id)?.id || id;
+  const defaults = sceneById(id).defaults;
+  if (!scope.section) {
+    applySceneConfig(id, cloneDefaults(defaults));
+    panels?.rebuild?.();
+    return true;
+  }
+  commitSceneConfig(id, (config) => {
+    const target = config[scope.section];
+    const source = defaults[scope.section];
+    if (!target || !source) return;
+    if (scope.key) {
+      if (!(scope.key in source)) return;
+      target[scope.key] = cloneDefaults(source[scope.key]);
+      return;
+    }
+    for (const key of Object.keys(source)) target[key] = cloneDefaults(source[key]);
+  });
+  panels?.rebuild?.();
+  return true;
+}
+
 function applySceneConfig(id, next) {
   id = sceneById(id)?.id || id;
-  // Импорт и сброс заменяют конфиг: старые команды редактора больше к нему неприменимы.
-  if (id === sceneId) editor?.cancelDrag();
-  editor?.clearHistory(id);
   // Присланный фрагмент накладывается на умолчания сцены: частичный JSON не ломает рендер.
   replaceConfig(configFor(id), mergeConfig(sceneById(id).defaults, next));
   saveScene(id);
@@ -235,10 +265,10 @@ scene.setQuality(loadQuality());
 // Вариант доставки (кодек и глубина) — решение человека, не браузера: он
 // влияет на то, что площадка сможет открыть. По умолчанию H.264.
 let delivery = loadDelivery();
-let activeChain = loadRecordingChain();
+// Программа показывается по кругу; экспорт — всегда один ролик, тот, что открыт.
 let runtime = new AnimationRuntime(scene, cfg, OUTPUT.fps);
 scene.setCaptionSource(captionSourceFor(sceneId));
-layoutEditorPreview(canvas, document.getElementById("caption"));
+layoutStage(canvas, document.getElementById("caption"));
 applyTypography(true); // теперь известны реальные размеры рамки после resize сцены
 /**
  * Панели студии: слева — слои, справа — настройки выбранного слоя.
@@ -306,7 +336,25 @@ panels = createStudioPanels({
   loadSceneSnapshot,
   hasSceneSnapshot,
   encodeConfigShareHash,
+  // Сброс к стандартным: поле, раздел, отдельный эффект и вся сцена.
+  onReset: (scope) => resetSceneConfig(sceneId, scope),
+  // Порядок слоёв по глубине: список один для всех ролей программы.
+  depthOrder,
+  depthOrderStep,
+  depthOrderReset,
+  // В стеке эффектов каждая строка — отдельный эффект со своим сбросом.
+  effectKeys: { fxStack: EFFECT_KEYS },
   onCommand: (section, key, value, options) => {
+    // Порядок слоёв по глубине — настройка сцены, но не раздел схемы: он
+    // кладётся в собственный раздел конфига и сцену не перестраивает.
+    if (section === "depthOrder") {
+      commitSceneConfig(sceneId, (config) => {
+        config.depthOrder = { ...(config.depthOrder || {}), [key]: value };
+        // Ручной режим включается первой же стрелкой и выключается сбросом.
+        if (key === "enabled" && value !== true) config.depthOrder.enabled = false;
+      });
+      return;
+    }
     // Одна точка входа на все правки из панелей. Живой жест (ползунок, цвет)
     // пересобирает кадр без записи в localStorage и без перестройки разметки:
     // иначе поле теряло фокус на каждом кадре.
@@ -332,7 +380,7 @@ const clipSwitcher = createClipSwitcher({
 });
 clipSwitcher.sync(sceneId);
 
-window.addEventListener("resize", () => { layoutEditorPreview(canvas, document.getElementById("caption")); applyTypography(true); });
+window.addEventListener("resize", () => { layoutStage(canvas, document.getElementById("caption")); applyTypography(true); });
 
 
 let last = performance.now();
@@ -343,8 +391,8 @@ document.addEventListener("visibilitychange", () => {
 let recording = null; // один цикл текущей сцены, переключение на время записи заблокировано
 operator = createOperatorControls({
   getState: () => ({ id: sceneId, time: runtime.time, config: cfg, cycle: runtime.cycle,
-    recording: !!recording, recordingKind: recording?.kind, master: masterId(), quality: scene.quality,
-    delivery, chain: activeChain, media: scene.mediaStatus?.() || null }),
+    recording: !!recording, master: masterId(), quality: scene.quality,
+    delivery, media: scene.mediaStatus?.() || null }),
   seek: (value) => { cfg.playback.paused = true; runtime.renderAt(value, 1 / OUTPUT.fps); },
   setBoundary: (edge, seconds) => {
     const minHold = sceneId === "waiting" ? 1 : 4;
@@ -362,7 +410,6 @@ operator = createOperatorControls({
     // Для других видов вход/уход теперь тоже занимают время; сохраняем
     // не менее четырёх секунд фазы удержания и ограничение полного цикла.
     const minHold = sceneId === "waiting" ? 1 : 4;
-    editor?.invalidateHistory(sceneId, "timeline", "holdDuration");
     tl.holdDuration = Math.max(minHold, Math.min(300 - other, value - other));
     saveScene();
     panels.refresh();
@@ -390,52 +437,27 @@ operator = createOperatorControls({
     operator.refresh();
     return true;
   },
-  setChain: (list) => {
-    if (recording || transition) return false;
-    activeChain = saveRecordingChain(list);
-    return true;
-  },
-  record: () => startRecording(),
-  recordChain: () => startSequenceRecording(),
 });
 
-// Редактор не нужен первому кадру: его модуль раньше разбирался вместе с
-// main.js и задерживал старт заставки. Теперь чанк editor.js приходит после
-// первого кадра, а все точки обращения до готовности терпят отсутствие
-// редактора через editor?.; editorReady() ждёт чанк явно (технический API).
-let editorPromise = null;
-function editorReady() {
-  if (!editorPromise) {
-    editorPromise = import("./editor.js").then(({ createFrameEditor }) => {
-      editor = createFrameEditor({
-        getState: () => ({ id: sceneId, time: runtime.time, scene, canvas, config: cfg, defaults: activeScene.defaults }),
-        onEnable: () => {
-          if (isLabScene(sceneId)) { toast("Лаборатории настраиваются в панели ⚙; редактор слоёв работает в сценах 01, 02, 08 и 09.", true); return false; }
-          if (sceneId === "partners") { toast("Имена в этой сцене меняются в настройках; визуальный редактор слоёв здесь пока недоступен.", true); return false; }
-          if (recording || transition) { toast("Во время записи или перехода редактирование недоступно", true); return false; }
-          cfg.playback.paused = true;
-          const tl = cfg.timeline;
-          // Показываем собранную композицию, чтобы элементы можно было взять мышью.
-          runtime.renderAt(tl.startDelay + tl.drawDuration + tl.emergeDuration + tl.holdDuration / 2);
-          saveScene(); panels.refresh(); operator.refresh();
-          return true;
-        },
-        onChange: () => { applyTypography(); saveScene(); panels.refresh(); },
-        onSeek: (time) => {
-          if (recording || transition) return;
-          const wasPaused = cfg.playback.paused;
-          cfg.playback.paused = true; runtime.renderAt(time, 1 / OUTPUT.fps);
-          if (!wasPaused) saveScene();
-          panels.refresh(); operator.refresh();
-        },
-        onLayoutChange: (kind) => { layoutEditorPreview(canvas, document.getElementById("caption")); if (kind !== "pan") applyTypography(true); },
-        onSettings: (section) => panels.openSection(section),
-      onHistoryConflict: () => toast("Настройка изменилась вне редактора; история сцены очищена", true),
-      });
-      return editor;
-    });
+/**
+ * Автоматическая раскладка кадра: сцена и титр стоят по центру окна.
+ *
+ * Раньше это считал модуль старого покадрового редактора: он же обрезал
+ * предпросмотр под его панели. Редактора больше нет — правки идут в реальном
+ * времени через панели студии, — поэтому осталась только сама раскладка.
+ */
+function layoutStage(canvasEl, captionEl) {
+  const width = Math.min(innerWidth, innerHeight * 16 / 9);
+  const height = width * 9 / 16;
+  for (const el of [canvasEl, captionEl]) {
+    if (!el) continue;
+    el.style.left = "50%";
+    el.style.top = "50%";
+    el.style.width = `${Math.round(width)}px`;
+    el.style.height = `${Math.round(height)}px`;
+    el.style.clipPath = "";
   }
-  return editorPromise;
+  if (captionEl) captionEl.style.setProperty("--u", `${width / 100}px`);
 }
 
 // Размер мастер-кадра. Композитор титров и экспорт читают его же, а не OUTPUT.
@@ -497,9 +519,6 @@ function drawPreviewTransition(ctx) {
 /** Тот же композит, что записывается в видео; includeCaption=false — эталон для теста. */
 function compositeFrameAt(time, dt = 1 / OUTPUT.fps, includeCaption = true) {
   scene.setCaptionVisible(includeCaption);
-  // В редакторе DOM-титр остаётся видимым для рамок, но кадр всё равно
-  // собирается с запечённым в WebGL текстом — так экспорт не теряет надпись.
-  scene.setCaptionOverride(true);
   try {
     runtime.renderAt(time, dt);
     const frame = document.createElement("canvas");
@@ -510,7 +529,6 @@ function compositeFrameAt(time, dt = 1 / OUTPUT.fps, includeCaption = true) {
     return frame;
   } finally {
     scene.setCaptionVisible(true);
-    scene.setCaptionOverride(false);
   }
 }
 
@@ -518,12 +536,11 @@ function compositeFrameAt(time, dt = 1 / OUTPUT.fps, includeCaption = true) {
 // мягко растворяется поверх первого кадра нового. Запись одного цикла не
 // прерывается случайным переключением, а пульт не попадает в экспорт.
 let transition = null;
-const SEQUENCE_SWITCH = Symbol("sequence transition");
-function switchScene(id, source) {
+function switchScene(id) {
   id = sceneById(id)?.id || id;
   if (id === sceneId) return true;
-  if (!adapters[id] || transition || (recording && !(source === SEQUENCE_SWITCH && recording.kind === "sequence"))) return false;
-  editor?.disable();
+  // Во время записи ролик не меняется: файл — это один ролик.
+  if (!adapters[id] || transition || recording) return false;
   const nextCfg = configFor(id);
   const nextCanvas = document.createElement("canvas");
   nextCanvas.setAttribute("aria-label", "Анимация логотипа");
@@ -553,7 +570,7 @@ function switchScene(id, source) {
   runtime = new AnimationRuntime(scene, cfg, OUTPUT.fps);
   scene.setCaptionSource(captionSourceFor(id));
   activateClasses(id);
-  layoutEditorPreview(canvas, document.getElementById("caption"));
+  layoutStage(canvas, document.getElementById("caption"));
   applyTypography(true);
   runtime.renderAt(cfg.timeline.startDelay, 1 / OUTPUT.fps);
   oldScene.dispose();
@@ -563,9 +580,7 @@ function switchScene(id, source) {
   const url = new URL(location.href);
   url.searchParams.set("scene", id === "waiting" ? "intro" : id);
   history.replaceState(null, "", url);
-  if (source === SEQUENCE_SWITCH) {
-    recording.outgoing = snapshot;
-  } else if (snapshot) {
+  if (snapshot) {
     // Оверлей живёт до конца перехода; снимает его сам цикл кадров.
     transition = snapshot;
     if (!transitionOverlay) {
@@ -657,29 +672,31 @@ function saveVideo(blob, filename) {
   document.body.appendChild(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(link.href), 60000);
 }
+/**
+ * Записать открытый ролик. Цепочной записи («Все ролики», «Состав») больше
+ * нет: файл — это один ролик, и его имя совпадает с тем, что человек видит
+ * сверху. Цепочка нужна была для показа программы одним файлом, но монтаж
+ * между роликами делается сборкой готовых файлов, а не повторной записью.
+ */
 function startRecording({ download = true } = {}) {
-  return startOfflineRecording("single", download);
+  return startOfflineRecording(download);
 }
-function startSequenceRecording({ download = true } = {}) {
-  return startOfflineRecording("sequence", download);
-}
-function startOfflineRecording(kind, download) {
+function startOfflineRecording(download) {
   if (recording || transition) return false;
   let estimatedMiB;
   try {
-    const ids = kind === "sequence" ? activeChain : [sceneId];
-    const frames = ids.reduce((sum, id) => {
-      const timeline = configFor(id).timeline;
-      return sum + frameCount(cycleDuration(timeline), timeline.speed, OUTPUT.fps);
-    }, 0);
+    const timeline = cfg.timeline;
+    const frames = frameCount(cycleDuration(timeline), timeline.speed, OUTPUT.fps);
     const bitrate = deliveryOptionLight(delivery).bitrateScale * videoBitrateFor(REC_W, REC_H);
     estimatedMiB = Math.ceil(estimateVideoBytes(frames, OUTPUT.fps, bitrate) / 1024 ** 2);
   } catch (error) { toast(`Ошибка экспорта: ${error.message}`, true); return false; }
   if (download && estimatedMiB >= 256 && !confirm(`Ориентировочный размер MP4 — ${estimatedMiB} МиБ. Видео собирается в памяти браузера; потребуется больше памяти, а итоговый размер может отличаться. Продолжить?`)) return false;
-  editor?.disable();
-  const job = { kind, cancelled:false, outgoing:null };
+  const job = { cancelled: false, outgoing: null };
   recording = job;
   const overlay = exportOverlay(job, estimatedMiB);
+  // Кнопка в верхней строке показывает, что запись идёт: пульт больше не
+  // отвечает за экспорт и не может служить индикатором.
+  panels?.setExportState?.({ busy: true, label: `Запись «${sceneNav(sceneId)?.label || sceneId}»` });
   operator.refresh();
   runOfflineRecording(job, overlay, download).catch(error => console.error("Ошибка экспорта", error));
   return true;
@@ -696,24 +713,24 @@ async function runOfflineRecording(job, overlay, download) {
   const stats = { scenes: [], transitions: [], frames: 0, blendedFrames: 0,
     resolution: [REC_W, REC_H], delivery: option.id, bitDepth: option.bitDepth,
     mime: option.container === "webm" ? "video/webm" : "video/mp4" };
-  if (job.kind === "sequence") { window.__sequenceStats = stats; window.__lastSequenceBlob = null; }
-  else { window.__recStats = stats; window.__lastVideoBlob = null; }
+  window.__recStats = stats; window.__lastVideoBlob = null;
   try {
-    const ids = job.kind === "sequence" ? activeChain : [sceneId];
-    const exportFonts = [...new Set(ids.flatMap(id => activeFontIds(configFor(id))))];
+    const ids = [sceneId];
+    const exportFonts = [...new Set(activeFontIds(cfg))];
     await Promise.all([
       fabricReady,
       partnersReady,
       ensureContourFont(exportFonts),
-      ids.includes("partners") ? preloadPartnerCustomLogos(configFor("partners").partners) : null,
+      sceneId === "partners" ? preloadPartnerCustomLogos(cfg) : null,
     ]); // ассеты не меняются в середине записи
-    const segments = ids.map(id => {
-      const sceneConfig = configFor(id);
-      const timeline = sceneConfig.timeline;
-      return { id, start:timeline.startDelay, speed:timeline.speed, transition:transitionDuration(sceneConfig),
-        count:frameCount(cycleDuration(timeline), timeline.speed, OUTPUT.fps) };
-    });
-    const total = segments.reduce((sum, segment) => sum + segment.count, 0);
+    const segments = [{
+      id: sceneId,
+      start: cfg.timeline.startDelay,
+      speed: cfg.timeline.speed,
+      transition: transitionDuration(cfg),
+      count: frameCount(cycleDuration(cfg.timeline), cfg.timeline.speed, OUTPUT.fps),
+    }];
+    const total = segments[0].count;
     const videoCanvas = document.createElement("canvas");
     videoCanvas.width = REC_W; videoCanvas.height = REC_H;
     // 10 бит требуют чтения пикселей в JS: без willReadFrequently каждый кадр
@@ -728,16 +745,11 @@ async function runOfflineRecording(job, overlay, download) {
       cancelled:() => job.cancelled,
       progress:(done, count) => overlay.progress(done, count),
       async draw(index) {
-        if (segmentIndex < 0 || index >= segmentStart + segments[segmentIndex].count) {
-          if (segmentIndex >= 0) segmentStart += segments[segmentIndex].count;
-          const from = sceneId;
-          segmentIndex++;
-          const next = segments[segmentIndex];
-          if (sceneId !== next.id && !switchScene(next.id, SEQUENCE_SWITCH))
-            throw new Error(`Не удалось открыть сцену ${next.id}`);
-          if (segmentIndex === 0) job.outgoing = null;
-          else stats.transitions.push({from, to:next.id, duration:next.transition, blendedFrames:0});
-          stats.scenes.push(next.id);
+        if (segmentIndex < 0) {
+          segmentIndex = 0;
+          stats.scenes.push(segments[0].id);
+          // Первый кадр ждёт готовности сцены (шрифты, текстуры), иначе
+          // запись начинается с пустой картинки.
           await scene.whenReady?.();
         }
         const segment = segments[segmentIndex];
@@ -782,8 +794,7 @@ async function runOfflineRecording(job, overlay, download) {
       },
     });
     stats.bytes = result.blob.size; stats.codec = result.codec; stats.expectedFrames = total;
-    if (job.kind === "sequence") window.__lastSequenceBlob = result.blob;
-    else window.__lastVideoBlob = result.blob;
+    window.__lastVideoBlob = result.blob;
     completed = true;
     // Формат называем честно: WebM не откроется там, где ждут MP4.
     const name = option.container === "webm" ? `${option.bitDepth}-битный WebM` : `${option.bitDepth}-битный MP4`;
@@ -791,8 +802,7 @@ async function runOfflineRecording(job, overlay, download) {
       // Имя файла берёт фактический размер записи: 4K-мастер не должен
       // сохраняться как «1920x1080».
       const filename = deliveryFilename(
-        job.kind === "sequence" ? chainBaseFilename(ids) : initialScene === "waiting" ? "intro" : initialScene,
-        option, REC_W, REC_H);
+        initialScene === "waiting" ? "intro" : initialScene, option, REC_W, REC_H);
       // Готовое видео открывается поверх всего кадра: посмотреть, сохранить
       // кнопкой с этим именем или через «Сохранить видео как…», развернуть
       // на весь экран, закрыть Esc. Молчаливое скачивание убрано: файл было
@@ -804,9 +814,9 @@ async function runOfflineRecording(job, overlay, download) {
         meta: `${REC_W}×${REC_H} · ${OUTPUT.fps} fps · ${stats.frames} кадров · ${(result.blob.size / 1048576).toFixed(1)} МиБ · ${name}`,
         onDownload: () => saveVideo(result.blob, filename),
       });
-      toast(job.kind === "sequence" ? `Цепочка готова (${name}) — просмотр и сохранение` : `Видео готово (${name}) — просмотр и сохранение`);
+      toast(`Видео готово (${name}) — просмотр и сохранение`);
     } else {
-      toast(job.kind === "sequence" ? `Цепочка готова (${name})` : `Видео готово (${name})`);
+      toast(`Видео готово (${name})`);
     }
   } catch (error) {
     stats.error = error.message;
@@ -815,13 +825,22 @@ async function runOfflineRecording(job, overlay, download) {
   } finally {
     recording = null;
     try {
-      if (job.kind === "single") runtime.renderAt(initialTime, 1 / OUTPUT.fps);
-      else if (completed) cfg.playback.paused = true;
+      // Возвращаем кадр на место: запись уводила время к концу ролика.
+      if (!completed) runtime.renderAt(initialTime, 1 / OUTPUT.fps);
     } finally {
       last = performance.now();
-      overlay.remove(); panels.refresh(); operator.refresh();
+      overlay.remove();
+      panels?.setExportState?.({ busy: false });
+      panels.refresh(); operator.refresh();
     }
   }
+}
+
+/** Следующий готовый ролик в порядке программы — для режима «Авто». */
+function nextSceneId(id) {
+  const list = SCENE_NAV.map((scene) => scene.id);
+  const at = list.indexOf(id);
+  return list[(at + 1) % list.length] || id;
 }
 
 // ── Общий набор эффектов (src/fx-stack.js) ─────────────────────────────────
@@ -880,8 +899,7 @@ function frame(now) {
     if (previewTransition) drawPreviewTransition(overlayCtx());
     if (operator.auto && !cfg.playback.paused && !transition &&
         crossedBoundary(before, runtime.time, cfg.timeline.startDelay, runtime.cycle)) {
-      const idx = activeChain.indexOf(sceneId);
-      switchScene(activeChain[(idx + 1) % activeChain.length]);
+      switchScene(nextSceneId(sceneId));
     }
   }
   // Не снимаем заставку загрузки до реального WebGL-кадра и готовых шрифтов.
@@ -894,8 +912,6 @@ function frame(now) {
       applyTypography(true); scene.refreshTextTexture?.();
       if (!recording) runtime.renderAt(runtime.time, 1 / OUTPUT.fps);
       window.__bootReady?.();
-      // Панель редактора догружается после первого кадра, не задерживая старт.
-      editorReady();
       if (!partnersLoaded && sceneId === "partners") toast("Не все изображения спонсоров загрузились; возможны текстовые замены", true);
       if (!fabricLoaded) toast("Текстура камня не загрузилась; используется упрощённый фон", true);
       // Остальные шрифты подгружаем в простое, чтобы переключение в настройках было мгновенным.
@@ -903,7 +919,6 @@ function frame(now) {
       idle(() => ensureContourFont(Object.keys(contourSources)).catch(() => {}));
     });
   }
-  editor?.refresh();
   if (now - lastOperatorRefresh >= 120) {
     operator.refresh();
     lastOperatorRefresh = now;
@@ -919,15 +934,12 @@ window.__logo = {
   renderAt(v, dt = 1 / OUTPUT.fps) { runtime.renderAt(v, dt); },
   compositeFrameAt,
   startRecording,
-  startSequenceRecording,
   getSceneConfig: configFor,
   saveScene,
   panels, // технический API тестов: панели слоёв и настроек
   settings: panels, // прежнее имя: тесты и редактор зовут панель настроек
   switchScene,
   operator,
-  get editor() { return editor; },
-  editorReady,
   get activeScene() { return activeScene; },
   get runtime() { return runtime; },
   get cfg() { return cfg; },

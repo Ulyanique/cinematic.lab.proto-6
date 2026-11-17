@@ -17,11 +17,6 @@ export const BASE_PIXELS = BASE_FRAME.width * BASE_FRAME.height;
 // экспорт. Движение сцен построено на абсолютном времени, поэтому ритм не
 // меняется; стробирование вращения компенсирует затвор (photo-shutter).
 export const OUTPUT = Object.freeze({ ...BASE_FRAME, fps: 30 });
-// Порядок одной полной программы для предпросмотра и записи единым MP4.
-// Открывает программу «Рой» — первая анимация вечера; лаборатория «Монолиты»
-// идёт отдельной главой и в цепочку по умолчанию не входит: это 51-секундный
-// фильм, его показывают самостоятельным экраном.
-export const RECORDING_CHAIN = Object.freeze([LAB2_ID, "waiting", "brand", "photo-pause", "finale"]);
 
 /**
  * Каталог — производственный план, а не набор фиктивных готовых заставок.
@@ -44,7 +39,9 @@ export const SCENES = Object.freeze([
   { id: "photo-pause", title: "Фотопауза", code: "08", label: "Фотопауза", status: "ready", defaults: PHOTO_PAUSE_DEFAULTS },
   { id: "finale", title: "Янтарный циркуль / История продолжается", code: "09", label: "Финал", status: "ready", defaults: FINALE_DEFAULTS },
   // Кинематографичные лаборатории (cinematic-lab-proto-2 и proto-5).
-  { id: LAB2_ID, title: "Лаборатория 10 — Золотой рой: 3D-эмблема и объёмные буквы", code: "10", label: "Рой", status: "ready", defaults: LAB2_DEFAULTS },
+  // Первая анимация программы. Внутри — 3D-эмблема из роя частиц; в интерфейсе
+  // она называется просто «Интро», потому что открывает показ.
+  { id: LAB2_ID, title: "Интро — 3D-эмблема из роя частиц и объёмные буквы", code: "10", label: "Интро", status: "ready", defaults: LAB2_DEFAULTS },
   { id: LAB5_ID, title: "Лаборатория 11 — Монолиты: кинофильм 51 с", code: "11", label: "Монолиты", status: "ready", defaults: LAB5_DEFAULTS },
 ]);
 

@@ -385,7 +385,6 @@ export class PartnersScene {
     return true;
   }
   setCaptionSource() {}
-  setCaptionOverride() {}
   setCaptionVisible() {}
 
   update(t) {

@@ -1,5 +1,6 @@
-import { createFloatPanel, ICON_LAYERS, ICON_GEAR } from './float-panel.js';
+import { createFloatPanel, ICON_LAYERS, ICON_GEAR, ICON_EXPORT } from './float-panel.js';
 import { groupLayers, layerMeta } from './layer-registry.js';
+import { DEPTH_LABELS } from '../depth-order.js';
 import { eyeKey as ruleEyeKey, SECTION_NOTES } from './field-rules.js';
 import { isInteractiveTarget } from './dom.js';
 import { FRAME_SECTIONS, frameSummary, probeDeliveries } from '../output-settings.js';
@@ -15,6 +16,9 @@ import { FRAME_SECTIONS, frameSummary, probeDeliveries } from '../output-setting
  */
 
 const CHEVRON = '<path d="m6 15 6-6 6 6"/>';
+const ARROW_UP = '<path d="m6 15 6-6 6 6"/>';
+const RESET = '<path d="M3 12a9 9 0 1 0 3.2-6.9M3 4v5h5"/>';
+const ARROW_DOWN = '<path d="m6 9 6 6 6-6"/>';
 const EYE_ON = '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>';
 const EYE_OFF = '<path d="M17.9 17.9A10.4 10.4 0 0 1 12 19c-6.5 0-10-7-10-7a17.6 17.6 0 0 1 4.1-4.9M9.9 5.2A9.7 9.7 0 0 1 12 5c6.5 0 10 7 10 7a17.7 17.7 0 0 1-2.2 3.2M2 2l20 20"/>';
 const ico = (p, size = 14) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
@@ -41,6 +45,10 @@ export function createStudioPanels({
   configToJSON, parseConfigJSON, parseProjectJSON, isProjectPayload,
   cloneDefaults, saveSceneSnapshot, loadSceneSnapshot, hasSceneSnapshot,
   encodeConfigShareHash,
+  // Сброс к стандартным и порядок слоёв по глубине.
+  onReset, depthOrder, depthOrderStep, depthOrderReset,
+  // Разделы, у которых каждая строка — отдельный эффект (стек эффектов).
+  effectKeys,
 }) {
   let selected = null;
   let panelOpenLayers = false;
@@ -78,6 +86,10 @@ export function createStudioPanels({
       aria-label="Слои композиции" aria-pressed="false" title="Слои композиции — выбрать элемент">
       ${ICON_LAYERS}
     </button>
+    <button type="button" class="studio-btn studio-btn-export" data-role="export"
+      aria-label="Записать текущий ролик в видео" title="Записать текущий ролик в видео">
+      ${ICON_EXPORT}
+    </button>
     <button type="button" class="studio-btn studio-btn-settings" data-role="settings"
       aria-label="Настройки выбранного слоя" aria-pressed="false" title="Настройки выбранного слоя">
       ${ICON_GEAR}
@@ -85,6 +97,7 @@ export function createStudioPanels({
   document.body.appendChild(buttons);
   const layersBtn = buttons.querySelector('[data-role="layers"]');
   const settingsBtn = buttons.querySelector('[data-role="settings"]');
+  const exportBtn = buttons.querySelector('[data-role="export"]');
 
   function syncButtons() {
     layersBtn.setAttribute('aria-pressed', String(panelOpenLayers));
@@ -102,6 +115,11 @@ export function createStudioPanels({
     if (panelOpenSettings) { renderInspector(); settings.open(); } else settings.close();
     syncButtons();
   });
+  // Запись — рядом с настройками, в верхней строке. Раньше кнопка жила в
+  // нижнем пульте вместе с «Все ролики» и «Составом»: человек искал экспорт
+  // там же, где монтаж, хотя это разные задачи. Ролики пишутся по одному —
+  // тот, что сейчас открыт.
+  exportBtn.addEventListener('click', () => onExportVideo?.());
 
   // ── выбор слоя ───────────────────────────────────────────────────────
   function select(sectionId, { openInspector = true } = {}) {
@@ -153,6 +171,8 @@ export function createStudioPanels({
   /** Скрыть строки и группы, которые не подходят под запрос. */
   function applyFilter(query) {
     const q = String(query || '').trim().toLowerCase();
+    const depthBlock = layers.body.querySelector('.lyr-depth');
+    if (depthBlock) depthBlock.hidden = false;
     for (const group of layers.body.querySelectorAll('.lyr-group')) {
       let shown = 0;
       for (const row of group.querySelectorAll('.lyr-row')) {
@@ -163,6 +183,90 @@ export function createStudioPanels({
       }
       group.hidden = shown === 0;
     }
+  }
+
+  /**
+   * Список глубины: чем выше строка, тем ближе слой к зрителю.
+   *
+   * Это отдельный от разделов схемы список намеренно: раздел — это набор
+   * параметров (у «Колец» их двадцать), а здесь речь о том, что перекрывает
+   * что. Список общий для всех ролей программы: у лаборатории 10 он
+   * раскладывается на её собственные слои.
+   */
+  function renderDepth(frag) {
+    const state = getState();
+    const order = typeof depthOrder === 'function' ? depthOrder(state.config) : [];
+    if (!order.length) return;
+    const section = document.createElement('section');
+    section.className = 'lyr-group lyr-depth';
+    const head = document.createElement('button');
+    head.type = 'button';
+    head.className = 'lyr-group-head';
+    head.setAttribute('aria-expanded', 'true');
+    head.innerHTML = `<span>Глубина кадра</span>${ico(CHEVRON, 11)}`;
+    const body = document.createElement('div');
+    body.className = 'lyr-depth-body';
+    head.addEventListener('click', () => {
+      const on = (body.hidden = !body.hidden);
+      head.setAttribute('aria-expanded', String(!on));
+    });
+
+    const note = document.createElement('p');
+    note.className = 'lyr-depth-note';
+    note.textContent = 'Выше — ближе к зрителю. Порядок применяется ко всем роликам и попадает в видео.';
+    body.appendChild(note);
+
+    if (typeof depthOrderReset === 'function') {
+      const reset = document.createElement('button');
+      reset.type = 'button';
+      reset.className = 'lyr-depth-reset';
+      reset.textContent = 'Стандартный порядок';
+      reset.title = 'Вернуть исходный порядок слоёв';
+      reset.addEventListener('click', () => {
+        for (const change of depthOrderReset()) onCommand?.('depthOrder', change.key, change.value);
+        renderLayers();
+      });
+      body.appendChild(reset);
+    }
+
+    // Сверху списка — самый близкий слой, поэтому порядок читаем с конца.
+    const near = [...order].reverse();
+    for (const id of near) {
+      const at = order.indexOf(id);
+      const row = document.createElement('div');
+      row.className = 'lyr-depth-row';
+      row.dataset.depth = id;
+      const label = document.createElement('span');
+      label.className = 'lyr-depth-label';
+      label.textContent = DEPTH_LABELS[id] || id;
+      const controls = document.createElement('span');
+      controls.className = 'lyr-depth-controls';
+      const step = (direction, glyph, title, disabled) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'lyr-depth-step';
+        button.innerHTML = ico(glyph, 11);
+        button.title = title;
+        button.setAttribute('aria-label', title);
+        button.disabled = disabled;
+        button.addEventListener('click', () => {
+          const changes = depthOrderStep?.(getState().config, id, direction);
+          if (!changes) return;
+          for (const change of changes) onCommand?.('depthOrder', change.key, change.value);
+          renderLayers();
+        });
+        return button;
+      };
+      controls.append(
+        step('front', ARROW_UP, 'Выше — ближе к зрителю', at >= order.length - 1),
+        step('back', ARROW_DOWN, 'Ниже — дальше от зрителя', at <= 0),
+      );
+      row.append(label, controls);
+      body.appendChild(row);
+    }
+
+    section.append(head, body);
+    frag.appendChild(section);
   }
 
   // ── левая панель: строки слоёв ───────────────────────────────────────
@@ -242,8 +346,10 @@ export function createStudioPanels({
       }
       list.appendChild(groupEl);
     }
-      const search = ensureSearch();
-    layers.body.replaceChildren(search, list);
+    const search = ensureSearch();
+    const depthBlock = document.createDocumentFragment();
+    renderDepth(depthBlock);
+    layers.body.replaceChildren(search, depthBlock, list);
     applyFilter(search.value);
   }
 
@@ -317,13 +423,65 @@ export function createStudioPanels({
       const note = SECTION_NOTES[section.id];
       const hint = document.createElement('p');
       hint.className = 'ins-hint';
-      hint.textContent = `${note || meta.hint || section.title}. Двойной клик по названию параметра — сброс к умолчанию.`;
+      hint.textContent = `${note || meta.hint || section.title}. Иконка ↺ у параметра возвращает его стандартное значение.`;
       frag.appendChild(hint);
+
+      // Сброс слоя целиком: кадр возвращается к стандартному виду, остальные
+      // слои не затрагиваются.
+      const changedCount = section.fields.filter((field) => defaults[field.key] !== undefined
+        && !same(holder[field.key], defaults[field.key])).length;
+      const bar = document.createElement('div');
+      bar.className = 'ins-actions ins-actions-tight ins-layer-actions';
+      const resetLayer = document.createElement('button');
+      resetLayer.type = 'button';
+      resetLayer.className = 'ins-layer-reset';
+      resetLayer.innerHTML = `${ico(RESET, 12)}<span>Сброс слоя</span>${changedCount ? ` <b>${changedCount}</b>` : ''}`;
+      resetLayer.title = changedCount
+        ? `Вернуть все ${section.fields.length} параметров этого слоя к умолчаниям (изменено ${changedCount})`
+        : 'Все параметры слоя уже стандартные';
+      resetLayer.disabled = changedCount === 0;
+      resetLayer.addEventListener('click', () => resetSection(section));
+      bar.appendChild(resetLayer);
+      frag.appendChild(bar);
     }
 
-    for (const field of section.fields) {
-      const row = buildRow(section, field, holder, defaults);
-      if (row) frag.appendChild(row);
+    // У стека эффектов строки сгруппированы: каждый эффект — отдельная строка
+    // со своим сбросом, служебные настройки (момент удара, цвет, грейд) идут
+    // своей группой. Так «убрать только ударную волну» — одно нажатие.
+    const keys = effectKeys?.[section.id];
+    const isFx = Array.isArray(keys) && keys.length > 0;
+    if (isFx) {
+      const groups = [
+        ['Эффекты', section.fields.filter((field) => keys.includes(field.key))],
+        ['Служебные', section.fields.filter((field) => !keys.includes(field.key))],
+      ];
+      for (const [title, fields] of groups) {
+        if (!fields.length) continue;
+        const head = document.createElement('p');
+        head.className = 'ins-group-title';
+        head.textContent = title;
+        frag.appendChild(head);
+        for (const field of fields) {
+          const row = buildRow(section, field, holder, defaults);
+          if (!row) continue;
+          // У каждого эффекта — свой возврат к «выключено».
+          if (keys.includes(field.key) && Number(holder[field.key]) > 0.001) {
+            const off = document.createElement('button');
+            off.type = 'button';
+            off.className = 'ins-effect-off';
+            off.textContent = 'выкл';
+            off.title = 'Вернуть этот эффект к нулю, остальные не трогать';
+            off.addEventListener('click', () => resetEffect(section, field));
+            row.appendChild(off);
+          }
+          frag.appendChild(row);
+        }
+      }
+    } else {
+      for (const field of section.fields) {
+        const row = buildRow(section, field, holder, defaults);
+        if (row) frag.appendChild(row);
+      }
     }
     settings.body.replaceChildren(frag);
   }
@@ -538,6 +696,34 @@ export function createStudioPanels({
     settings.body.replaceChildren(frag);
   }
 
+  /**
+   * Сброс к стандартным значениям. Поле, весь раздел (слой) или один эффект —
+   * одна и та же команда снаружи, поэтому «вернуть как было» не зависит от
+   * того, где человек нажал.
+   */
+  function resetField(section, field) {
+    onReset?.({ section: section.id, key: field.key });
+    refreshValues();
+    renderLayers();
+  }
+
+  function resetSection(section) {
+    onReset?.({ section: section.id });
+    renderInspector();
+    renderLayers();
+  }
+
+  /**
+   * Эффект целиком: у стека эффектов каждый ползунок — отдельный эффект, и
+   * вернуть «только ударную волну» удобнее строкой списка, не трогая
+   * остальные восемнадцать.
+   */
+  function resetEffect(section, field) {
+    onReset?.({ section: section.id, key: field.key });
+    refreshValues();
+    renderLayers();
+  }
+
   /** Одна строка инспектора: подпись, точка «изменено», поле управления. */
   function buildRow(section, field, holder, defaults) {
     const value = holder[field.key];
@@ -560,10 +746,28 @@ export function createStudioPanels({
     });
     row.appendChild(label);
 
+    // Сброс прямо у параметра: двойной клик по названию тоже работает, но
+    // иконка видна, пока значение нестандартное, и не требует знания приёма.
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = `ins-reset${changed ? ' is-on' : ''}`;
+    reset.title = `Сбросить «${field.label}» к умолчанию (${String(def ?? '')})`;
+    reset.setAttribute('aria-label', `Сбросить ${field.label} к умолчанию`);
+    reset.innerHTML = ico(RESET, 11);
+    reset.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (def === undefined) return;
+      resetField(section, field);
+    });
+    row.appendChild(reset);
+
     const commit = () => {
       const nowChanged = def !== undefined && !same(holder[field.key], def);
       row.querySelector('.ins-dot')?.classList.toggle('is-on', nowChanged);
+      reset.classList.toggle('is-on', nowChanged);
+      reset.disabled = def === undefined;
     };
+    commit();
 
     const write = (sectionRef, fieldRef, next) => {
       onCommand?.(sectionRef.id, fieldRef.key, next);
@@ -796,6 +1000,14 @@ export function createStudioPanels({
     openLayers,
     openSection,
     syncScene,
+    /** Состояние кнопки записи: пульт больше не показывает экспорт. */
+    setExportState: ({ busy = false, label = '' } = {}) => {
+      exportBtn.classList.toggle('is-busy', busy);
+      exportBtn.setAttribute('aria-busy', String(busy));
+      const text = label || (busy ? 'Идёт запись ролика' : 'Записать текущий ролик в видео');
+      exportBtn.title = `${text}. Ролики записываются по одному — тот, что открыт.`;
+      exportBtn.setAttribute('aria-label', text);
+    },
     refresh: () => {
       if (!layers.el.hidden) renderLayers();
       if (!settings.el.hidden) refreshValues();

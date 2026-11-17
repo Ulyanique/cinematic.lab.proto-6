@@ -7,6 +7,7 @@ import { logoTimingPhase } from "./logo-timing.js";
 import { captionTimedLine } from "./caption-timing.js";
 import { customTextAnimation, customTextVisual } from "./custom-text.js";
 import { applyEffectOrder } from "./effect-order.js";
+import { applyDepthOrder, depthOrderEnabled } from "./depth-order.js";
 import * as THREE from "three";
 import {
   EffectComposer,
@@ -196,7 +197,6 @@ export class LogoScene {
     // блума, аберрации и DoF, которые размывают буквы на большом экране.
     this.captionLayer = new CaptionLayer();
     this._captionVisible = true;
-    this._captionOverride = false;
     this._captionSource = null;
 
     this._quality = suggestedQuality(masterId());
@@ -406,6 +406,8 @@ export class LogoScene {
     if (this.introStyle || this.hideCenterRing) this.corners.centerRing.visible = false;
     const effectPhase = computePhase(t, cfg.timeline);
     applyEffectOrder(cfg, this);
+    // Ручной порядок слоёв: пока он выключен, кадр рисуется как раньше.
+    if (depthOrderEnabled(cfg)) applyDepthOrder(cfg, this);
     this.constructionGuides.update(t, effectPhase, cfg, root, cpos, this.introStyle);
     for (const decor of Object.values(this.brandDecors)) decor.update(t, effectPhase, cfg, root);
     for (const cloud of Object.values(this.particleClouds)) cloud.update(t, effectPhase, cfg);
@@ -548,13 +550,12 @@ export class LogoScene {
     }
 
     // Титр обновляется после всех CSS-переменных кадра: один путь для превью
-    // и экспорта. В редакторе показываем DOM-слой, чтобы работали рамки.
-    // Текст перерисовывается только когда он виден, но проход остаётся в цепочке
-    // с нулевой непрозрачностью: кадр с титром и без него идёт по одному пути,
-    // поэтому эталон compositeFrameAt(..., false) совпадает побитово.
+    // и экспорта. Текст перерисовывается только когда он виден, но проход
+    // остаётся в цепочке с нулевой непрозрачностью: кадр с титром и без него
+    // идёт по одному пути, поэтому эталон compositeFrameAt(..., false)
+    // совпадает побитово.
     const caption = this._captionSource ? this._captionSource() : null;
-    const captionShown = Boolean(caption) && this._captionVisible &&
-      (this._captionOverride || !document.body.classList.contains("editor-on"));
+    const captionShown = Boolean(caption) && this._captionVisible;
     if (captionShown) this.captionLayer.update(caption.sceneId, caption.alpha ?? 1, true);
     this.captionPass.fullscreenMaterial.uniforms.uOpacity.value = captionShown ? (caption.alpha ?? 1) : 0;
     this.captionPass.enabled = Boolean(caption);
@@ -660,11 +661,6 @@ export class LogoScene {
   /** Источник титра: возвращает {sceneId, alpha} или null, когда титра нет. */
   setCaptionSource(source) {
     this._captionSource = source;
-  }
-
-  /** Принудительно запечь титр в кадр — экспорт при открытом редакторе. */
-  setCaptionOverride(on) {
-    this._captionOverride = on === true;
   }
 
   /** Скрыть/показать титр без изменения настроек — для проверок кадра. */

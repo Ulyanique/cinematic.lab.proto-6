@@ -9,7 +9,7 @@ import { SCENE_NAV } from '../scenes/nav.js';
  * транспорт текущего ролика.
  *
  * Список строится из `SCENE_NAV`: порядок и подписи заданы один раз, поэтому
- * «Рой» — первый пункт и открывается по умолчанию.
+ * «Интро» — первый пункт и открывается по умолчанию.
  */
 export function createClipSwitcher({ onSwitch, canSwitch }) {
   const wrap = document.createElement('div');
@@ -46,7 +46,7 @@ export function createClipSwitcher({ onSwitch, canSwitch }) {
   return {
     el: wrap,
     select,
-    /** Сцена переключилась (из пульта, ссылки или записи цепочки). */
+    /** Сцена переключилась (из списка, ссылки или режима «Авто»). */
     sync,
     setDisabled(value) { select.disabled = Boolean(value); },
     /** Подсветка выключена вместе с остальным хромом в простое. */

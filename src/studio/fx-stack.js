@@ -38,7 +38,7 @@ export const FX_EFFECTS = Object.freeze([
   { key: "warm", label: "Золотой тон (цветокор)", src: "proto-1/2", max: 2 },
 ]);
 
-const EFFECT_KEYS = FX_EFFECTS.map((e) => e.key);
+export const EFFECT_KEYS = FX_EFFECTS.map((e) => e.key);
 
 /** Умолчания: все эффекты выключены — композиции выглядят как прежде. */
 export function fxDefaults() {

@@ -9,6 +9,7 @@ import { TL as LAB5_TL } from "./lab5/timeline.ts";
 import { drawLab5Overlay } from "./lab5/overlay.ts";
 import { loadLab5Fonts } from "./lab5/fonts.ts";
 import { lab2Source, lab5Source } from "./scenes/labs.js";
+import { depthOrder, depthOrderEnabled, introDepthOrder } from "./depth-order.js";
 
 /**
  * Адаптеры лабораторий к общему циклу студии: сцена получает время `update(t)` и
@@ -44,7 +45,6 @@ class LabScene {
     return true;
   }
   setCaptionSource() {}
-  setCaptionOverride() {}
   setCaptionVisible() {}
   resize() {}
   whenReady() { return this._readyPromise || Promise.resolve(); }
@@ -73,6 +73,8 @@ export class Lab2Scene extends LabScene {
     this.intro.forced = true;
     this.intro.embeddedSize = [this.W, this.H];
     this.intro.onWarn = () => { if (!this.disposed) window.__logo?.renderAt?.(window.__logo.time); };
+    // Порядок слоёв — из общей панели студии (если ручной режим включён).
+    this.intro.setDepthOrder?.(depthOrderEnabled(cfg) ? introDepthOrder(depthOrder(cfg), this.intro.cfg.order) : null);
     this._readyPromise = this.intro.init().then(() => { this.ready = !this.disposed; });
     this._redrawWhenReady();
   }
@@ -81,6 +83,9 @@ export class Lab2Scene extends LabScene {
   configChanged() {
     this.lab = sanitizeConfig(lab2Source(this.cfg));
     this.intro.setConfig(this.lab);
+    // Порядок слоёв приходит из общей панели «Слои» и раскладывается на
+    // собственные слои лаборатории: список для человека один.
+    this.intro.setDepthOrder?.(depthOrderEnabled(this.cfg) ? introDepthOrder(depthOrder(this.cfg), this.intro.cfg.order) : null);
   }
 
   update(t) {
