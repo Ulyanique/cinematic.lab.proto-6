@@ -20,6 +20,7 @@ import { makeGold, makeEnvironment, sharedGold } from './gold';
 import { buildLogoParts, P } from './logo';
 import { buildTitle } from './title';
 import { StreakPass } from './streak';
+import { elementLightPulse } from '../element-effects.js';
 
 /* ------------------------------------------------------------ helpers */
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -1521,7 +1522,7 @@ export class Intro {
       const u = m.material.userData.u;
       u.uReveal.value = xf.reveal;
       m.visible = k > 0.0001;
-      u.uFlash.value = (burst(t, 4.52, 0.05, 0.5) * 0.24 + burst(gt, t0 + LG.duration * 0.9, 0.05, 0.4) * 0.3) * LG.flash;
+      u.uFlash.value = (burst(t, 4.52, 0.05, 0.5) * 0.24 + burst(gt, t0 + LG.duration * 0.9, 0.05, 0.4) * 0.3) * LG.flash + elementLightPulse(gt, LG.lightPulse, LG.lightPulseSpeed) * 0.35;
       this.setCol(u.uGD.value, LG.deep); this.setCol(u.uGM.value, LG.mid); this.setCol(u.uGT.value, LG.top);
       u.uGradY.value.set(-0.1 + LG.y, 3.15 + LG.y);
       m.material.roughness = LG.roughness;
@@ -1574,7 +1575,7 @@ export class Intro {
       mesh.scale.setScalar(Math.max(1e-4, xf.s));
       const u = mesh.material.userData.u;
       u.uReveal.value = xf.reveal;
-      u.uFlash.value = burst(tt, land, 0.04, 0.38) * 1.1 * TT.flash;
+      u.uFlash.value = burst(tt, land, 0.04, 0.38) * 1.1 * TT.flash + elementLightPulse(tt, TT.lightPulse, TT.lightPulseSpeed) * 0.35;
       this.setCol(u.uGD.value, TT.deep); this.setCol(u.uGM.value, TT.mid); this.setCol(u.uGT.value, TT.top);
       u.uGradY.value.set(-1.15 + TT.y, -0.1 + TT.y);
       mesh.material.roughness = TT.roughness;
@@ -1772,7 +1773,7 @@ export class Intro {
     else if (S.preset === 'rise') { dy = (1 - e) * 0.4; sx = 1; }
     else if (S.preset === 'spread') { sx = 1.4 - 0.4 * e; }
     u.uReveal.value = reveal;
-    u.uBright.value = bright;
+    u.uBright.value = bright * (1 + elementLightPulse(tl, S.lightPulse, S.lightPulseSpeed) * 0.5);
     u.uShine.value = shineA + shineB * Math.sin(t * shineF + shineP);
     this.setCol(u.uColA.value, S.colA);
     this.setCol(u.uColB.value, S.colB);

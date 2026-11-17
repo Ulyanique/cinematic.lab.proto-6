@@ -42,6 +42,7 @@ export const DEFAULT_CONFIG = {
     logo: {
       enabled: true, delay: 0,
       preset: 'swarm', duration: 1.15, stagger: 0.12, lead: 0.3, easing: 'cubic', intensity: 1, angle: 90, turns: 1,
+      lightPulse: 0, lightPulseSpeed: 0.3,
       x: 0, y: 0, scale: 1, tilt: 0.62, float: 1,
       swarm: 1, sparkCount: 1100, flash: 1,
       deep: '#e4b159', mid: '#ffe29e', top: '#fff2c8', roughness: 0.27, env: 1.6,
@@ -53,18 +54,19 @@ export const DEFAULT_CONFIG = {
       text: 'ЯНТАРНЫЙ ЦИРКУЛЬ', font: 'prata', width: 11.55, tracking: 0.045, depth: 0.15, bevel: 0.04,
       x: 0, y: 0, scale: 1,
       preset: 'fly', order: 'ltr', start: 5.75, stagger: 0.085, duration: 0.95, intensity: 1, easing: 'cubic',
+      lightPulse: 0, lightPulseSpeed: 0.3,
       sparkCount: 70, flash: 1,
       deep: '#e4b159', mid: '#ffe29e', top: '#fff2c8', roughness: 0.25, env: 1.55,
     },
     subtitle: {
       enabled: true, delay: 0,
       text: 'ВЕЧЕР РЕТРОСПЕКТИВА', font: 'forum', width: 7.25, tracking: 0.42, x: 0, y: 0,
-      preset: 'wipe', start: 8.35, duration: 1.9, brightness: 1.45, colA: '#e7bb76', colB: '#ffefc4',
+      preset: 'wipe', start: 8.35, duration: 1.9, brightness: 1.45, lightPulse: 0, lightPulseSpeed: 0.3, colA: '#e7bb76', colB: '#ffefc4',
     },
     date: {
       enabled: true, delay: 0,
       text: '20 НОЯБРЯ 2026 ГОДА', font: 'forum', width: 4.45, tracking: 0.3, x: 0, y: 0,
-      preset: 'wipe', start: 9.55, duration: 1.6, brightness: 1.35, colA: '#e7bf7c', colB: '#fff1cb',
+      preset: 'wipe', start: 9.55, duration: 1.6, brightness: 1.35, lightPulse: 0, lightPulseSpeed: 0.3, colA: '#e7bf7c', colB: '#fff1cb',
     },
     dividers: {
       enabled: true, delay: 0, first: true, second: true, diamonds: true,
@@ -300,6 +302,7 @@ export const SCHEMA: Record<string, Section[]> = {
     ] },
   ],
   logo: [
+    lightPulseSection(),
     { title: 'Анимация', fields: [
       sel('preset', 'Пресет', LOGO_PRESETS),
       num('duration', 'Длительность детали', 0.2, 4, 0.05, { unit: 'с' }),
@@ -340,6 +343,7 @@ export const SCHEMA: Record<string, Section[]> = {
     ] },
   ],
   title: [
+    lightPulseSection(),
     { title: 'Текст', fields: [
       text('text', 'Название'),
       sel('font', 'Шрифт', FONT_KEYS),
@@ -363,8 +367,8 @@ export const SCHEMA: Record<string, Section[]> = {
     { title: 'Положение', fields: [num('x', 'Смещение X', -6, 6, 0.05), num('y', 'Смещение Y', -3, 3, 0.02), num('scale', 'Масштаб', 0.3, 2, 0.01)] },
     { title: 'Материал', fields: [...gold, num('roughness', 'Шероховатость', 0.02, 0.9, 0.01), num('env', 'Отражения', 0, 4, 0.05)] },
   ],
-  subtitle: [textSection('Подзаголовок'), textAnim()],
-  date: [textSection('Дата'), textAnim()],
+  subtitle: [textSection('Подзаголовок'), textAnim(), lightPulseSection()],
+  date: [textSection('Дата'), textAnim(), lightPulseSection()],
   dividers: [
     { title: 'Общие', fields: [
       bool('first', 'Показывать верхний'), bool('second', 'Показывать нижний'), bool('diamonds', 'Ромбы'),
@@ -418,6 +422,13 @@ function textSection(title: string): Section {
     color('colA', 'Цвет: основа'), color('colB', 'Цвет: блик'), num('brightness', 'Яркость', 0, 4, 0.05),
   ] };
 }
+function lightPulseSection(): Section {
+  return { title: 'Переиспользуемый эффект: световая пульсация', fields: [
+    num('lightPulse', 'Пульсация света: сила', 0, 1, 0.01),
+    num('lightPulseSpeed', 'Пульсация света: скорость, Гц', 0, 3, 0.01),
+  ] };
+}
+
 function textAnim(): Section {
   return { title: 'Анимация', fields: [
     sel('preset', 'Пресет', TEXT_PRESETS), num('start', 'Старт', 0, 12, 0.05, { unit: 's' }),
