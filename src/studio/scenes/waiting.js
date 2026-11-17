@@ -73,6 +73,7 @@ export const WAITING_DEFAULTS = {
     holdScaleTo: 1.04,
     pulseAmount: 0.018,    // амплитуда «дыхания»
     pulseSpeed: 0.55,
+    lightPulse: 0, lightPulseSpeed: 0.3, elementFlash: 0, elementFlashStart: 4.5, elementFlashDuration: 0.5,
     swayAmount: 0.05,      // лёгкое покачивание (рад)
     swaySpeed: 0.35,
     shadowDepth: 0.55,     // насколько глубоко уходит в тень (z-сдвиг)

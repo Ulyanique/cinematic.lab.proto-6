@@ -1,3 +1,4 @@
+import { elementLightPulse, elementFlash } from "./element-effects.js";
 import { metallicTitleCSS, titleGlintAtGlyph } from "./caption-material.js";
 import { ConstructionGuides } from "./construction-guides.js";
 import { logoRotation } from "./scenes/logo-motion.js";
@@ -343,7 +344,11 @@ export class LogoScene {
     m.clearcoat = cfg.logo.clearcoat;
     m.envMapIntensity = cfg.logo.envIntensity * (cfg.lights.envEnabled ? 1 : 0) * exposure;
     // глубокий золотой оттенок в тенях через emissive
-    m.emissive.set(cfg.colors.goldDeep).multiplyScalar(0.12);
+    // Те же независимые огибающие, что у элементов интро: нули сохраняют
+    // исходный материал, эффекты повторяются вместе с циклом сцены.
+    const elementLight = ph.beforeStart ? 0 : elementLightPulse(ph.local, cfg.logo.lightPulse, cfg.logo.lightPulseSpeed) +
+      elementFlash(ph.local, cfg.logo.elementFlash, cfg.logo.elementFlashStart, cfg.logo.elementFlashDuration);
+    m.emissive.set(cfg.colors.goldDeep).multiplyScalar(0.12 + elementLight * 0.3);
     const amberAmount = THREE.MathUtils.clamp(cfg.logo.amber ?? 0, 0, 1);
     if (this.logo.amberInset) {
       this.logo.amberInset.visible = amberAmount > 0.001;
