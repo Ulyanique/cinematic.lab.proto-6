@@ -324,6 +324,7 @@ export class Intro {
       // ошибка в update() на нулевом времени рвала init, анимационный цикл не
       // запускался, и превью оставалось чёрным.
       this.update(0);
+      this.composer.render();
     } catch (e) {
       console.warn('warm-up failed', e);
     }

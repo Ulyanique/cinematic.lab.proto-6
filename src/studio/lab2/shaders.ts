@@ -397,6 +397,12 @@ export const finalPass = {
     vec3 hueRot(vec3 c,float a){ vec3 k=vec3(0.57735); float ca=cos(a); return c*ca+cross(k,c)*sin(a)+k*dot(k,c)*(1.-ca); }
     float h21(vec2 p){ vec3 p3=fract(vec3(p.xyx)*.1031); p3+=dot(p3,p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
     void main(){
+      // Полностью закрытый экран должен оставаться чёрным, включая все
+      // эффекты, которые добавляются после маски раскрытия.
+      if (uIris >= 0.99999) {
+        gl_FragColor=vec4(0.,0.,0.,1.);
+        return;
+      }
       vec2 uv=vUv;
       vec2 d=uv-.5;
       float r2=dot(d*vec2(uAspect,1.),d*vec2(uAspect,1.));
@@ -524,8 +530,8 @@ export const finalPass = {
       }
 
       // линия-зажигание: горячее ядро + анаморфный шлейф
-      float half_=uLine*0.62;
-      float lx=1.-smoothstep(half_*0.55, half_, abs(d.x)*1.0);
+      float half_=max(uLine*0.62,0.0001);
+      float lx=(1.-smoothstep(half_*0.55, half_, abs(d.x)))*step(0.001,uLine);
       float core=exp(-dy*dy*90000.);
       float halo=exp(-dy*dy*1800.)*0.35+exp(-dy*dy*180.)*0.07;
       float streak=exp(-abs(d.x)*2.4)*exp(-dy*dy*20000.)*0.7;
