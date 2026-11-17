@@ -91,12 +91,16 @@ class DividerOverlayPass extends Pass {
         uFade: { value: 1 },
         uOpen: { value: 1 },
         uSlitMix: { value: 1 },
+        uIris: { value: 0 },
       },
       vertexShader: /* glsl */ `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }`,
       fragmentShader: /* glsl */ `
         precision highp float;
         uniform sampler2D tBase, tDividers;
         uniform float uAspect, uVignette, uFade, uOpen, uSlitMix;
+        // Включение «старого телевизора»: кадр раскрывается кругом из центра.
+        // 0 — чёрный экран, 1 — кадр открыт целиком.
+        uniform float uIris;
         varying vec2 vUv;
         vec3 srgbToLinear(vec3 c) {
           vec3 lo=c/12.92;
@@ -120,6 +124,24 @@ class DividerOverlayPass extends Pass {
           float dim=mix(1.,0.22,(1.-smoothstep(0.02,0.5,uOpen))*step(uOpen,0.5));
           float slit=mix(dim,vis,uSlitMix);
           vec3 merged=srgbToLinear(base)+line*(lineVignette*uFade*slit);
+          // Радиус ирис-маски: чуть вытянут по горизонтали, чтобы круг на
+          // широком кадре не открывался «щёлочкой».
+          // uIris = 1 — кадр закрыт (чёрный экран), 0 — открыт целиком.
+          // Радиус растёт от 0 до большего, чем дальний угол кадра (~1.15).
+          float R=(1.-uIris)*1.75;
+          float dist=length(d*vec2(uAspect*0.62,1.0))*1.55;
+          float soft=0.05+0.12*(1.-uIris);
+          float iris=1.-smoothstep(max(0.,R-soft),R+soft,dist);
+          // Мягкая кромка при полностью закрытом ирисе всё равно оставляла в
+          // центре видимый диск кадра — самое начало не читалось как чёрный
+          // экран. Гасим кадр целиком на первых кадрах: сначала чернота,
+          // потом из центра зажигается свет.
+          iris*=smoothstep(0.0,0.12,1.-uIris);
+          // На самом старте центр светится сам: сначала точка света, потом из
+          // неё расходится свечение — так включение читается, а не «мигает».
+          float core=exp(-dist*dist*46.0)*(1.-uIris);
+          merged*=iris;
+          merged+=vec3(1.0,0.72,0.35)*core*1.6;
           gl_FragColor=vec4(linearToSrgb(merged),1.);
         }
       `,
@@ -168,6 +190,8 @@ export class Intro {
   host: HTMLElement;
   cfg: Config = cloneConfig(DEFAULT_CONFIG);
   stackZ = { logo: 0, title: 0 };
+  /** Текущий подъём эмблемы: разделители живут в отдельной сцене и повторяют его сами. */
+  riseNow = 0;
   _v3 = new THREE.Vector3();
   pending = new Set<string>();
   sigs: any = null;
@@ -1375,12 +1399,16 @@ export class Intro {
 
     // ПРОЛОГ: искра → линия света → «щель» раскрывается в cinemascope → удар раскрывает кадр целиком
     const ign = PO.ignition ? 1 : 0;
-    // искра и линия стартуют практически с нулевого кадра: раньше до 0.25 с в кадре был
-    // только чёрный (а при зацикливании это читалось как «камера ушла в черноту»)
-    // «Искра уже горит на входе»: сдвигаем старт зажигания в минус, чтобы самый первый кадр
-    // (t = 0) не был пустым чёрным — иначе на стыке кругов глаз ловит провал.
+    // Включение «старого телевизора»: чёрный экран → точка света в центре →
+    // круг расходится к краям. Сначала короткая чернота (0.12 с), затем свет.
+    // Степень 1.7 (а не 2.2) даёт ровный рост, без «залипания» в конце:
+    // центр вспыхивает на ~0.4 с, края доходят к ~0.65 с, углы — к ~0.95 с.
+    // Дальше — уже линия света и сборка эмблемы.
+    F.uIris.value = !PO.ignition ? 1 : Math.pow(1 - seg(t, 0.12, 2.0), 1.7);
     const lineGrow = 1 - Math.pow(1 - seg(t, -0.35, 1.55), 4);
-    F.uLine.value = lineGrow * 1.25 * ign;
+    // Линия света — уже внутри открытого кадра: сначала «включился экран»,
+    // затем по нему пошла линия.
+    F.uLine.value = lineGrow * 1.25 * ign * easeInOutSine(seg(t, 0.7, 1.8));
     const spark = burst(t, -0.25, 0.35, 0.9);
     F.uLineI.value = (0.25 + 0.75 * easeOutCubic(seg(t, 0.2, 1.0)) + 0.5 * spark) * (1 - easeInOutSine(seg(t, 1.9, 3.1))) * ign;
     const so = PO.slitSize;
@@ -1401,7 +1429,16 @@ export class Intro {
     F.uCA.value = burst(t, 4.5, 0.04, 0.45) * 0.9 * PO.aberration;
     F.uPulse.value = burst(t, 4.5, 0.03, 0.2) * 0.05 * fxk(FX.flash);
     const lcx = this.logoCenter.x + LG.x, lcy = this.logoCenter.y + LG.y;
-    const lp = this._v3.set(lcx, lcy, 0).project(this.camera);
+    // Сборка эмблемы — по центру кадра: пока названия нет, эмблема стоит на
+    // 1.65 мировой единицы НИЖЕ своего финального места (её центр попадает ровно
+    // в точку взгляда камеры, то есть в середину кадра). Когда приходит название
+    // (TT.start), подъём плавно уходит в ноль и блок «эмблема + текст» встаёт как
+    // раньше. Знак важен: смещение вычитается, а не прибавляется.
+    const riseK = easeInOutCubic(seg(t, TT.start - 0.15, TT.start + 0.85));
+    const riseY = -(1 - riseK) * G.logoRise;
+    this.riseNow = riseY;
+    // центр вспышки/удара — там, где эмблема стоит в этот момент, а не на её финальном месте
+    const lp = this._v3.set(lcx, lcy + riseY, 0).project(this.camera);
     F.uShockC.value = [lp.x * 0.5 + 0.5, lp.y * 0.5 + 0.5];
 
     // environment drifts so reflections glide over the metal
@@ -1464,7 +1501,7 @@ export class Intro {
     const rot = LG.tilt * (1 - easeInOutCubic(seg(gt, 1.4, 8.0)));
     this.logoRoot.rotation.y = rot + Math.sin(t * 0.5) * 0.015 * LG.float;
     this.logoRoot.rotation.x = Math.sin(t * 0.4) * 0.012 * LG.float;
-    this.logoRoot.position.set(lcx, lcy + Math.sin(t * 0.7) * 0.025 * LG.float, this.stackZ.logo);
+    this.logoRoot.position.set(lcx, lcy + riseY + Math.sin(t * 0.7) * 0.025 * LG.float, this.stackZ.logo);
     this.logoRoot.scale.setScalar(LG.scale * (1 + 0.04 * (1 - easeOutCubic(seg(gt, 4.2, 8)))));
 
     const n = this.logoParts.length;
@@ -1565,7 +1602,7 @@ export class Intro {
       m.scale.x = length;
       m.scale.y = DV.thickness;
       m.position.x = ln.inner - ln.dir * (ln.w * length) / 2;
-      m.position.y = m.userData.baseY + dy;
+      m.position.y = m.userData.baseY + dy + this.riseNow;
     };
     const updateLinePair = (d, progress, alpha, dy, length) => {
       d.L.visible = d.R.visible = DV.enabled && alpha > 0 && progress > 0;
@@ -1586,13 +1623,13 @@ export class Intro {
     updateLinePair(this.div1, l1, on1 ? DV.intensity1 : 0, DV.y1, DV.length1);
     this.popDiamond(this.div1.d, seg(dt, DV.start1 - 0.1, DV.start1 + 0.6), t, 0);
     this.div1.d.visible = this.div1.d.visible && on1 && DV.diamonds;
-    this.div1.d.position.y = this.div1.d.userData.baseY + DV.y1;
+    this.div1.d.position.y = this.div1.d.userData.baseY + DV.y1 + this.riseNow;
     const l2 = easeInOutCubic(seg(dt, DV.start2, DV.start2 + d2));
     const on2 = DV.enabled && DV.second;
     updateLinePair(this.div2, l2, on2 ? DV.intensity2 : 0, DV.y2, DV.length2);
     this.popDiamond(this.div2.d, seg(dt, DV.start2 - 0.1, DV.start2 + 0.55), t, 1.7);
     this.div2.d.visible = this.div2.d.visible && on2 && DV.diamonds;
-    this.div2.d.position.y = this.div2.d.userData.baseY + DV.y2;
+    this.div2.d.position.y = this.div2.d.userData.baseY + DV.y2 + this.riseNow;
 
     // The bars bypass animated HDR extraction and final-pass grain; reapply only the
     // global fade, vignette and opening slit so their look stays in sync with the scene.
@@ -1615,14 +1652,14 @@ export class Intro {
       f.s.visible = v > 0.003;
       f.s.scale.set(f.sx * (0.7 + 0.5 * Math.min(1, v)), f.sy * (0.6 + 0.6 * Math.min(1, v)), 1);
     };
-    this.flareLogo.s.position.set(lcx, lcy - 0.2, 0.4);
+    this.flareLogo.s.position.set(lcx, lcy + riseY - 0.2, 0.4);
     this.flareTitle.s.position.set(TT.x, -0.66 + TT.y, 0.4);
     this.flareSub.s.position.set(SB.x, P(0, 537).y + SB.y, 0.4);
     setFlare(this.flareLogo, burst(t, 4.5, 0.07, 0.4) * 0.2 + 0.1 * easeOutCubic(seg(gt, 5.5, 8)) * (0.8 + 0.2 * Math.sin(t * 0.8)));
     setFlare(this.flareTitle, burst(t - ts, 7.7, 0.25, 0.7) * 0.5 + 0.14 * easeOutCubic(seg(t - ts, 7.5, 10)) + burst(t, TL.sweep2 + 0.4, 0.3, 0.7) * 0.35);
     setFlare(this.flareSub, burst(t - SB.start + 8.35 - SB.delay, 9.6, 0.3, 0.6) * 0.45);
     const cg = this.coreGlow;
-    cg.position.set(lcx, lcy, -0.3);
+    cg.position.set(lcx, lcy + riseY, -0.3);
     cg.material.opacity = (easeOutCubic(seg(t, 3.0, 4.6)) * 0.28 * (1 - 0.6 * seg(t, 5, 7)) + burst(t, 4.5, 0.06, 0.4) * 0.09) * fxk(FX.flash);
     const cgs = 6 + burst(t, 4.5, 0.06, 0.8) * 3;
     cg.scale.set(cgs, cgs, 1);
@@ -1639,7 +1676,7 @@ export class Intro {
     const prevT = this.warp(Math.max(0, real - frameDelta));
     const w1 = seg(t, 4.5, 6.1);
     const w1Prev = seg(prevT, 4.5, 6.1);
-    this.waveLogo.position.set(lcx, lcy, 0.3);
+    this.waveLogo.position.set(lcx, lcy + riseY, 0.3);
     this.waveLogo.visible = w1 > 0 && w1 < 1 && fxk(FX.waves) > 0;
     // плоскость 34×34 (квадрат, uAspect = 1): радиус в мировых единицах, ширина растёт с радиусом
     this.waveLogo.material.uniforms.uR.value = (easeOutCubic(w1) * 9.2) / 17;
@@ -1700,6 +1737,9 @@ export class Intro {
       // приглушаем — блёстки остаются, но не дёргают свет.
       const tw = Math.pow(0.5 + 0.5 * Math.sin(t * 1.35 + gl.phase), 8) * 0.55 * easeOutCubic(seg(t, 9, 11));
       const intro = burst(t, 4.7 + i * 0.07, 0.08, 0.35) * (i < 6 ? 0.9 : 0);
+      // блики эмблемы заданы в пикселях финальной композиции — во время подъёма
+      // сдвигаем их вместе с эмблемой, иначе искры висят на пустом месте
+      gl.s.position.set(gl.x, gl.y + (i < 6 ? riseY : 0), 0.5);
       const v = Math.min(1, (swept + tw + intro) * fxk(FX.glints));
       gl.s.visible = v > 0.01;
       gl.s.material.opacity = v;
