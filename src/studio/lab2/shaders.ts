@@ -372,6 +372,7 @@ export const finalPass = {
     uRes: { value: [1920, 1080] },
     uOpen: { value: 1 },       // половина высоты видимой «щели» (в UV); >0.5 — кадр полностью открыт
     uSlitMix: { value: 1 },    // 1 — жёсткая маска «щели», 0 — мягкое затемнение вместо неё
+    uIris: { value: 0 },       // включение «старого телевизора»: 1 — чёрный экран, 0 — кадр открыт
     uLineVisible: { value: 1 },// 1 — пролог с линией-зажиганием разрешён
     uLine: { value: 0 },       // длина линии-зажигания 0..1
     uLineI: { value: 0 },      // её яркость
@@ -390,7 +391,7 @@ export const finalPass = {
   fragmentShader: /* glsl */ `
     precision highp float;
     uniform sampler2D tDiffuse;
-    uniform float uTime, uFade, uAspect, uOpen, uLine, uLineI, uBlur, uShock, uShockAmp, uCA, uPulse, uRays, uZoom, uGhost, uVig, uGrainK, uSat, uCon, uHue, uShadow, uSlitMix, uLineVisible;
+    uniform float uTime, uFade, uAspect, uOpen, uLine, uLineI, uBlur, uShock, uShockAmp, uCA, uPulse, uRays, uZoom, uGhost, uVig, uGrainK, uSat, uCon, uHue, uShadow, uSlitMix, uLineVisible, uIris;
     uniform vec2 uRes, uShockC;
     varying vec2 vUv;
     vec3 hueRot(vec3 c,float a){ vec3 k=vec3(0.57735); float ca=cos(a); return c*ca+cross(k,c)*sin(a)+k*dot(k,c)*(1.-ca); }
@@ -503,6 +504,23 @@ export const finalPass = {
       col*=mix(dim, vis, uSlitMix);
       float edge=exp(-pow((dy-uOpen)*55.,2.))*step(uOpen,0.5)*smoothstep(0.0,0.02,uOpen);
       col+=vec3(1.,0.66,0.26)*edge*0.22*mix(1.,vis,uSlitMix);
+
+      // ВКЛЮЧЕНИЕ ИЗ ЦЕНТРА. Кадр стартует полностью чёрным, затем из середины
+      // зажигается точка света и круг расходится к краям — как включался старый
+      // телевизор. uIris: 1 — закрыто, 0 — открыто целиком. Круг чуть вытянут
+      // по горизонтали, иначе на широком кадре он открывался бы «щёлочкой».
+      {
+        float dist=length(d*vec2(uAspect*0.62,1.0))*1.55;
+        float R=(1.-uIris)*1.75;
+        float soft=0.05+0.12*(1.-uIris);
+        float iris=1.-smoothstep(max(0.,R-soft),R+soft,dist);
+        // Мягкая кромка при закрытом ирисе всё равно оставляла в центре видимый
+        // диск кадра — самое начало не читалось как чёрный экран.
+        iris*=smoothstep(0.0,0.12,1.-uIris);
+        col*=iris;
+        // точка света в центре: сначала вспыхивает она, из неё расходится круг
+        col+=vec3(1.0,0.72,0.35)*exp(-dist*dist*46.0)*(1.-uIris)*1.6;
+      }
 
       // линия-зажигание: горячее ядро + анаморфный шлейф
       float half_=uLine*0.62;

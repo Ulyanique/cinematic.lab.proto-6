@@ -322,10 +322,13 @@ export class Intro {
         this.composer.render();
       }
       this.renderer.getContext().finish();
+      // последний кадр — тоже внутри try: раньше он стоял снаружи, и любая
+      // ошибка в update() на нулевом времени рвала init, анимационный цикл не
+      // запускался, и превью оставалось чёрным.
+      this.update(0);
     } catch (e) {
       console.warn('warm-up failed', e);
     }
-    this.update(0);
   }
 
   /* ------------------------------------------------------------ setup parts */
@@ -1302,8 +1305,8 @@ export class Intro {
       this.t = 0;
       frameDelta = 1 / this.cfg.general.fps;
     }
-    this.update(this.t, frameDelta);
     try {
+      this.update(this.t, frameDelta);
       this.composer.render();
       this.renderFails = 0;
     } catch (e) {
@@ -1640,6 +1643,10 @@ export class Intro {
     du.uFade.value = F.uFade.value;
     du.uOpen.value = F.uOpen.value;
     du.uSlitMix.value = F.uSlitMix.value;
+    // Разделители рисуются последним проходом, у него свои униформы: без этой
+    // строки раскрытие кадра к ним не применялось бы и линии проступали поверх
+    // ещё чёрного экрана.
+    du.uIris.value = F.uIris.value;
 
     // subtitle + date
     this.updateText(this.sub, SB, t, 1.3, 0, 0.55, 0.25);
