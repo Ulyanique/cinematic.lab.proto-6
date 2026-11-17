@@ -54,7 +54,7 @@
  */
 /* Ручки границ фаз (.operator-grip) — не кнопки интерфейса, а направляющие:
    у них своя геометрия и псевдоэлементы, поэтому из общей кнопки исключены. */
-.export-viewer-actions button:not(.operator-grip) {
+.operator-panel button:not(.operator-grip) {
   border-radius: var(--ui-radius-control);
   border: 1px solid var(--ui-btn-border);
   background: var(--ui-btn-bg);
@@ -63,16 +63,17 @@
   cursor: pointer;
   transition: background .15s ease, border-color .15s ease, color .15s ease;
 }
-.export-viewer-actions button:not(.operator-grip):is(:hover, :focus-visible) {
+.operator-panel button:not(.operator-grip):is(:hover, :focus-visible) {
   background: var(--ui-btn-bg-hover);
   border-color: var(--ui-btn-border-hover);
   color: #fff;
 }
-.export-viewer-actions button:not(.operator-grip):is([aria-current="page"], [aria-pressed="true"], .active, .on) {
+.operator-panel button:not(.operator-grip):is([aria-pressed="true"], .is-on) {
   background: var(--ui-btn-active-bg);
   border-color: var(--ui-btn-active-border);
   color: var(--ui-btn-active-text);
 }
+
 .export-viewer-actions button:disabled {
   opacity: .4; cursor: default;
 }
@@ -142,127 +143,163 @@ body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
 .clip-switch, .studio-buttons { transition: opacity .3s ease; }
 .operator-panel {
   position: fixed; z-index: 24; left: 50%; bottom: 16px;
-  transform: translateX(-50%); width: min(1220px, calc(100vw - 32px));
+  transform: translateX(-50%); width: min(1320px, calc(100vw - 32px));
   border: 1px solid var(--ui-line); border-radius: var(--ui-radius-panel);
   background: var(--ui-surface); backdrop-filter: blur(16px);
-  box-shadow: var(--ui-shadow); padding: 9px 14px 10px;
+  box-shadow: var(--ui-shadow); padding: 8px 12px;
   color: #d8d5ce; font: var(--ui-fs-base)/1.4 var(--ui-font);
   transition: opacity .25s ease;
 }
-.operator-row { display: flex; align-items: center; gap: 9px; }
-.operator-row + .operator-row { margin-top: 9px; }
-.operator-label { font-size: var(--ui-fs-micro); letter-spacing: var(--ui-tracking-caps); color: #9d8258; white-space: nowrap; text-transform: uppercase; font-weight: 600; }
-.operator-panel button { padding: 6px 9px; white-space: nowrap; }
-.operator-transport input[type="range"] { flex: 1; min-width: 60px; accent-color: #d9b061; cursor: pointer; }
-/* Таймлайн снизу: полоса фаз с метками входа, удержания и выхода.
-   Раньше перемотка была одной строкой с кнопками, и по ней нельзя было понять,
-   где кончается вход и сколько длится удержание. */
-.operator-timeline { margin-top: 8px; }
-.operator-phases { position: relative; height: 15px; }
-.operator-phase {
-  position: absolute; top: 0; height: 15px; overflow: hidden;
-  border-left: 1px solid rgba(217,176,97,.5);
-  font: 10px/15px "Inter", system-ui, sans-serif; color: #dcbe8a;
-  letter-spacing: .12em; text-transform: uppercase; white-space: nowrap;
+
+/* ── пульт: одна строка — транспорт · таймлайн · цифры фаз ───────────── */
+/* Всё, что относится ко времени ролика, умещается в одну строку: слева
+   транспорт, в середине полоса с ручками границ, справа три числа. Раньше
+   это были четыре этажа, и длительность входа нельзя было даже прочитать. */
+.operator-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
 }
-.operator-phase:first-child { border-left-color: transparent; }
-.operator-phase b { font-weight: 600; padding-left: 6px; }
-/* Время фазы — рядом с именем и глуше: важнее ритм, а не цифра. */
-.operator-phase i { font-style: normal; margin-left: 6px; color: #9d8258; font-variant-numeric: tabular-nums; }
-.operator-phase-entry { color: #ecd3a2; }
-.operator-phase-hold { color: #b79c72; }
-.operator-phase-exit { color: #a98a62; }
+
+/* Транспорт: три круглые кнопки и время — самая узкая часть строки. */
+.operator-transport { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.operator-transport output {
+  min-width: 96px; text-align: right; color: #ffe3a1;
+  font-variant-numeric: tabular-nums; font-size: 11px; letter-spacing: .02em;
+}
+
+/* Полоса фаз занимает всё свободное место: она и есть главный орган правки. */
+.operator-timeline { flex: 1 1 auto; min-width: 180px; padding-bottom: 10px; }
 .operator-track { position: relative; height: 20px; }
-/* Транспорт — одна спокойная строка под таймлайном. Крупных селекторов
-   разрешения и кодека здесь больше нет: они переехали в настройки. */
-.operator-transport { gap: 8px; margin-top: 7px; }
-.operator-transport [data-role="time"] { flex: 0 0 auto; }
-.operator-transport .operator-duration { margin-left: auto; }
 .operator-phase-band {
-  position: absolute; inset: 6px 0; border-radius: 3px;
-  border: 1px solid rgba(217,176,97,.22); pointer-events: none;
+  position: absolute; inset: 5px 0; border-radius: 3px;
+  border: 1px solid rgba(217, 176, 97, .22); pointer-events: none;
 }
+/* Перемотка — прозрачный range поверх полосы: бегунок у него тонкий, чтобы не
+   спорить с ручками границ. */
 .operator-track input[type="range"] {
-  position: absolute; inset: 0; width: 100%; margin: 0; background: transparent;
-  -webkit-appearance: none; appearance: none; cursor: pointer; accent-color: #d9b061;
+  position: absolute; inset: 0; width: 100%; height: 20px; margin: 0;
+  background: transparent; -webkit-appearance: none; appearance: none;
+  cursor: pointer; accent-color: #d9b061;
 }
 .operator-track input[type="range"]::-webkit-slider-runnable-track { height: 20px; background: transparent; }
 .operator-track input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 3px; height: 20px; margin-top: 0;
-  border-radius: 2px; background: #ffe3a1; box-shadow: 0 0 8px rgba(255,214,140,.85);
-}
-.operator-track input[type="range"]::-moz-range-thumb {
-  width: 3px; height: 20px; border: 0; border-radius: 2px;
-  background: #ffe3a1; box-shadow: 0 0 8px rgba(255,214,140,.85);
+  -webkit-appearance: none; width: 3px; height: 18px; margin-top: 1px;
+  border-radius: 2px; background: #ffe3a1; box-shadow: 0 0 8px rgba(255, 214, 140, .85);
 }
 .operator-track input[type="range"]::-moz-range-track { height: 20px; background: transparent; }
-/* Курсор — отдельная тонкая линия поверх полосы: она показывает положение
-   точнее, чем бегунок, и не мешает перетаскиванию. */
+.operator-track input[type="range"]::-moz-range-thumb {
+  width: 3px; height: 18px; border: 0; border-radius: 2px;
+  background: #ffe3a1; box-shadow: 0 0 8px rgba(255, 214, 140, .85);
+}
 .operator-cursor {
   position: absolute; top: 3px; width: 1px; height: 14px; margin-left: -.5px;
-  background: rgba(255,236,190,.9); box-shadow: 0 0 6px rgba(255,214,140,.6);
+  background: rgba(255, 236, 190, .9); box-shadow: 0 0 6px rgba(255, 214, 140, .6);
   pointer-events: none;
 }
-/* Ручки границ: вход кончается там, где начинается удержание, выход — где
-   начинается уход. Раньше границу можно было менять только в редакторе, хотя
-   это монтажное решение — ему место на пульте. */
+/* Ручки границ — направляющие, а не кнопки хрома: у них своя геометрия,
+   поэтому они исключены из общего вида кнопок (см. выше). */
 .operator-grip {
-  position: absolute; top: -3px; width: 11px; height: 26px; margin-left: -5.5px;
-  padding: 0; border: 0; border-radius: 3px; background: transparent; cursor: ew-resize;
-  z-index: 3;
+  position: absolute; top: -2px; width: 12px; height: 24px; margin-left: -6px;
+  padding: 0; border: 0; border-radius: 3px; background: transparent;
+  cursor: ew-resize; z-index: 3;
 }
 .operator-grip::before {
   content: ""; position: absolute; inset: 4px 4px; border-radius: 2px;
-  background: rgba(255,227,161,.55); box-shadow: 0 0 7px rgba(255,214,140,.5);
+  background: rgba(255, 227, 161, .55); box-shadow: 0 0 7px rgba(255, 214, 140, .5);
   transition: background .15s ease, inset .15s ease;
 }
-.operator-grip:hover::before, .operator-grip:focus-visible::before, .operator-grip.drag::before {
-  inset: 1px 3px; background: #ffe3a1; box-shadow: 0 0 10px rgba(255,214,140,.9);
+.operator-grip:hover::before,
+.operator-grip:focus-visible::before,
+.operator-grip.drag::before {
+  inset: 1px 3px; background: #ffe3a1; box-shadow: 0 0 10px rgba(255, 214, 140, .9);
 }
 .operator-grip:focus-visible { outline: none; }
 .operator-grip:disabled { display: none; }
-/* Линия от ручки к полосе: видно, к какой фазе она относится. */
 .operator-grip::after {
-  content: ""; position: absolute; left: 5px; top: 0; width: 1px; height: 26px;
-  background: rgba(255,227,161,.25);
+  content: ""; position: absolute; left: 5px; top: 0; width: 1px; height: 24px;
+  background: rgba(255, 227, 161, .25);
 }
-
-.operator-marks { position: relative; height: 7px; }
+/* Внутренние стадии фазы: конец прорисовки, начало паузы. */
+.operator-marks { position: relative; height: 0; }
 .operator-mark {
-  position: absolute; top: 0; width: 1px; height: 6px; margin-left: -.5px;
-  background: rgba(217,176,97,.55);
+  position: absolute; top: 2px; width: 1px; height: 5px; margin-left: -.5px;
+  background: rgba(217, 176, 97, .5);
 }
 
-.operator-transport output { min-width: 98px; text-align: center; font-variant-numeric: tabular-nums; color: #ffe3a1; }
-/* Сетка такта: подпись уже и глуше, чтобы не спорить с таймкодом. */
-.operator-beat { min-width: 0 !important; color: #c9a97a !important; font-size: var(--ui-fs-base); opacity: .85; }
-/* Состояние источников фильма: та же строка транспорта, но читается как статус. */
+/* Подпись под полосой: сегменты по ширине фаз, 9 px, без споров с таймкодом. */
+.operator-legend { position: relative; height: 11px; margin-top: 2px; }
+.operator-legend-item {
+  position: absolute; top: 0; overflow: hidden; white-space: nowrap;
+  color: #9d8258; font-size: 9px; line-height: 11px;
+  font-variant-numeric: tabular-nums; letter-spacing: .06em;
+  text-overflow: clip;
+}
+.operator-legend-hold { color: #b79c72; }
+.operator-legend-exit { color: #a98a62; }
+
+/* Цифры фаз: вход · держание · уход · цикл. Подпись над полем, чтобы поля
+   вставали в ту же строку, что и полоса, и не растягивали пульт. */
+.operator-phases-fields { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.operator-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.operator-field > span {
+  color: rgba(255, 214, 140, .5); font-size: 9px; line-height: 1;
+  letter-spacing: .14em; text-transform: uppercase; white-space: nowrap;
+}
+.operator-field input[type="number"] {
+  width: 58px; padding: 4px 5px; border-radius: 6px;
+  border: 1px solid rgba(255, 216, 150, .16);
+  background: #10100f; color: #ffe3a1;
+  font: 11px/1.2 var(--ui-font); font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.operator-field input[type="number"]:is(:hover, :focus-visible) {
+  border-color: rgba(255, 214, 140, .45);
+}
+/* Стрелки нативного поля не нужны: шаг задаётся клавишами ↑/↓. */
+.operator-field input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.operator-field input[type="number"]::-webkit-outer-spin-button,
+.operator-field input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.operator-phases-fields .operator-field[data-field="cycle"] { margin-left: 2px; }
+.operator-phases-fields .operator-field[data-field="cycle"] input { color: #d8cfb8; }
+
+/* Хвост строки: статус роликов и переключатели. */
+.operator-tail { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 .operator-media {
-  min-width: 0 !important; padding: 3px 7px; border-radius: var(--ui-radius-control);
+  min-width: 0; padding: 3px 7px; border-radius: var(--ui-radius-control);
   border: 1px solid var(--ui-line); background: var(--ui-surface-raised);
   color: #c9c4b8; font-size: var(--ui-fs-small); font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .operator-media[hidden] { display: none; }
 .operator-media.is-error { border-color: var(--ui-danger); color: #ffd0c8; }
-.operator-duration { white-space: nowrap; color: #bca780; }
-.operator-duration input { width: 65px; padding: 5px; border: 1px solid rgba(217,176,97,.36); border-radius: 4px;
-  background: #110e0a; color: #ffe3a1; font: inherit; font-variant-numeric: tabular-nums; }
-.operator-busy .operator-transport input, .operator-busy .operator-timeline input, .operator-busy .operator-transport .operator-duration, .operator-busy [data-action="record"], .operator-busy [data-action="record-chain"] { opacity: .4; pointer-events: none; }
+/* «Авто» — длинная подпись, а не иконка: ей нужен обычный отступ кнопки. */
+.operator-panel [data-action="auto"] { padding: 6px 10px; font-size: 10px; letter-spacing: .12em; }
+.operator-busy .operator-track input,
+.operator-busy .operator-grip,
+.operator-busy .operator-field input { opacity: .4; pointer-events: none; }
+
+/* На узком экране строка переносится: сначала полоса во всю ширину,
+   затем цифры под ней — пульт не должен упираться в край кадра. */
+@media (max-width: 1080px) {
+  .operator-bar { flex-wrap: wrap; row-gap: 8px; }
+  .operator-timeline { flex: 1 1 100%; order: 2; }
+  .operator-phases-fields { order: 3; }
+  .operator-tail { order: 1; margin-left: auto; }
+}
+@media (max-width: 640px) {
+  .operator-transport output { min-width: 68px; font-size: 10px; }
+  .operator-field input[type="number"] { width: 52px; }
+  .operator-phases-fields { flex: 1 1 100%; justify-content: space-between; }
+}
 /* Переход предпросмотра: рисуется тем же кодом, что и в экспорте, и лежит
    поверх кадра сцены. Геометрию копирует syncTransitionOverlay(). */
 .transition-overlay {
   position: fixed; transform: translate(-50%, -50%);
   z-index: 12; pointer-events: none; display: block;
 }
-@media (max-width: 780px) {
-  .operator-panel { padding: 8px; }
-  .operator-row { flex-wrap: wrap; }
-  .operator-transport output { min-width: 80px; }
-  /* На узком экране подписи фаз не влезают целиком: оставляем только имя. */
-  .operator-phase i { display: none; }
-  .operator-phase b { padding-left: 4px; }
-}
+
 
 /* Необязательная режиссёрская панель; не входит в 1920×1080 WebGL-кадр. *//* ── кнопка настроек ── */
 /* Кнопки «Редактировать» и ⚙ стоят в одном углу кадра и делают похожую вещь:
@@ -390,41 +427,6 @@ body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
 #caption .cap-date .glyph-contour path { stroke: var(--date-color, #d9b061); }
 
 /* Интерфейс конструктора: нейтральные поверхности, золото только для состояния. */
-/* Только плотность: форма, фон и состояния приходят из общей кнопки хрома. */
-/* Быстрые команды раздела: та же кнопка хрома, но в одну строку. */
-/* Слоты видеомонолитов: подпись шире обычной, варианты — полной строкой. */
-.operator-panel :focus-visible {
-  outline: 2px solid #d4b47a; outline-offset: 2px;
-}
-
-/* Плотность пульта. Поверхность, рамка и тень — из общих токенов выше,
-   поэтому пульт и панель настроек не расходятся по виду. */
-.operator-panel {
-  width: min(1140px, calc(100vw - 36px)); bottom: 16px;
-  padding: 9px 14px 11px; border-radius: var(--ui-radius-panel);
-}
-.operator-row { gap: 7px; }
-.operator-row + .operator-row { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.08); }
-.operator-label { color: #9d8258; font-size: var(--ui-fs-micro); letter-spacing: var(--ui-tracking-caps); text-transform: uppercase; font-weight: 600; }
-.operator-panel button { padding: 6px 9px; }
-.operator-transport input[type="range"] { accent-color: #c6a56b; }
-.operator-transport output { color: #d5d1c8; font-size: 11px; }
-.operator-duration { color: #99958d; }
-.operator-duration input {
-  background: #10100f; color: #ded9cf; border-color: rgba(255,255,255,.14); border-radius: 3px;
-}
-/* Запись — главное действие пульта: единственная кнопка с акцентной рамкой.
-   Остальные команды остаются нейтральными, чтобы акцент не размывался. */
-.operator-panel [data-action="record"], .operator-panel [data-action="record-chain"] {
-  border-color: var(--ui-line-accent);
-  color: #f0dcb2;
-  font-weight: 500;
-}
-@media (max-width: 780px) {
-  .operator-panel { width: calc(100vw - 24px); bottom: 12px; max-height: 36vh; overflow-y: auto; padding: 8px 10px; }
-  .operator-transport input[type="range"] { min-width: 120px; }
-}
-
 /* Редактор — отдельный интерфейс, не часть экспортного кадра. */
 /* «Редактировать» — следующая ступень после слоёв, поэтому стоит под кнопкой
    слоёв у левого края; в редакторе верхняя строка прячется (см. ниже). */
@@ -557,7 +559,6 @@ body.scene-partners #caption { display: none; }
  * ========================================================================== */
 
 /* Панели редактора: поверхность и форма как у пульта и панели настроек. */
-.operator-label { color: #918d84; font-size: var(--ui-fs-micro); letter-spacing: var(--ui-tracking-caps); font-weight: 600; text-transform: uppercase; }
 
 /* Поля ввода: одна форма на все панели (настройки, инспектор, таймлайн). */
 :is(.fp, .ins-json, .operator-panel) :is(input[type="text"], input[type="number"], input[type="search"], select, textarea) {
@@ -995,52 +996,6 @@ body.panels-on .clip-switch { opacity: 1; }
   background: #ffe3a0;
 }
 
-/* ── пульт: транспорт снизу, без дублирования выбора ролика ──────────── */
-.operator-panel {
-  background: var(--ui-glass);
-  border: 1px solid rgba(255, 226, 175, .1);
-  border-radius: var(--ui-panel-radius);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, .55);
-  backdrop-filter: blur(24px) saturate(120%);
-  -webkit-backdrop-filter: blur(24px) saturate(120%);
-  color: rgba(255, 248, 235, .88);
-}
-.operator-panel button {
-  border-radius: var(--ui-pill-radius);
-  border: 1px solid rgba(255, 214, 140, .25);
-  background: rgba(0, 0, 0, .35);
-  color: rgba(255, 236, 199, .8);
-  font: 10px/1 var(--ui-font);
-  letter-spacing: .16em;
-  text-transform: uppercase;
-  padding: 7px 12px;
-}
-.operator-panel button:is(:hover, :focus-visible) {
-  border-color: rgba(255, 214, 140, .6);
-  background: rgba(0, 0, 0, .6);
-  color: #fff3dc;
-}
-.operator-panel button:is([aria-pressed="true"], [aria-current="page"]) {
-  border-color: rgba(255, 214, 140, .6);
-  background: rgba(255, 214, 140, .15);
-  color: #fff3dc;
-}
-.operator-label { color: rgba(255, 214, 140, .5); letter-spacing: .28em; }
-.operator-transport output,
-.operator-transport [data-role="time"] { color: #ffe3a1; font-variant-numeric: tabular-nums; letter-spacing: .08em; }
-.operator-duration { color: rgba(255, 236, 199, .45); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
-.operator-duration input {
-  width: 58px;
-  padding: 4px 5px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, .1);
-  background: rgba(255, 255, 255, .05);
-  color: #fff6e6;
-  font: 11px/1.2 var(--ui-font);
-}
-.operator-media { border-color: rgba(255, 255, 255, .1); background: rgba(255, 255, 255, .05); color: rgba(255, 236, 199, .7); }
-.operator-beat { color: rgba(255, 214, 140, .6) !important; }
-
 /* на узком экране верхняя строка не должна наезжать на кнопки */
 @media (max-width: 640px) {
   .clip-switch { width: min(240px, calc(100vw - 140px)); }
@@ -1291,5 +1246,9 @@ body.panels-on .clip-switch { opacity: 1; }
 .operator-icon {
   display: inline-grid;
   place-items: center;
-  min-width: 30px;
+}
+/* Квадратные кнопки-иконки пульта: плотнее обычной кнопки хрома, чтобы
+   строка не разъезжалась по высоте. */
+.operator-panel button.operator-icon {
+  min-width: 28px; padding: 6px; justify-items: center;
 }

@@ -39,9 +39,9 @@ import { masterSize, masterId, setMasterPreset, loadMasterPreset } from "./outpu
 import { transitionDuration, drawOutgoingFrame } from "./scene-transition.js";
 import { OUTPUT, sceneById } from "./scenes/catalog.js";
 import { SCENE_NAV, sceneNav, DEFAULT_SCENE_ID } from "./scenes/nav.js";
+import { MIN_HOLD, MAX_CYCLE } from "./operator-timeline.js";
 import { decodeConfigShareHash } from "./scene-snapshots.js";
 import { createOperatorControls, crossedBoundary } from "./operator.js";
-import { movePhaseBoundary } from "./timeline-math.js";
 import { loadQuality, saveQuality } from "./quality-presets.js";
 import { loadDelivery, saveDelivery } from "./delivery-light.js";
 import { photoShutterSamples, shutterTimes } from "./photo-shutter.js";
@@ -394,23 +394,26 @@ operator = createOperatorControls({
     recording: !!recording, master: masterId(), quality: scene.quality,
     delivery, media: scene.mediaStatus?.() || null }),
   seek: (value) => { cfg.playback.paused = true; runtime.renderAt(value, 1 / OUTPUT.fps); },
-  setBoundary: (edge, seconds) => {
-    const minHold = sceneId === "waiting" ? 1 : 4;
-    const next = movePhaseBoundary(cfg.timeline, edge, seconds, minHold);
-    if (!next) return false;
+  // Фазы ролика: вход, удержание, уход. Пульт присылает уже посчитанный
+  // таймлайн (phaseChange/boundaryChange) — и от цифры, и от метки, поэтому
+  // сохранить и перерисовать кадр нужно ровно здесь, в одном месте.
+  setPhase: (next) => {
+    if (recording || transition) return false;
     Object.assign(cfg.timeline, next);
     saveScene();
-    // Кадр пересобирается сразу: граница — монтажное решение, его надо видеть.
-    runtime.renderAt(runtime.time, 1 / OUTPUT.fps);
+    panels.refresh();
+    // Кадр пересобирается сразу: длительности фаз — монтажное решение, его
+    // надо видеть. Время подрезается, чтобы не остаться за концом цикла.
+    runtime.renderAt(Math.min(runtime.time, cfg.timeline.startDelay + runtime.cycle - 1 / OUTPUT.fps));
     return true;
   },
   setDuration: (value) => {
+    // Цикл меняется только удержанием: вход и уход остаются как настроены,
+    // иначе правка одного числа незаметно переписывала бы два других.
     const tl = cfg.timeline;
-    const other = runtime.cycle - tl.holdDuration;
-    // Для других видов вход/уход теперь тоже занимают время; сохраняем
-    // не менее четырёх секунд фазы удержания и ограничение полного цикла.
-    const minHold = sceneId === "waiting" ? 1 : 4;
-    tl.holdDuration = Math.max(minHold, Math.min(300 - other, value - other));
+    const fixed = runtime.cycle - tl.holdDuration;
+    const next = Math.max(MIN_HOLD, Math.min(MAX_CYCLE - fixed, value - fixed));
+    tl.holdDuration = next;
     saveScene();
     panels.refresh();
     runtime.renderAt(Math.min(runtime.time, tl.startDelay + runtime.cycle - 1 / OUTPUT.fps));
