@@ -1340,7 +1340,10 @@ export class Intro {
     this.camera.position.z -= punch * CM.punch;
     this.camera.position.x += Math.sin(t * 83) * 0.045 * shake;
     this.camera.position.y += Math.cos(t * 71) * 0.035 * shake;
-    this.camera.lookAt(0, 0, 0);
+    // Смещение композиции: камера целится выше или ниже центра, поэтому
+    // эмблема и надписи уезжают в кадре вместе, а фон остаётся на месте
+    // (он рисуется экранной плоскостью и смотрит только на позицию камеры).
+    this.camera.lookAt(0, -G.compositionY, 0);
     this.camera.rotation.z += (1 - ck) * CM.roll + Math.sin(t * 59) * 0.004 * shake;
     this.bgMat.uniforms.uCam.value.set(this.camera.position.x * -0.25, this.camera.position.y * -0.25);
 

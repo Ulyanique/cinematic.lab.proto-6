@@ -3,7 +3,7 @@ import { BRAND_DEFAULTS } from "./brand.js";
 import { PHOTO_PAUSE_DEFAULTS } from "./photo-pause.js";
 import { PARTNERS_DEFAULTS, SPONSOR_PROMRUKAV_DEFAULTS, SPONSOR_KEAZ_DEFAULTS } from "./partners.js";
 import { FINALE_DEFAULTS } from "./finale.js";
-import { LAB2_DEFAULTS, LAB5_DEFAULTS, LAB2_ID, LAB5_ID } from "./labs.js";
+import { LAB2_DEFAULTS, LAB2_BRAND_DEFAULTS, LAB5_DEFAULTS, LAB2_ID, LAB2_BRAND_ID, LAB5_ID } from "./labs.js";
 
 // Базовый формат кадра. Это единственный источник числа 1920×1080: остальные
 // модули (битрейт, масштаб макета, профили мастера) считают от него, чтобы
@@ -29,7 +29,9 @@ export const SCENES = Object.freeze([
   // подписан явно. Внутренний id сохранён: по нему лежат сохранённые настройки
   // и старые ссылки ?scene=waiting.
   { id: "waiting", title: "Архив — прежнее интро: ожидание вечера", code: "A1", label: "Интро (архив)", status: "ready", archived: true, defaults: WAITING_DEFAULTS },
-  { id: "brand", title: "Фирменный фон для речи, ужина и музыкальных сетов", code: "02", label: "Фон", status: "ready", defaults: BRAND_DEFAULTS },
+  // Нынешний фон — композиция «Интро» без вечера и даты. Прежний фон остался
+  // архивным: он на месте «02», но помечен, чтобы два «Фона» не путались.
+  { id: "brand", title: "Архив — прежний фирменный фон для речи и ужина", code: "A2", label: "Фон (архив)", status: "ready", archived: true, defaults: BRAND_DEFAULTS },
   { id: "dream-project", title: "Проект мечты", status: "planned" },
   { id: "partners", title: "Спонсоры и партнёры (макет)", code: "04", label: "Спонсоры", status: "preview", defaults: PARTNERS_DEFAULTS },
   // Заставки отдельных спонсоров: тот же кадр, но один знак крупно по центру.
@@ -45,6 +47,9 @@ export const SCENES = Object.freeze([
   // она называется просто «Интро», потому что открывает показ.
   { id: LAB2_ID, title: "Интро — 3D-эмблема из роя частиц и объёмные буквы", code: "01", label: "Интро", status: "ready", defaults: LAB2_DEFAULTS },
   { id: LAB5_ID, title: "Лаборатория 11 — Монолиты: кинофильм 51 с", code: "11", label: "Монолиты", status: "ready", defaults: LAB5_DEFAULTS },
+  // Второй ролик программы — фон: композиция «Интро» без подзаголовка и даты,
+  // по центру кадра, на минуту.
+  { id: LAB2_BRAND_ID, title: "Фон — композиция «Интро» без вечера и даты, минута", code: "02", label: "Фон", status: "ready", defaults: LAB2_BRAND_DEFAULTS },
 ]);
 
 /**

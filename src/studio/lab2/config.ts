@@ -13,6 +13,10 @@ export const DEFAULT_CONFIG = {
   order: [...DEFAULT_ORDER] as LayerId[],
   general: {
     impact: 4.5, speed: 1, hold: 0,
+    // Смещение всей композиции по вертикали, в мировых единицах (плюс — вверх).
+    // Нужно фоновым роликам: у них нет подзаголовка и даты, и блок «эмблема +
+    // название» без сдвига садится выше середины кадра.
+    compositionY: 0,
     fadeOut: true,
     fps: 30, width: 1920, bitrate: 16, quality: 1920,
     loop: false, fileName: 'intro',
@@ -195,7 +199,8 @@ export const SCHEMA: Record<string, Section[]> = {
     { title: 'Время', fields: [
       num('impact', 'Момент удара (эмблема)', 1.5, 9, 0.05, { unit: 'с', hint: 'Центральное событие: вспышка и ударная волна' }),
       num('speed', 'Скорость после удара', 0.5, 2.5, 0.05, { unit: '×' }),
-      num('hold', 'Финальная пауза', 0, 10, 0.1, { unit: 'с' }),
+      num('hold', 'Финальная пауза', 0, 60, 0.1, { unit: 'с' }),
+      num('compositionY', 'Положение композиции, Y', -3, 3, 0.05, { hint: 'Сдвиг эмблемы и надписей целиком: вверх — положительное' }),
       bool('loop', 'Зацикливать превью'),
     ] },
     { title: 'Экспорт видео', fields: [

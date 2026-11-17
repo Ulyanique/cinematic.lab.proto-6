@@ -31,7 +31,7 @@ import {
 } from "./scene-snapshots.js";
 import { AnimationRuntime, cycleDuration, setRenderHook } from "./runtime.js";
 import { Lab2Scene, Lab5Scene } from "./lab-scenes.js";
-import { LAB2_ID, LAB5_ID, isLabScene } from "./scenes/labs.js";
+import { LAB2_ID, LAB2_BRAND_ID, LAB5_ID, isLabScene } from "./scenes/labs.js";
 import { FxStack, fxActive, applyFxPreset, EFFECT_KEYS } from "./fx-stack.js";
 import { frameCount, estimateVideoBytes, videoBitrateFor } from "./video-math.js";
 import { deliveryOption as deliveryOptionLight, deliveryFilename } from "./delivery-light.js";
@@ -69,7 +69,7 @@ let sceneId = activeScene.id;
 // Настройки каждой готовой сцены живут отдельно: в браузере свой ключ на сцену.
 // Заставки отдельных спонсоров — те же страницы программы, поэтому идут в общем
 // списке: у каждой свой конфиг, своя кнопка и своя запись.
-const READY_IDS = ["waiting", "brand", "partners", "sponsor-promrukav", "sponsor-keaz", "photo-pause", "finale", LAB2_ID, LAB5_ID];
+const READY_IDS = ["waiting", "brand", "partners", "sponsor-promrukav", "sponsor-keaz", "photo-pause", "finale", LAB2_ID, LAB2_BRAND_ID, LAB5_ID];
 const configs = new Map();
 const storageFailures = new Set();
 for (const id of READY_IDS) {
@@ -257,7 +257,7 @@ const adapters = { waiting: LogoScene, brand: BrandScene,
   // Заставки спонсоров — один класс, знак берётся из своего конфига.
   "sponsor-promrukav": SponsorScene, "sponsor-keaz": SponsorScene,
   // Кинематографичные лаборатории proto-2 и proto-5
-  [LAB2_ID]: Lab2Scene, [LAB5_ID]: Lab5Scene };
+  [LAB2_ID]: Lab2Scene, [LAB2_BRAND_ID]: Lab2Scene, [LAB5_ID]: Lab5Scene };
 let scene = new adapters[sceneId](canvas, cfg);
 // Пресет качества запоминаем между запусками: на площадке важно не искать его
 // заново. Значение по умолчанию — полный кадр превью.

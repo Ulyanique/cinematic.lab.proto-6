@@ -21,16 +21,19 @@ import { PLAYABLE_SCENES } from "./catalog.js";
  */
 
 /**
- * «Интро» открывает программу: лаборатория 10 — первая анимация вечера, она
- * стоит в списке роликов и в выпадающем списке сверху раньше остальных, поэтому
- * студия стартует именно с неё (см. `DEFAULT_SCENE_ID`).
+ * Интро и фон открывают программу: это первые два ролика вечера, поэтому они и
+ * стоят в списке сверху раньше остальных (студия стартует с интро, см.
+ * `DEFAULT_SCENE_ID`). Порядок задан здесь, а не в каталоге: каталог — про
+ * содержимое, порядок показа — про программу.
  */
 export const INTRO_SCENE_ID = "lab-swarm";
+export const BRAND_SCENE_ID = "lab-swarm-brand";
 
-/** Порядок показа: рой-интро, затем остальные ролики в порядке каталога. */
+/** Порядок показа: интро, фон, затем остальные ролики в порядке каталога. */
+const HEAD = [INTRO_SCENE_ID, BRAND_SCENE_ID];
 const ORDERED = [
-  ...PLAYABLE_SCENES.filter((scene) => scene.id === INTRO_SCENE_ID),
-  ...PLAYABLE_SCENES.filter((scene) => scene.id !== INTRO_SCENE_ID),
+  ...HEAD.flatMap((id) => PLAYABLE_SCENES.filter((scene) => scene.id === id)),
+  ...PLAYABLE_SCENES.filter((scene) => !HEAD.includes(scene.id)),
 ];
 
 /** @type {readonly SceneNav[]} */

@@ -1,6 +1,6 @@
 import { createSharedSceneConfig } from "./shared-visuals.js";
 import { WAITING_DEFAULTS } from "./waiting.js";
-import { DEFAULT_CONFIG, SCHEMA as LAB2_SCHEMA } from "../lab2/config.ts";
+import { DEFAULT_CONFIG, SCHEMA as LAB2_SCHEMA, totalDuration as lab2Duration } from "../lab2/config.ts";
 import { DEFAULT_SETTINGS } from "../lab5/settings.ts";
 import { TL as LAB5_TL } from "../lab5/timeline.ts";
 import { MEDIA_CLIPS, mediaOptions, VIDEO_FIT_OPTIONS } from "../lab5/media.ts";
@@ -19,7 +19,13 @@ import { FULL_ASSIGN, normalizeAssign } from "../lab5/settings.ts";
  */
 export const LAB2_ID = "lab-swarm";
 export const LAB5_ID = "lab-monoliths";
-export const LAB_IDS = Object.freeze([LAB2_ID, LAB5_ID]);
+/**
+ * Фон из интро: та же композиция, что «Интро», без вечера и даты. Отдельный
+ * ролик, а не переключатель внутри интро: у фона своя длина, свои настройки и
+ * своя запись, и он должен жить в списке рядом с остальными.
+ */
+export const LAB2_BRAND_ID = "lab-swarm-brand";
+export const LAB_IDS = Object.freeze([LAB2_ID, LAB5_ID, LAB2_BRAND_ID]);
 export const isLabScene = (id) => LAB_IDS.includes(id);
 
 /** Таймлайн ролика-лаборатории: вся длительность — «удержание», её выставляет сам ролик. */
@@ -32,6 +38,22 @@ function labTimeline(duration) {
 }
 
 const plain = (o) => JSON.parse(JSON.stringify(o));
+
+/**
+ * Фон из интро: одна минута, композиция по центру кадра.
+ *
+ * Остальное — ровно как в «Интро»: та же эмблема, то же название, тот же свет.
+ * Убраны только «ВЕЧЕР РЕТРОСПЕКТИВА» и дата внизу. Без них блок «эмблема +
+ * название» садится выше середины, поэтому композиция целиком опускается
+ * (compositionY) — центр блока приходится на середину кадра.
+ */
+function brandTimeline() {
+  const base = WAITING_DEFAULTS.timeline;
+  return {
+    drawDuration: 0, emergeDuration: 0, holdDuration: 60, fadeDuration: 0, restDuration: 0,
+    startDelay: 0, ringsIntro: base.ringsIntro, speed: 1, beatBpm: base.beatBpm, beatOffset: base.beatOffset,
+  };
+}
 
 // ── Лаборатория 10 ───────────────────────────────────────────────────────
 const LAB2_SCOPES = [
@@ -84,6 +106,30 @@ export const LAB2_DEFAULTS = (() => {
   cfg.transition = { duration: 0.9 };
   cfg.caption.titleVisible = false;
   const src = plain(DEFAULT_CONFIG);
+  for (const [scope] of LAB2_SCOPES) {
+    const part = ["general", "camera", "post"].includes(scope) ? src[scope] : src.layers[scope];
+    cfg[LAB2_PREFIX + scope] = part;
+  }
+  return cfg;
+})();
+
+export const LAB2_BRAND_DEFAULTS = (() => {
+  const cfg = createSharedSceneConfig(brandTimeline());
+  cfg.transition = { duration: 0.9 };
+  cfg.caption.titleVisible = false;
+  const src = plain(DEFAULT_CONFIG);
+  // Подзаголовок и дата выключены: фон идёт под речь, лишние строки в кадре
+  // только мешают. Всё остальное — из «Интро», без правок.
+  src.layers.subtitle.enabled = false;
+  src.layers.date.enabled = false;
+  // Композиция по центру: блок «эмблема + название» занимает y от −1.61 до
+  // 3.34 (проверено по реальным границам эмблемы и высоте букв), то есть его
+  // центр выше середины кадра. Минус 0.86 ставит центр ровно в середину:
+  // эмблема сверху 22.5 %, название снизу 77.5 %.
+  src.general.compositionY = -0.86;
+  // Минута: длина фильма — «удар + базовый хвост + финальная пауза», поэтому
+  // минута задаётся паузой. Всё остальное в ритме остаётся как в «Интро».
+  src.general.hold = 60 - lab2Duration(src);
   for (const [scope] of LAB2_SCOPES) {
     const part = ["general", "camera", "post"].includes(scope) ? src[scope] : src.layers[scope];
     cfg[LAB2_PREFIX + scope] = part;
@@ -199,5 +245,7 @@ export const LAB_SCHEMA_SECTIONS = [...lab2Sections, ...lab5Sections];
 export function labSectionAllowed(sceneId, sectionId) {
   if (!isLabScene(sceneId)) return null;
   if (["timeline", "playback", "transition", "fxStack"].includes(sectionId)) return true;
-  return sectionId.startsWith(sceneId === LAB2_ID ? LAB2_PREFIX : LAB5_PREFIX);
+  // Фон собран из той же композиции, что «Интро», поэтому его разделы — те же
+  // lab2_*: отдельного набора настроек у него нет и не должно быть.
+  return sectionId.startsWith(sceneId === LAB5_ID ? LAB5_PREFIX : LAB2_PREFIX);
 }
