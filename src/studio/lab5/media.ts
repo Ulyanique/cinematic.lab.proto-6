@@ -15,7 +15,16 @@
 
 import * as THREE from "three";
 import { makePlaceholderTexture } from "./textures";
+import { CLIPS } from "../clips.ts";
 
+/**
+ * Единственный перечень роликов — `studio/clip-list.js`.
+ *
+ * Раньше здесь лежала своя таблица имён файлов, и та же самая таблица (с теми же
+ * цифрами) дублировалась в списке сцен. Два перечня успевали разойтись: подпись в
+ * панели говорила одно, а верхний селектор роликов — другое. Теперь порядок и
+ * длительности заданы один раз, в хронологии вечера.
+ */
 export interface MediaClip {
   /** Номер источника в папке `video/` (стабильный ключ для настроек). */
   id: number;
@@ -34,18 +43,7 @@ export interface MediaClip {
  * `duration` — фактическая длительность файла: подпись в панели настроек
  * помогает выбрать источник под конкретный визит камеры (1,9 с на монолит).
  */
-export const MEDIA_CLIPS: readonly MediaClip[] = Object.freeze([
-  { id: 0, file: "00.07 Бэйджи.mp4", name: "Бэйджи", timecode: "00:07", duration: 1.15 },
-  { id: 1, file: "01.25 СобольАнисимов.mp4", name: "Соболь и Анисимов", timecode: "01:25", duration: 2.44 },
-  { id: 2, file: "01.25-01.28 Шульган.mp4", name: "Шульган", timecode: "01:25", duration: 4.77 },
-  { id: 3, file: "03.34 Тихонова.mp4", name: "Тихонова", timecode: "03:34", duration: 2.61 },
-  { id: 4, file: "03.36 Общий план зала.mp4", name: "Общий план зала", timecode: "03:36", duration: 1.71 },
-  { id: 5, file: "03.52 Зикеев.mp4", name: "Зикеев", timecode: "03:52", duration: 5.29 },
-  { id: 6, file: "04.51 Боровская.mp4", name: "Боровская", timecode: "04:51", duration: 4.01 },
-  { id: 7, file: "04.59 Юшкевичус.mp4", name: "Юшкевичус", timecode: "04:59", duration: 3.44 },
-  { id: 8, file: "05.41 фотозона.mp4", name: "Фотозона", timecode: "05:41", duration: 14.40 },
-  { id: 9, file: "05.44 все победители.mp4", name: "Все победители", timecode: "05:44", duration: 4.79 },
-]);
+export const MEDIA_CLIPS: readonly MediaClip[] = CLIPS;
 
 /** Число видеомонолитов: столько же, сколько визитов камеры в таймлайне фильма. */
 export const MEDIA_COUNT = MEDIA_CLIPS.length;

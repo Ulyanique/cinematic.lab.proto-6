@@ -18,7 +18,10 @@ export const BASE_PIXELS = BASE_FRAME.width * BASE_FRAME.height;
 // меняется; стробирование вращения компенсирует затвор (photo-shutter).
 export const OUTPUT = Object.freeze({ ...BASE_FRAME, fps: 30 });
 // Порядок одной полной программы для предпросмотра и записи единым MP4.
-export const RECORDING_CHAIN = Object.freeze(["waiting", "brand", "photo-pause", "finale"]);
+// Открывает программу «Рой» — первая анимация вечера; лаборатория «Монолиты»
+// идёт отдельной главой и в цепочку по умолчанию не входит: это 51-секундный
+// фильм, его показывают самостоятельным экраном.
+export const RECORDING_CHAIN = Object.freeze([LAB2_ID, "waiting", "brand", "photo-pause", "finale"]);
 
 /**
  * Каталог — производственный план, а не набор фиктивных готовых заставок.

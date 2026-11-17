@@ -2,7 +2,7 @@ import { OUTPUT, RECORDING_CHAIN } from "./scenes/catalog.js";
 import { SCENE_NAV } from "./scenes/nav.js";
 import { CHAIN_CANDIDATES } from "./recording-chain.js";
 import { beatDuration, beatInBar, beatEvents, nearestBeat } from "./beat-grid.js";
-import { isInteractiveTarget } from "./ui.js";
+import { isInteractiveTarget } from "./ui/dom.js";
 import { timelinePhases, timelineCursorPct, phaseTimeLabel, phaseTicks } from "./operator-timeline.js";
 
 /** Не реагировать на обычную перемотку; автопереход только при пересечении шва воспроизведением. */
@@ -19,17 +19,15 @@ export function crossedBoundary(before, after, delay, cycle) {
  * общие настройки (кнопка ⚙) — это технические параметры кадра, а не часть
  * монтажа, и в пульте они занимали всю вторую строку.
  */
-export function createOperatorControls({ getState, seek, setDuration, setBoundary, togglePause, switchScene,
+export function createOperatorControls({ getState, seek, setDuration, setBoundary, togglePause,
   record, recordChain, setChain }) {
   const panel = document.createElement("section");
   panel.className = "operator-panel";
-  panel.setAttribute("aria-label", "Пульт заставок");
+  panel.setAttribute("aria-label", "Пульт: транспорт текущего ролика");
   panel.innerHTML = `
     <div class="operator-row operator-head">
-      <span class="operator-label">РОЛИКИ</span>
-      <nav class="operator-scenes" aria-label="Выбор ролика">
-        ${SCENE_NAV.map((scene) => `<button type="button" data-scene="${scene.id}" title="${scene.title}">${scene.code} <small>${scene.label}</small></button>`).join("")}
-      </nav>
+      <span class="operator-label" data-role="scene-title">РОЛИК</span>
+      <output class="operator-scene-name" data-role="scene">—</output>
       <button type="button" data-action="auto" aria-pressed="false" title="Автоматическая смена роликов по кругу: показать всю программу без ручного переключения">Авто: выкл.</button>
       <button type="button" data-action="pin" aria-pressed="false" title="Не скрывать пульт">◇</button>
     </div>
@@ -77,6 +75,7 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
   const beatEl = panel.querySelector('[data-role="beat"]');
   const timeEl = panel.querySelector('[data-role="time"]');
   const mediaEl = panel.querySelector('[data-role="media"]');
+  const sceneEl = panel.querySelector('[data-role="scene"]');
   let auto = false, pinned = false, dragging = false, editing = false;
   let grabbing = null; // { edge, pointerId } — тянем границу фазы
 
@@ -197,10 +196,10 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
     }
     if (!editing) duration.value = state.cycle.toFixed(1);
     panel.querySelector('[data-action="play"]').textContent = state.config.playback.paused ? "▶" : "Ⅱ";
-    for (const button of panel.querySelectorAll("[data-scene]")) {
-      if (button.dataset.scene === state.id) button.setAttribute("aria-current", "page");
-      else button.removeAttribute("aria-current");
-    }
+    // Выбор ролика живёт в выпадающем списке сверху; здесь только подпись
+    // текущего, чтобы транспорт не терял контекст.
+    const nav = SCENE_NAV.find((scene) => scene.id === state.id);
+    sceneEl.textContent = nav ? `${nav.code} · ${nav.label}` : state.id;
     // Источники фильма «Монолиты»: пустой слот — не ошибка рендера, а решение,
     // которое надо видеть. Показываем, сколько занято и что не открылось.
     const media = state.media;
@@ -320,10 +319,6 @@ export function createOperatorControls({ getState, seek, setDuration, setBoundar
     const button = event.target.closest("button");
     if (!button) return;
     const state = getState();
-    if (button.dataset.scene) {
-      if (!state.recording) switchScene(button.dataset.scene);
-      return;
-    }
     const action = button.dataset.action;
     if (action === "auto") {
       auto = !auto;

@@ -54,7 +54,7 @@
  */
 /* Ручки границ фаз (.operator-grip) — не кнопки интерфейса, а направляющие:
    у них своя геометрия и псевдоэлементы, поэтому из общей кнопки исключены. */
-:is(.operator-panel, .cfg-panel, .editor-history, .export-viewer-actions) button:not(.operator-grip) {
+:is(.editor-history, .export-viewer-actions) button:not(.operator-grip) {
   border-radius: var(--ui-radius-control);
   border: 1px solid var(--ui-btn-border);
   background: var(--ui-btn-bg);
@@ -63,21 +63,21 @@
   cursor: pointer;
   transition: background .15s ease, border-color .15s ease, color .15s ease;
 }
-:is(.operator-panel, .cfg-panel, .editor-history, .export-viewer-actions) button:not(.operator-grip):is(:hover, :focus-visible) {
+:is(.editor-history, .export-viewer-actions) button:not(.operator-grip):is(:hover, :focus-visible) {
   background: var(--ui-btn-bg-hover);
   border-color: var(--ui-btn-border-hover);
   color: #fff;
 }
-:is(.operator-panel, .cfg-panel, .editor-history) button:not(.operator-grip):is([aria-current="page"], [aria-pressed="true"], .active, .on) {
+:is(.editor-history) button:not(.operator-grip):is([aria-current="page"], [aria-pressed="true"], .active, .on) {
   background: var(--ui-btn-active-bg);
   border-color: var(--ui-btn-active-border);
   color: var(--ui-btn-active-text);
 }
-:is(.operator-panel, .cfg-panel, .editor-history, .export-viewer-actions) button:disabled {
+:is(.editor-history, .export-viewer-actions) button:disabled {
   opacity: .4; cursor: default;
 }
 /* Один и тот же фокус на всём хроме: он должен читаться, а не спорить с золотом. */
-:is(.operator-panel, .cfg-panel, .cfg-toggle, .editor-panel-toggle, .editor-history, .export-viewer) :focus-visible {
+:is(.operator-panel, .editor-panel-toggle, .editor-history, .export-viewer, .fp, .studio-buttons, .clip-switch) :focus-visible {
   outline: 2px solid var(--ui-focus);
   outline-offset: 2px;
 }
@@ -137,8 +137,9 @@ body.scene-finale #caption .cap-sub {
 body, body.ui-on { cursor: auto; }
 /* Настройки есть в каждой сцене. В простое кнопка приглушена, но кликабельна. */
 body.operator-idle:not(.ui-on) .operator-panel { opacity: 0; pointer-events: none; }
-body.operator-idle:not(.ui-on) .cfg-toggle { opacity: .55; }
-.cfg-toggle { transition: opacity .25s ease; }
+body.operator-idle:not(.ui-on) .clip-switch,
+body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
+.clip-switch, .studio-buttons { transition: opacity .3s ease; }
 .operator-panel {
   position: fixed; z-index: 24; left: 50%; bottom: 16px;
   transform: translateX(-50%); width: min(1220px, calc(100vw - 32px));
@@ -775,8 +776,27 @@ body.editor-on #caption { opacity: 1; }
 .operator-chain-menu input[type="checkbox"] { accent-color: #c6a56b; }
 
 /* Редактор — отдельный интерфейс, не часть экспортного кадра. */
-/* Положение и плотность «Редактировать»: форма — из общей базы выше. */
-.editor-toggle { left: 18px; padding: 0 14px; }
+/* «Редактировать» — следующая ступень после слоёв, поэтому стоит под кнопкой
+   слоёв у левого края; в редакторе верхняя строка прячется (см. ниже). */
+.editor-toggle {
+  left: 14px;
+  top: 62px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--ui-pill-radius);
+  border: 1px solid rgba(255, 214, 140, .25);
+  background: rgba(0, 0, 0, .45);
+  color: rgba(255, 236, 199, .75);
+  font: 10px/1 var(--ui-font);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.editor-toggle:hover { border-color: rgba(255, 214, 140, .7); color: #fff3dc; }
+.editor-toggle[aria-pressed="true"] { border-color: rgba(255, 214, 140, .7); background: rgba(255, 214, 140, .15); color: #fff3dc; }
+/* В редакторе рамки на кадре важнее хрома, но панели остаются доступными:
+   «Настройки» в редакторе открывают инспектор поверх кадра. */
 .editor-layer { position: fixed; inset: 0; z-index: 17; pointer-events: none; }
 .editor-layer[hidden], .editor-box[hidden], .editor-menu[hidden] { display: none; }
 .editor-box { position: fixed; pointer-events: auto; touch-action: none; cursor: move;
@@ -949,7 +969,7 @@ body.editor-on.operator-idle:not(.ui-on) .operator-panel { opacity: 1; pointer-e
 .editor-text-order div { display: flex; gap: 6px; }
 
 /* Сдержанная рабочая панель: акцент — на выбранном элементе, не на хроме. */
-.editor-toggle { top: 14px; left: 10px; padding: 0 11px; }
+.editor-toggle { top: 62px; left: 14px; padding: 0 14px; }
 .editor-history { top: 14px; left: 112px; gap: 4px; }
 .editor-history button { padding: 7px 9px; border-radius: 3px; }
 .editor-hint { top: 45px; left: 10px; padding: 2px 0; background: transparent; color: #8f8b81; font-size: 10px; }
@@ -1555,3 +1575,545 @@ body.editor-on .operator-transport output { color: #dedbd3; }
 
 /* Слой эффектов и переходов рисуется в кадре: его геометрию не трогаем. */
 .fx-overlay { pointer-events: none; }
+
+/* ============================================================================
+ * Студия: тонкий хром поверх кадра.
+ *
+ * Раскладка повторяет референс (cinematic.lab.proto-2): по центру сверху —
+ * выпадающий список роликов, по краям — две круглые кнопки, панели висят
+ * поверх кадра и тянутся за заголовок. Палитра одна: янтарь на почти чёрном,
+ * стекло (backdrop-blur), скругления 16 px у панелей и 999 px у «таблеток».
+ * ========================================================================== */
+:root {
+  --ui-amber: #ffd68c;
+  --ui-amber-soft: rgba(255, 214, 140, .35);
+  --ui-amber-line: rgba(255, 226, 175, .22);
+  --ui-glass: rgba(10, 8, 5, .8);
+  --ui-glass-solid: rgba(10, 8, 5, .92);
+  --ui-panel-radius: 16px;
+  --ui-pill-radius: 999px;
+}
+
+/* ── верхняя строка: ролик по центру, кнопки по краям ─────────────────── */
+.clip-switch {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 26;
+  width: min(320px, calc(100vw - 220px));
+  transition: opacity .4s ease;
+}
+body.panels-on .clip-switch { opacity: 1; }
+body.ui-hidden .clip-switch,
+body.ui-hidden .studio-buttons { opacity: 0; pointer-events: none; }
+.clip-switch-inner { position: relative; }
+.clip-switch select {
+  appearance: none;
+  width: 100%;
+  padding: 8px 30px 8px 14px;
+  border-radius: var(--ui-pill-radius);
+  border: 1px solid var(--ui-amber-soft);
+  background: rgba(0, 0, 0, .7);
+  color: rgba(255, 236, 199, .9);
+  font: 10px/1 var(--ui-font);
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  outline: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  transition: border-color .18s ease, color .18s ease;
+}
+.clip-switch select:is(:hover, :focus-visible) { border-color: rgba(255, 214, 140, .7); color: #fff3dc; }
+.clip-switch::after {
+  content: "⌄";
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  transform: translateY(-52%);
+  color: rgba(255, 236, 199, .6);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.studio-buttons { position: fixed; inset: 0; z-index: 26; pointer-events: none; }
+.studio-btn {
+  position: fixed;
+  top: 14px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 214, 140, .25);
+  background: rgba(0, 0, 0, .45);
+  color: rgba(255, 236, 199, .7);
+  pointer-events: auto;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: border-color .18s ease, background .18s ease, color .18s ease;
+}
+/* Левая кнопка — слои, правая — настройки: панели открываются с той же
+   стороны, где стоит кнопка, поэтому рука ищет их там же. */
+.studio-btn-layers { left: 14px; }
+.studio-btn-settings { right: 14px; }
+.studio-btn:is(:hover, :focus-visible) { border-color: rgba(255, 214, 140, .7); color: #fff3dc; }
+.studio-btn[aria-pressed="true"] {
+  border-color: rgba(255, 214, 140, .7);
+  background: rgba(255, 214, 140, .15);
+  color: #fff3dc;
+}
+.studio-btn:focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 2px; }
+
+/* ── плавающая панель ────────────────────────────────────────────────── */
+.fp {
+  position: fixed;
+  z-index: 27;
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100vw - 16px);
+  overflow: hidden;
+  border-radius: var(--ui-panel-radius);
+  border: 1px solid rgba(255, 226, 175, .1);
+  background: var(--ui-glass);
+  color: rgba(255, 248, 235, .9);
+  font: 12px/1.4 var(--ui-font);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .55);
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  transition: opacity .3s ease;
+}
+.fp[hidden] { display: none; }
+/* Без наведения и фокуса панель отходит назад, чтобы не спорить с кадром. */
+.fp.is-dim { opacity: .5; }
+.fp.is-drag { box-shadow: 0 26px 70px rgba(0, 0, 0, .7); }
+
+.fp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.fp.is-drag .fp-head { cursor: grabbing; }
+.fp-icon { display: grid; place-items: center; color: rgba(255, 214, 140, .7); }
+.fp-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+  color: rgba(255, 236, 199, .8);
+}
+.fp-right { display: flex; align-items: center; gap: 4px; }
+.fp-scene {
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(255, 214, 140, .55);
+  white-space: nowrap;
+}
+.fp-btn {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(255, 236, 199, .5);
+  cursor: pointer;
+}
+.fp-btn:is(:hover, :focus-visible) { background: rgba(255, 255, 255, .1); color: #fff3dc; }
+.fp-body {
+  max-height: min(72vh, 640px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+.panel-scroll::-webkit-scrollbar { width: 6px; }
+.panel-scroll::-webkit-scrollbar-thumb { background: rgba(255, 220, 160, .18); border-radius: 3px; }
+
+/* ── левая панель: группы и строки слоёв ─────────────────────────────── */
+.lyr-group + .lyr-group { border-top: 1px solid rgba(255, 255, 255, .05); }
+.lyr-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 214, 140, .6);
+  font: 10px/1 var(--ui-font);
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.lyr-group-head:hover { color: #fff3dc; }
+.lyr-group-head svg { transition: transform .18s ease; }
+.lyr-group-head[aria-expanded="false"] svg { transform: rotate(180deg); }
+.lyr-list { margin: 0; padding: 0 0 4px; list-style: none; }
+.lyr-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px 5px 8px;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.lyr-row:is(:hover, :focus-visible) { background: rgba(255, 255, 255, .05); outline: none; }
+.lyr-row.is-selected { border-left-color: var(--ui-amber); background: rgba(255, 214, 140, .1); }
+.lyr-eye {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(255, 214, 140, .8);
+  cursor: pointer;
+}
+.lyr-eye:is(:hover, :focus-visible) { background: rgba(255, 255, 255, .1); }
+.lyr-eye.is-empty { color: rgba(255, 236, 199, .18); cursor: default; }
+.lyr-row.is-off .lyr-eye { color: rgba(255, 236, 199, .3); }
+.lyr-text { display: grid; min-width: 0; flex: 1; }
+.lyr-text b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+  font-size: 12px;
+  color: #fff6e6;
+}
+.lyr-row.is-off .lyr-text b { color: rgba(255, 236, 199, .35); text-decoration: line-through; text-decoration-color: rgba(255, 255, 255, .2); }
+.lyr-text i {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+  font-size: 10px;
+  color: rgba(255, 236, 199, .35);
+}
+
+/* ── правая панель: поля выбранного слоя ─────────────────────────────── */
+.ins-scene {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+  background: var(--ui-glass-solid);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.ins-scene-label {
+  font-size: 10px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: rgba(255, 236, 199, .4);
+  white-space: nowrap;
+}
+.ins-hint {
+  margin: 0;
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: rgba(255, 236, 199, .4);
+}
+.ins-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 12px;
+  min-height: 26px;
+}
+.ins-row.ins-range,
+.ins-row.ins-text,
+.ins-row.ins-image { flex-wrap: wrap; }
+.ins-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 236, 199, .7);
+  font: inherit;
+  text-align: left;
+  cursor: default;
+}
+.ins-label span { overflow: hidden; text-overflow: ellipsis; }
+.ins-dot { width: 4px; height: 4px; flex: 0 0 auto; border-radius: 50%; background: transparent; }
+.ins-dot.is-on { background: var(--ui-amber); }
+
+/* поля: одна форма на все типы */
+.ins-row :is(input[type="text"], input[type="number"], select, textarea),
+.ins-text,
+.ins-hex {
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: rgba(255, 255, 255, .05);
+  color: #fff6e6;
+  font: 11px/1.3 var(--ui-font);
+  padding: 3px 6px;
+  outline: none;
+}
+.ins-row :is(input, select):focus { border-color: rgba(255, 214, 140, .5); }
+.ins-text { flex: 1 1 100%; min-width: 0; }
+.ins-select { max-width: 190px; cursor: pointer; background: #15110a; }
+.ins-option-empty { color: rgba(255, 236, 199, .5); }
+.ins-range { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; }
+.ins-range .ins-number { width: 66px; text-align: right; font-variant-numeric: tabular-nums; }
+.ins-color { display: flex; align-items: center; gap: 6px; }
+.ins-hex { width: 78px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; }
+.ins-row input[type="color"] {
+  width: 26px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+.ins-row input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.ins-row input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 5px; }
+.ins-image { display: flex; gap: 6px; flex: 1 1 100%; }
+.ins-image button {
+  padding: 3px 9px;
+  border-radius: var(--ui-pill-radius);
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: transparent;
+  color: rgba(255, 236, 199, .7);
+  font: 10px/1.5 var(--ui-font);
+  cursor: pointer;
+}
+.ins-image button:hover { border-color: rgba(255, 214, 140, .45); color: #fff3dc; }
+
+/* переключатель 28×16 — как в референсе */
+.ins-switch {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  flex: 0 0 auto;
+  padding: 0;
+  border-radius: var(--ui-pill-radius);
+  border: 1px solid rgba(255, 255, 255, .15);
+  background: rgba(255, 255, 255, .05);
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease;
+}
+.ins-switch span {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .4);
+  transition: left .16s ease, background .16s ease;
+}
+.ins-switch[aria-checked="true"] { border-color: rgba(255, 214, 140, .6); background: rgba(255, 214, 140, .3); }
+.ins-switch[aria-checked="true"] span { left: 13px; background: #ffe3a0; }
+
+/* ползунок: тонкая дорожка и янтарная заливка до бегунка */
+.rng {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  min-width: 40px;
+  height: 14px;
+  background: transparent;
+  cursor: pointer;
+}
+.rng::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(240, 190, 100, .85) var(--p, 0%), rgba(255, 255, 255, .14) var(--p, 0%));
+}
+.rng::-moz-range-track { height: 2px; border-radius: 2px; background: rgba(255, 255, 255, .14); }
+.rng::-moz-range-progress { height: 2px; background: rgba(240, 190, 100, .85); }
+.rng::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px;
+  height: 11px;
+  margin-top: -4.5px;
+  border: 0;
+  border-radius: 50%;
+  background: #ffe3a0;
+  box-shadow: 0 0 0 3px rgba(255, 200, 110, .15);
+}
+.rng::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border: 0;
+  border-radius: 50%;
+  background: #ffe3a0;
+}
+
+/* ── пульт: транспорт снизу, без дублирования выбора ролика ──────────── */
+.operator-panel {
+  background: var(--ui-glass);
+  border: 1px solid rgba(255, 226, 175, .1);
+  border-radius: var(--ui-panel-radius);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .55);
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  color: rgba(255, 248, 235, .88);
+}
+.operator-panel button {
+  border-radius: var(--ui-pill-radius);
+  border: 1px solid rgba(255, 214, 140, .25);
+  background: rgba(0, 0, 0, .35);
+  color: rgba(255, 236, 199, .8);
+  font: 10px/1 var(--ui-font);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  padding: 7px 12px;
+}
+.operator-panel button:is(:hover, :focus-visible) {
+  border-color: rgba(255, 214, 140, .6);
+  background: rgba(0, 0, 0, .6);
+  color: #fff3dc;
+}
+.operator-panel button:is([aria-pressed="true"], [aria-current="page"]) {
+  border-color: rgba(255, 214, 140, .6);
+  background: rgba(255, 214, 140, .15);
+  color: #fff3dc;
+}
+.operator-label { color: rgba(255, 214, 140, .5); letter-spacing: .28em; }
+.operator-transport output,
+.operator-transport [data-role="time"] { color: #ffe3a1; font-variant-numeric: tabular-nums; letter-spacing: .08em; }
+.operator-duration { color: rgba(255, 236, 199, .45); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+.operator-duration input {
+  width: 58px;
+  padding: 4px 5px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: rgba(255, 255, 255, .05);
+  color: #fff6e6;
+  font: 11px/1.2 var(--ui-font);
+}
+.operator-media { border-color: rgba(255, 255, 255, .1); background: rgba(255, 255, 255, .05); color: rgba(255, 236, 199, .7); }
+.operator-beat { color: rgba(255, 214, 140, .6) !important; }
+
+/* на узком экране верхняя строка не должна наезжать на кнопки */
+@media (max-width: 640px) {
+  .clip-switch { width: min(240px, calc(100vw - 140px)); }
+  .fp { max-width: calc(100vw - 24px); }
+}
+
+/* ── вкладки правой панели: слой / кадр / JSON ───────────────────────── */
+.ins-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+  background: var(--ui-glass-solid);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.ins-tab {
+  flex: 1;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 236, 199, .45);
+  font: 10px/1.4 var(--ui-font);
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease;
+}
+.ins-tab:is(:hover, :focus-visible) { color: #fff3dc; }
+.ins-tab.is-active { background: rgba(255, 214, 140, .15); color: #fff3dc; }
+
+.ins-frame-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: rgba(255, 236, 199, .4);
+}
+.ins-frame-head b { font-weight: 400; letter-spacing: .04em; text-transform: none; color: rgba(255, 214, 140, .8); }
+
+.ins-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid rgba(255, 255, 255, .05);
+}
+.ins-actions-tight { border-top: 0; }
+.ins-actions button {
+  padding: 5px 11px;
+  border-radius: var(--ui-pill-radius);
+  border: 1px solid rgba(255, 214, 140, .22);
+  background: rgba(0, 0, 0, .3);
+  color: rgba(255, 236, 199, .78);
+  font: 10px/1.4 var(--ui-font);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+.ins-actions button:is(:hover, :focus-visible) { border-color: rgba(255, 214, 140, .6); color: #fff3dc; background: rgba(0, 0, 0, .5); }
+.ins-actions button:disabled { opacity: .35; cursor: default; }
+.ins-json {
+  width: calc(100% - 24px);
+  margin: 0 12px 8px;
+  height: 180px;
+  padding: 8px;
+  resize: vertical;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: rgba(0, 0, 0, .35);
+  color: #fff3dc;
+  font: 10px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.ins-json:focus { outline: none; border-color: rgba(255, 214, 140, .5); }
+
+/* поиск по слоям: тонкая строка над списком, не спорит с заголовком панели */
+.lyr-search { padding: 8px 10px 4px; }
+.lyr-search-input {
+  width: 100%;
+  padding: 5px 9px;
+  border-radius: var(--ui-pill-radius);
+  border: 1px solid rgba(255, 255, 255, .08);
+  background: rgba(255, 255, 255, .04);
+  color: #fff6e6;
+  font: 11px/1.3 var(--ui-font);
+  outline: none;
+}
+.lyr-search-input::placeholder { color: rgba(255, 236, 199, .3); }
+.lyr-search-input:focus { border-color: rgba(255, 214, 140, .5); }
+.lyr-row[hidden], .lyr-group[hidden] { display: none; }

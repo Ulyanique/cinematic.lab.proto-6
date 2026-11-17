@@ -14,6 +14,14 @@ export const RECORDING_CHAIN_KEY = 'circle-anim-recording-chain-v1';
 
 const VALID_IDS = new Set(CHAIN_CANDIDATES.map((c) => c.id));
 
+/**
+ * Партия по умолчанию — те же сцены, что в штатной цепочке каталога, плюс
+ * лаборатории: «Рой» (10) открывает программу интро, «Монолиты» (11) её
+ * закрывают. Новая сцена, добавленная в каталог, сюда не попадает: программу
+ * вечера собирает человек, а не список файлов.
+ */
+const DEFAULT_PROGRAM = Object.freeze([...RECORDING_CHAIN]);
+
 function storage() {
   try { return typeof localStorage === 'undefined' ? null : localStorage; } catch (_) { return null; }
 }
@@ -26,20 +34,20 @@ function storage() {
  * @returns {string[]}
  */
 export function normalizeChain(list) {
-  if (!Array.isArray(list)) return [...RECORDING_CHAIN];
+  if (!Array.isArray(list)) return [...DEFAULT_PROGRAM];
   const chosen = new Set(list.filter((id) => typeof id === 'string' && VALID_IDS.has(id)));
   const ordered = CHAIN_CANDIDATES.map((c) => c.id).filter((id) => chosen.has(id));
-  return ordered.length >= 1 ? ordered : [...RECORDING_CHAIN];
+  return ordered.length >= 1 ? ordered : [...DEFAULT_PROGRAM];
 }
 
 /** @param {any} [store] @returns {string[]} */
 export function loadRecordingChain(store = storage()) {
   try {
     const raw = store?.getItem(RECORDING_CHAIN_KEY);
-    if (!raw) return [...RECORDING_CHAIN];
+    if (!raw) return [...DEFAULT_PROGRAM];
     return normalizeChain(JSON.parse(raw));
   } catch (_) {
-    return [...RECORDING_CHAIN];
+    return [...DEFAULT_PROGRAM];
   }
 }
 

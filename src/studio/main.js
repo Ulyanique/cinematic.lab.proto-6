@@ -17,7 +17,17 @@ import { PhotoPauseScene } from "./photo-pause-scene.js";
 import { PartnersScene, loadPartnersBackground, preloadPartnerCustomLogos } from "./partners-scene.js";
 import { SponsorScene } from "./sponsor-scene.js";
 import { FinaleScene } from "./finale-scene.js";
-import { createSettingsUI } from "./ui.js";
+import { createStudioPanels } from "./ui/panels.js";
+import { createClipSwitcher } from "./ui/clip-switcher.js";
+import { sectionAllowed, fieldHidden, fieldLabel } from "./ui/field-rules.js";
+import { labSectionAllowed } from "./scenes/labs.js";
+import {
+  SCHEMA, cloneDefaults as cloneSchemaDefaults, configToJSON, parseConfigJSON, parseProjectJSON,
+} from "./config.js";
+import { isProjectPayload } from "./ui/dom.js";
+import {
+  saveSceneSnapshot, loadSceneSnapshot, hasSceneSnapshot, encodeConfigShareHash,
+} from "./scene-snapshots.js";
 import { AnimationRuntime, cycleDuration, setRenderHook } from "./runtime.js";
 import { Lab2Scene, Lab5Scene } from "./lab-scenes.js";
 import { LAB2_ID, LAB5_ID, isLabScene } from "./scenes/labs.js";
@@ -27,7 +37,7 @@ import { deliveryOption as deliveryOptionLight, deliveryFilename } from "./deliv
 import { masterSize, masterId, setMasterPreset, loadMasterPreset } from "./output-profile.js";
 import { transitionDuration, drawOutgoingFrame } from "./scene-transition.js";
 import { OUTPUT, sceneById } from "./scenes/catalog.js";
-import { sceneNav } from "./scenes/nav.js";
+import { SCENE_NAV, sceneNav, DEFAULT_SCENE_ID } from "./scenes/nav.js";
 import { loadRecordingChain, saveRecordingChain, chainBaseFilename } from "./recording-chain.js";
 import { decodeConfigShareHash } from "./scene-snapshots.js";
 import { createOperatorControls, crossedBoundary } from "./operator.js";
@@ -37,11 +47,11 @@ import { loadDelivery, saveDelivery } from "./delivery-light.js";
 import { photoShutterSamples, shutterTimes } from "./photo-shutter.js";
 import { layoutEditorPreview } from "./editor-layout.js";
 
-// Панель настроек и пульт создаются ниже, но правка конфига может прийти из
+// Панели студии и пульт создаются ниже, но правка конфига может прийти из
 // панели в любой момент: объявляем их заранее, чтобы необработанная ссылка не
 // превращалась в ReferenceError.
 let editor;
-let settings;
+let panels;
 let operator;
 
 // Профиль мастера читаем до создания сцены: рендерер сразу получает нужный размер.
@@ -49,7 +59,9 @@ loadMasterPreset();
 const fabricReady = loadFabricTexture();
 const partnersReady = loadPartnersBackground();
 
-const requestedScene = new URLSearchParams(location.search).get("scene") || "intro";
+// По умолчанию студия открывается на первой анимации программы — «Рой»
+// (лаборатория 10). Раньше стартовым был «Интро», и первым в списке стоял он.
+const requestedScene = new URLSearchParams(location.search).get("scene") || DEFAULT_SCENE_ID;
 let activeScene = sceneById(requestedScene);
 if (!activeScene?.defaults || !["ready", "preview"].includes(activeScene.status)) {
   throw new Error(`Сцена «${requestedScene}» пока не подготовлена`);
@@ -91,17 +103,21 @@ function saveScene(id = sceneId) {
  * Одна точка входа для всех полей: и одиночный ползунок, и быстрая команда
  * раздела идут одним путём, поэтому движок и сохранение не могут разойтись.
  */
-function commitSceneConfig(id, mutate) {
+function commitSceneConfig(id, mutate, options = {}) {
   id = sceneById(id)?.id || id;
   mutate(configFor(id));
-  saveScene(id);
+  // Живой жест (перетаскивание ползунка) не сохраняет и не перестраивает
+  // разметку: запись в localStorage и полная перерисовка — по завершении.
+  const live = Boolean(options.live);
+  if (!live) saveScene(id);
   if (id === sceneId) {
     scene.configChanged?.();
     applyTypography();
     runtime.renderAt(runtime.time, 1 / OUTPUT.fps);
   }
-  settings?.refresh?.();
+  if (live) return;
   operator?.refresh?.();
+  panels?.refresh?.();
 }
 
 function applySceneConfig(id, next) {
@@ -224,42 +240,47 @@ let runtime = new AnimationRuntime(scene, cfg, OUTPUT.fps);
 scene.setCaptionSource(captionSourceFor(sceneId));
 layoutEditorPreview(canvas, document.getElementById("caption"));
 applyTypography(true); // теперь известны реальные размеры рамки после resize сцены
-settings = createSettingsUI({
-  // Вкладки панели — из того же каталога, что кнопки пульта: подпись и порядок
-  // больше не дублируются в двух местах.
-  scenes: READY_IDS.map((id) => ({
-    id,
-    label: sceneNav(id)?.code || id,
-    title: sceneById(id).title,
+/**
+ * Панели студии: слева — слои, справа — настройки выбранного слоя.
+ *
+ * Обе панели читают один и тот же набор разделов схемы и пишут правки одним
+ * путём (`onCommand` → `commitSceneConfig`). Поэтому ползунок в инспекторе,
+ * глаз в списке слоёв и быстрые команды раздела не могут разойтись: они
+ * меняют одну и ту же запись конфига и пересобирают кадр одинаково.
+ */
+const sectionsFor = (id) => SCHEMA.filter((section) => {
+  if (!sectionAllowed(id, section.id, labSectionAllowed)) return false;
+  const holder = configFor(id)[section.id];
+  if (!holder) return false;
+  // У «Фотопаузы» нет надписей: раздел существует, но в этой сцене пуст.
+  if (section.id === "caption" && id === "photo-pause") return false;
+  return true;
+}).map((section) => ({
+  ...section,
+  title: section.title,
+  // Скрытые для сцены поля убираем здесь, чтобы список слоёв и инспектор
+  // показывали ровно одно и то же.
+  fields: section.fields.filter((field) => !fieldHidden(id, section.id, field)).map((field) => ({
+    ...field,
+    label: fieldLabel(id, section.id, field),
   })),
-  getSceneId: () => sceneId,
-  getConfig: (id) => configFor(id),
-  getDefaults: (id) => sceneById(id).defaults,
-  setScene: (id) => switchScene(id),
-  onConfigChange: (id, section, key) => {
-    editor?.invalidateHistory(id, section, key);
-    // «Готовый образ» раскладывает набор эффектов по ползункам — до сохранения,
-    // чтобы в файл попал уже разложенный набор.
-    if (section === "fxStack" && key === "look") {
-      applyFxPreset(configFor(id).fxStack, configFor(id).fxStack.look);
-    }
-    commitSceneConfig(id, () => {});
-  },
-  // Быстрые команды раздела (например, раскладка роликов по монолитам).
-  onCommitCommand: (id, mutate) => commitSceneConfig(id, mutate),
-  onApplyScene: (id, next) => applySceneConfig(id, next),
-  onApplyProject: (scenes) => {
-    for (const [id, next] of Object.entries(scenes)) applySceneConfig(id, next);
-    settings.rebuild();
-  },
-  getProjectJSON: () => projectToJSON(
-    Object.fromEntries(READY_IDS.map((id) => [id, configFor(id)])), READY_IDS),
-  onPauseToggle: () => {
-    cfg.playback.paused = !cfg.playback.paused;
-    saveScene();
-  },
-  onToast: toast,
-  onExportVideo: () => startRecording(),
+}));
+
+panels = createStudioPanels({
+  getState: () => ({
+    sceneId,
+    sceneLabel: sceneNav(sceneId)?.label || sceneId,
+    scenes: SCENE_NAV.map((scene) => ({ id: scene.id, code: scene.code, label: scene.label, title: scene.title })),
+    sections: sectionsFor(sceneId),
+    config: configFor(sceneId),
+    defaults: sceneById(sceneId).defaults,
+  }),
+  onSwitchScene: (id) => switchScene(id),
+  onToast: (message, isError) => toast(message, isError),
+  onSelect: () => {},
+  onClosed: () => {},
+  // Кадр и запись: те же данные и тот же путь применения, что были у прежней
+  // панели ⚙, поэтому фактические значения и подписи не расходятся.
   getFrameSettings: () => ({ master: masterId(), quality: scene.quality, delivery }),
   onFrameSetting: (id, value) => {
     if (id === "master") return applyMaster(value);
@@ -267,17 +288,52 @@ settings = createSettingsUI({
     if (id === "delivery") return applyDelivery(value);
     return false;
   },
+  onPauseToggle: () => { cfg.playback.paused = !cfg.playback.paused; saveScene(); },
+  onExportVideo: () => startRecording(),
+  getProjectJSON: () => projectToJSON(
+    Object.fromEntries(READY_IDS.map((id) => [id, configFor(id)])), READY_IDS),
+  onApplyScene: (id, next) => applySceneConfig(id, next),
+  onApplyProject: (scenes) => {
+    for (const [id, next] of Object.entries(scenes)) applySceneConfig(id, next);
+    panels.rebuild();
+  },
+  configToJSON,
+  parseConfigJSON,
+  parseProjectJSON,
+  isProjectPayload,
+  cloneDefaults: cloneSchemaDefaults,
+  saveSceneSnapshot,
+  loadSceneSnapshot,
+  hasSceneSnapshot,
+  encodeConfigShareHash,
+  onCommand: (section, key, value, options) => {
+    // Одна точка входа на все правки из панелей. Живой жест (ползунок, цвет)
+    // пересобирает кадр без записи в localStorage и без перестройки разметки:
+    // иначе поле теряло фокус на каждом кадре.
+    commitSceneConfig(sceneId, (config) => {
+      const holder = config[section];
+      if (!holder) return;
+      holder[key] = value;
+      if (section === "fxStack" && key === "look") applyFxPreset(config.fxStack, config.fxStack.look);
+    }, { live: Boolean(options?.live) });
+  },
 });
+
+/**
+ * Верхняя строка студии: ролик по центру. Список — часть хрома, а не плеера,
+ * поэтому переключение блокируется только записью и переходом.
+ */
+const clipSwitcher = createClipSwitcher({
+  onSwitch: (id) => {
+    if (id === sceneId) return true;
+    return switchScene(id);
+  },
+  canSwitch: () => !recording && !transition,
+});
+clipSwitcher.sync(sceneId);
 
 window.addEventListener("resize", () => { layoutEditorPreview(canvas, document.getElementById("caption")); applyTypography(true); });
 
-// презентация: F — полный экран
-window.addEventListener("keydown", (e) => {
-  if (e.code === "KeyF" && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement || e.target.isContentEditable)) {
-    if (document.fullscreenElement) document.exitFullscreen?.();
-    else document.documentElement.requestFullscreen?.();
-  }
-});
 
 let last = performance.now();
 // Возврат из фоновой вкладки не должен перематывать анимацию на минуты вперёд.
@@ -296,7 +352,6 @@ operator = createOperatorControls({
     if (!next) return false;
     Object.assign(cfg.timeline, next);
     saveScene();
-    settings.refresh();
     // Кадр пересобирается сразу: граница — монтажное решение, его надо видеть.
     runtime.renderAt(runtime.time, 1 / OUTPUT.fps);
     return true;
@@ -310,15 +365,14 @@ operator = createOperatorControls({
     editor?.invalidateHistory(sceneId, "timeline", "holdDuration");
     tl.holdDuration = Math.max(minHold, Math.min(300 - other, value - other));
     saveScene();
-    settings.refresh();
+    panels.refresh();
     runtime.renderAt(Math.min(runtime.time, tl.startDelay + runtime.cycle - 1 / OUTPUT.fps));
   },
   togglePause: () => {
     cfg.playback.paused = !cfg.playback.paused;
     saveScene();
-    settings.refresh();
+    panels.refresh();
   },
-  switchScene: (id) => switchScene(id),
   setMaster: (id) => applyMaster(id),
   setQuality: (id) => {
     if (recording || transition) { toast("Во время записи или перехода качество менять нельзя", true); return false; }
@@ -363,19 +417,19 @@ function editorReady() {
           const tl = cfg.timeline;
           // Показываем собранную композицию, чтобы элементы можно было взять мышью.
           runtime.renderAt(tl.startDelay + tl.drawDuration + tl.emergeDuration + tl.holdDuration / 2);
-          saveScene(); settings.refresh(); operator.refresh();
+          saveScene(); panels.refresh(); operator.refresh();
           return true;
         },
-        onChange: () => { applyTypography(); saveScene(); settings.refresh(); },
+        onChange: () => { applyTypography(); saveScene(); panels.refresh(); },
         onSeek: (time) => {
           if (recording || transition) return;
           const wasPaused = cfg.playback.paused;
           cfg.playback.paused = true; runtime.renderAt(time, 1 / OUTPUT.fps);
           if (!wasPaused) saveScene();
-          settings.refresh(); operator.refresh();
+          panels.refresh(); operator.refresh();
         },
         onLayoutChange: (kind) => { layoutEditorPreview(canvas, document.getElementById("caption")); if (kind !== "pan") applyTypography(true); },
-        onSettings: (section) => settings.openSection(section),
+        onSettings: (section) => panels.openSection(section),
       onHistoryConflict: () => toast("Настройка изменилась вне редактора; история сцены очищена", true),
       });
       return editor;
@@ -503,8 +557,9 @@ function switchScene(id, source) {
   applyTypography(true);
   runtime.renderAt(cfg.timeline.startDelay, 1 / OUTPUT.fps);
   oldScene.dispose();
-  // Панель настроек остаётся открытой и переключается на настройки новой сцены.
-  settings.syncScene();
+  // Панели остаются открытыми и переключаются на слои новой сцены.
+  panels.syncScene();
+  clipSwitcher.sync(id);
   const url = new URL(location.href);
   url.searchParams.set("scene", id === "waiting" ? "intro" : id);
   history.replaceState(null, "", url);
@@ -764,7 +819,7 @@ async function runOfflineRecording(job, overlay, download) {
       else if (completed) cfg.playback.paused = true;
     } finally {
       last = performance.now();
-      overlay.remove(); settings.refresh(); operator.refresh();
+      overlay.remove(); panels.refresh(); operator.refresh();
     }
   }
 }
@@ -867,7 +922,8 @@ window.__logo = {
   startSequenceRecording,
   getSceneConfig: configFor,
   saveScene,
-  settings, // технический API тестов: изменить тайминги без смены художественных defaults
+  panels, // технический API тестов: панели слоёв и настроек
+  settings: panels, // прежнее имя: тесты и редактор зовут панель настроек
   switchScene,
   operator,
   get editor() { return editor; },
