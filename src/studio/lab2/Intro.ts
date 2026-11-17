@@ -1413,7 +1413,7 @@ export class Intro {
     const spark = burst(t, -0.25, 0.35, 0.9);
     F.uLineI.value = 0.45 * (0.25 + 0.75 * easeOutCubic(seg(t, 0.2, 1.0)) + 0.5 * spark) * (1 - easeInOutSine(seg(t, 3.05, 3.8))) * ign;
     const so = PO.slitSize;
-    const open1 = easeInOutCubic(seg(t, 3.0, 4.25)) * so;
+    const open1 = easeInOutCubic(seg(t, 3.0, 3.65)) * so;
     const open2 = (1 - Math.pow(1 - seg(t, 4.46, 5.2), 4)) * (0.62 - so);
     F.uOpen.value = !PO.slit ? 1 : t < 4.46 ? open1 : so + open2;
     // «щель» гасит кадр маской по вертикали: при тонкой щели (меньше 2.5 % высоты) кадр
