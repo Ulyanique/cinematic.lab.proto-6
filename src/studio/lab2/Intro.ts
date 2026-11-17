@@ -1407,12 +1407,13 @@ export class Intro {
     // центр вспыхивает на ~0.4 с, края доходят к ~0.65 с, углы — к ~0.95 с.
     // Дальше — уже линия света и сборка эмблемы.
     F.uIris.value = !PO.ignition ? 0 : Math.pow(1 - seg(t, 0.12, 2.0), 1.7);
-    // Луч постепенно растёт от центра, не достигая краёв в первые кадры.
-    F.uLine.value = 1.25 * ign * easeInOutSine(seg(t, 0.7, 3.0));
+    // К 3 с даже мягкие края луча уходят за границы кадра. Раскрытие
+    // верхней и нижней границ начинается только после этого момента.
+    F.uLine.value = 1.5 * ign * easeInOutSine(seg(t, 0.7, 3.0));
     const spark = burst(t, -0.25, 0.35, 0.9);
-    F.uLineI.value = 0.45 * (0.25 + 0.75 * easeOutCubic(seg(t, 0.2, 1.0)) + 0.5 * spark) * (1 - easeInOutSine(seg(t, 2.8, 3.8))) * ign;
+    F.uLineI.value = 0.45 * (0.25 + 0.75 * easeOutCubic(seg(t, 0.2, 1.0)) + 0.5 * spark) * (1 - easeInOutSine(seg(t, 3.05, 3.8))) * ign;
     const so = PO.slitSize;
-    const open1 = easeInOutCubic(seg(t, 1.05, 2.75)) * so;
+    const open1 = easeInOutCubic(seg(t, 3.0, 4.25)) * so;
     const open2 = (1 - Math.pow(1 - seg(t, 4.46, 5.2), 4)) * (0.62 - so);
     F.uOpen.value = !PO.slit ? 1 : t < 4.46 ? open1 : so + open2;
     // «щель» гасит кадр маской по вертикали: при тонкой щели (меньше 2.5 % высоты) кадр
