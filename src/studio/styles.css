@@ -211,11 +211,7 @@ body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
   width: 3px; height: 18px; border: 0; border-radius: 2px;
   background: #ffe3a1; box-shadow: 0 0 8px rgba(255, 214, 140, .85);
 }
-.operator-cursor {
-  position: absolute; top: 3px; width: 1px; height: 14px; margin-left: -.5px;
-  background: rgba(255, 236, 190, .9); box-shadow: 0 0 6px rgba(255, 214, 140, .6);
-  pointer-events: none;
-}
+
 /* Ручки границ — направляющие, а не кнопки хрома: у них своя геометрия,
    поэтому они исключены из общего вида кнопок (см. выше). */
 .operator-grip {
@@ -240,11 +236,6 @@ body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
   background: rgba(255, 227, 161, .25);
 }
 /* Внутренние стадии фазы: конец прорисовки, начало паузы. */
-.operator-marks { position: relative; height: 0; }
-.operator-mark {
-  position: absolute; top: 2px; width: 1px; height: 5px; margin-left: -.5px;
-  background: rgba(217, 176, 97, .5);
-}
 
 /* Подписи фаз: в покое строки их нет — только полоса и цифры. Наведение на
    пульт (или фокус в поле) проявляет имена и длительности. Подписи стоят НАД

@@ -3,7 +3,7 @@ import { SCENE_NAV } from "./scenes/nav.js";
 import { isInteractiveTarget } from "./ui/dom.js";
 import { icon } from "./ui/icons.js";
 import {
-  phaseValues, phaseSegments, timelineCursorPct, timeLabel, clampSeconds,
+  phaseValues, phaseSegments, timeLabel, clampSeconds,
   phaseChange, boundaryChange, boundaryPct, MIN_PHASE, MIN_HOLD, MAX_CYCLE,
 } from "./operator-timeline.js";
 
@@ -53,8 +53,6 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
       <div class="operator-timeline">
         <div class="operator-track">
           <div class="operator-phase-band" data-role="band" aria-hidden="true"></div>
-          <div class="operator-marks" data-role="marks" aria-hidden="true"></div>
-          <div class="operator-cursor" data-role="cursor" aria-hidden="true"></div>
           <input type="range" data-action="seek" min="0" step="0.0166666667" aria-label="Перемотка текущего ролика">
           <button type="button" class="operator-grip operator-grip-entry" data-edge="entry"
             role="slider" aria-label="Граница входа" title="Граница входа — потяните или задайте числом справа"></button>
@@ -83,8 +81,6 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
 
   const range = panel.querySelector('[data-action="seek"]');
   const bandEl = panel.querySelector('[data-role="band"]');
-  const cursorEl = panel.querySelector('[data-role="cursor"]');
-  const marksEl = panel.querySelector('[data-role="marks"]');
   const legendEl = panel.querySelector('[data-role="legend"]');
   const trackEl = panel.querySelector(".operator-track");
   const grips = [...panel.querySelectorAll(".operator-grip")];
@@ -137,7 +133,6 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
     if (key === barKey) return;
     barKey = key;
     if (!segments.length) {
-      marksEl.replaceChildren();
       legendEl.replaceChildren();
       bandEl.style.background = "none";
       return;
@@ -150,14 +145,6 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
       stops.push(`${tint} ${segment.startPct}%`, `${tint} ${segment.endPct}%`);
     }
     bandEl.style.background = `linear-gradient(90deg, ${stops.join(", ")})`;
-    // Метки внутренних стадий: конец прорисовки, начало паузы.
-    marksEl.replaceChildren(...segments.flatMap((segment) => segment.ticks.map((tick) => {
-      const mark = document.createElement("span");
-      mark.className = "operator-mark";
-      mark.style.left = `${tick / segments[segments.length - 1].end * 100}%`;
-      mark.title = `${segment.label} · до ${timeLabel(tick)} с`;
-      return mark;
-    })));
     // Подписи фаз: в строке их не видно — они проявляются при наведении на
     // пульт. Лежат они НАД полосой, на одной линии с подписями числовых полей,
     // и не участвуют в раскладке, поэтому строка не дёргается от текста.
@@ -185,7 +172,8 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
     const local = localTime(state);
     if (!dragging) range.value = String(Math.min(local, max));
     renderBar(state.config.timeline);
-    cursorEl.style.left = `${timelineCursorPct(local, state.config.timeline)}%`;
+    // Положение показывает сама ручка перемотки: вторая «бегущая» линия рядом
+    // с ней читалась как лишняя метка, которая катается по полосе.
     timeEl.textContent = `${local.toFixed(2)} / ${state.cycle.toFixed(2)} с`;
     // Поля фаз: не перебиваем набор — пока в поле курсор, значение не трогаем.
     const values = phaseValues(state.config.timeline);
