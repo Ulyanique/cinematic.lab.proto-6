@@ -31,3 +31,9 @@ export function repeatTime(time, length) {
   const local = time % length;
   return local < 0 ? local + length : local;
 }
+
+/** Внутри одного цикла фильм проигрывается один раз; его последний кадр ждёт следующего цикла. */
+export function oncePerCycleTime(time, cycle, length, startDelay = 0) {
+  const local = localCycleTime(time, cycle, startDelay);
+  return length > 0 && Number.isFinite(length) ? Math.min(local, length) : local;
+}

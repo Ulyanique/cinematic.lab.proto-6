@@ -10,7 +10,7 @@ import { drawLab5Overlay } from "./lab5/overlay.ts";
 import { loadLab5Fonts } from "./lab5/fonts.ts";
 import { lab2Source, lab5Source } from "./scenes/labs.js";
 import { depthOrder, depthOrderEnabled, introDepthOrder } from "./depth-order.js";
-import { localCycleTime, repeatTime } from "./playback.js";
+import { localCycleTime, repeatTime, oncePerCycleTime } from "./playback.js";
 import { cycleDuration } from "./runtime.js";
 
 /**
@@ -140,11 +140,28 @@ export class Lab2Scene extends LabScene {
   render() {
     if (!this.ready) { this._black(); return; }
     const intro = this.intro;
-    const t = this.filmTime(this.time, totalDuration(this.lab));
+    const timeline = this.cfg.timeline;
+    const cycle = cycleDuration(timeline);
+    const local = localCycleTime(this.time, cycle, timeline.startDelay || 0);
+    // Не запускаем пролог снова посреди длинного цикла пульта.
+    const t = oncePerCycleTime(this.time, cycle, totalDuration(this.lab), timeline.startDelay || 0);
     intro.t = t;
     intro.update(t, 1 / 30);
     intro.composer.render();
     this.ctx.drawImage(intro.renderer.domElement, 0, 0, this.canvas.width, this.canvas.height);
+    // Гасим в конце фильма или цикла (что наступит раньше) и остаёмся
+    // в темноте до следующего круга, даже если экспортный fade отключён.
+    if (cycle > 0) {
+      const end = Math.min(cycle, totalDuration(this.lab));
+      const fade = Math.max(0, Math.min(1, (local - Math.max(0, end - 0.35)) / Math.min(0.35, end)));
+      if (fade > 0) {
+        this.ctx.save();
+        this.ctx.globalAlpha = fade;
+        this.ctx.fillStyle = "#000";
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.restore();
+      }
+    }
   }
 
   dispose() {
