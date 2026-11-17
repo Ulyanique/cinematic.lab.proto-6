@@ -10,6 +10,8 @@ import { drawLab5Overlay } from "./lab5/overlay.ts";
 import { loadLab5Fonts } from "./lab5/fonts.ts";
 import { lab2Source, lab5Source } from "./scenes/labs.js";
 import { depthOrder, depthOrderEnabled, introDepthOrder } from "./depth-order.js";
+import { localCycleTime, repeatTime } from "./playback.js";
+import { cycleDuration } from "./runtime.js";
 
 /**
  * Адаптеры лабораторий к общему циклу студии: сцена получает время `update(t)` и
@@ -66,6 +68,17 @@ class LabScene {
     }).catch(() => {});
   }
   _black() { this.ctx.fillStyle = "#050403"; this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height); }
+  /**
+   * Время кадра для лаборатории: сначала заворачивается по циклу пульта, потом
+   * по длине самого фильма. Без этого фильм проигрывался один раз, и дальше
+   * кадр был чёрным — при включённом цикле в пульте это выглядело поломкой.
+   * @param {number} time абсолютное время студии
+   * @param {number} filmLength длина фильма лаборатории, секунды
+   */
+  filmTime(time, filmLength) {
+    const tl = this.cfg.timeline;
+    return repeatTime(localCycleTime(time, cycleDuration(tl), tl.startDelay || 0), filmLength);
+  }
   dispose() {
     this.disposed = true;
     this.host.remove();
@@ -127,8 +140,9 @@ export class Lab2Scene extends LabScene {
   render() {
     if (!this.ready) { this._black(); return; }
     const intro = this.intro;
-    intro.t = this.time;
-    intro.update(this.time, 1 / 30);
+    const t = this.filmTime(this.time, totalDuration(this.lab));
+    intro.t = t;
+    intro.update(t, 1 / 30);
     intro.composer.render();
     this.ctx.drawImage(intro.renderer.domElement, 0, 0, this.canvas.width, this.canvas.height);
   }
@@ -167,14 +181,15 @@ export class Lab5Scene extends LabScene {
   async prepareFrame(t) {
     await this.whenReady();
     if (!this.engine) return;
-    const time = Math.min(Math.max(0, t), LAB5_TL.end - 1e-4);
+    // Тот же кадр, что в предпросмотре: время завёрнуто по циклу и по фильму.
+    const time = Math.min(this.filmTime(t, LAB5_TL.end), LAB5_TL.end - 1e-4);
     await this.engine.renderFrame(time);
     this.prepared = t;
   }
 
   render() {
     if (!this.ready || !this.engine) { this._black(); return; }
-    const t = Math.min(Math.max(0, this.time), LAB5_TL.end - 1e-4);
+    const t = Math.min(this.filmTime(this.time, LAB5_TL.end), LAB5_TL.end - 1e-4);
     if (Math.abs(this.prepared - this.time) > 1e-9) this.engine.seek(t);
     this.prepared = -1;
     const { ctx, canvas } = this;
