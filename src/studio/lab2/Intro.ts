@@ -1354,7 +1354,8 @@ export class Intro {
     // никогда не был чистым чёрным, а повтор круга не показывал длинную чёрную паузу.
     const fadeIn = 0.3 + 0.7 * easeOutCubic(seg(t, 0, this.loopRound ? 0.4 : 1.0));
     const F = this.fp.uniforms;
-    const dip = 0.3 * easeInOutSine(seg(t, 4.1, 4.48)) * (t < 4.5 ? 1 : 0);
+    // Затемнение перед ударом возвращается плавно, а не обрывом в кадре удара.
+    const dip = 0.3 * easeInOutSine(seg(t, 4.1, 4.48)) * (1 - easeInOutSine(seg(t, 4.48, 4.8)));
     // в экспортируемом видео картинка уходит в чёрный вместе с финальным кадром;
     // в превью с зацикливанием — тоже, иначе круг обрывается резким чёрным кадром
     const dur = this.duration;
@@ -1672,17 +1673,32 @@ export class Intro {
     F.uZoom.value = fxk(FX.flash) * burst(t, 4.5, 0.012, 0.09) * 0.075 * PO.aberration;
     F.uGhost.value = fxk(FX.flares) * (burst(t, 4.52, 0.05, 0.4) * 0.55 + burst(t, TL.sweep2 + 0.3, 0.3, 0.55) * 0.3 + burst(t - ts, 7.7, 0.25, 0.5) * 0.2);
     // объёмные лучи света из эмблемы
+    // Свет нарастает и уходит непрерывно: раньше член с `t < 4.5 ? 1 : 0`
+    // обрывался в момент удара, и лучи прыгали вниз за один кадр — на спокойном
+    // фоне это читалось как рывок света. Теперь нарастание и спад — одной
+    // огибающей.
+    const raysRise = easeInOutSine(seg(t, 3.0, 4.5));
+    const raysHold = 1 - easeInOutSine(seg(t, 4.5, 4.75));
+    // Вспышка удара и финальный проблеск — с плавным входом и затуханием:
+    // `burst` включается за один кадр, и на спокойном фоне это рывок.
+    const raysHit = easeInOutSine(seg(t, 4.45, 5.1)) * Math.exp(-Math.max(0, t - 5.1) * 0.9);
+    const raysSweep = easeInOutSine(seg(t, TL.sweep2 + 0.2, TL.sweep2 + 0.7)) *
+      Math.exp(-Math.max(0, t - (TL.sweep2 + 0.7)));
     F.uRays.value = fxk(FX.rays) * (
-      0.12 * easeInOutSine(seg(t, 3.0, 4.5)) * (t < 4.5 ? 1 : 0) +
-      0.14 * burst(t, 4.5, 0.05, 0.8) +
+      0.12 * raysRise * raysHold +
+      0.14 * raysHit +
       0.05 * easeOutCubic(seg(t, 6, 9)) * (0.85 + 0.15 * Math.sin(t * 0.9)) +
-      0.03 * burst(t, TL.sweep2 + 0.3, 0.4, 0.7));
+      0.03 * raysSweep);
 
     // звёздные блики: пробегают вслед за световым лучом и редко мерцают в финале
     this.glints.forEach((gl, i) => {
       const dx = (gl.x - sw.x) * 0.8;
-      const swept = Math.exp(-dx * dx) * swAmt * (t > 5.9 ? 1 : 0);
-      const tw = Math.pow(0.5 + 0.5 * Math.sin(t * 1.35 + gl.phase), 18) * 0.7 * easeOutCubic(seg(t, 9, 11));
+      // Включение блика — плавное: ступенька `t > 5.9` зажигала сразу все
+      // блики в один кадр.
+      const swept = Math.exp(-dx * dx) * swAmt * easeInOutSine(seg(t, 5.6, 6.4));
+      // Степень 18 превращала мерцание в мигание «вкл/выкл»: снижаем до 8 и
+      // приглушаем — блёстки остаются, но не дёргают свет.
+      const tw = Math.pow(0.5 + 0.5 * Math.sin(t * 1.35 + gl.phase), 8) * 0.55 * easeOutCubic(seg(t, 9, 11));
       const intro = burst(t, 4.7 + i * 0.07, 0.08, 0.35) * (i < 6 ? 0.9 : 0);
       const v = Math.min(1, (swept + tw + intro) * fxk(FX.glints));
       gl.s.visible = v > 0.01;

@@ -36,7 +36,10 @@ float beam(vec2 p, vec2 s, float ang, float spread, float seed){
   float a=atan(v.y,v.x)-ang; a=mod(a+PI,2.*PI)-PI;
   float cone=exp(-(a*a)/(spread*spread));
   float rays=0.35+0.65*fbm(vec2(a*16.+seed, seed*3.+uTime*0.05));
-  rays*=0.55+0.45*vnoise(vec2(a*80.+seed, r*0.18-uTime*0.1));
+  // Мелкая сетка (a*80) превращалась в статическую крупу на луче: соседние
+  // пиксели попадали в разные узлы и луч «кипел». Крупнее и мягче — тот же
+  // характер, но без дрожания.
+  rays*=0.55+0.45*vnoise(vec2(a*26.+seed, r*0.18-uTime*0.1));
   return cone*rays*exp(-r*0.17);
 }
 float ribbon(vec2 p, vec2 c, float R, float w, float seed, float speed){
@@ -80,10 +83,13 @@ void main(){
   col+=mix(gold,pale,clamp(rib*0.4,0.,1.))*rib*0.5*uRib;
 
   // micro-sparkles living inside the light
-  vec2 g=floor(p*60.);
-  float h=hash21(g);
-  float sp=pow(h,38.)*(0.5+0.5*sin(uTime*2.5+h*60.));
-  col+=pale*sp*(bs+rib*0.8)*1.4;
+  // Мелкая «искра» размером в один пиксель — это не блёстки, а шум: на экране
+  // она попадает то в пиксель, то между и начинает мерцать. Берём тот же узор,
+  // но сглаженный по сетке (vnoise вместо одной точки): свет дрожит меньше,
+  // а «искры в свете» остаются.
+  float sg=vnoise(p*30.);
+  float sp=pow(sg,14.)*(0.5+0.5*sin(uTime*0.9+sg*18.));
+  col+=pale*sp*(bs+rib*0.8)*0.9;
 
   col+=vec3(1.0,0.5,0.14)*0.03*exp(-length((p-vec2(0.,0.2))*vec2(0.5,0.9)))*uGlow;
   col+=vec3(1.0,0.66,0.28)*uFlash*exp(-length(p-vec2(0.,1.4))*0.45)*0.55;
@@ -465,7 +471,9 @@ export const finalPass = {
       // Зерно меняется 24 раза в секунду и только по одной оси: полноэкранный
       // шум на каждом кадре на спокойном фоне читался не как плёнка, а как
       // дрожание света — особенно на фоновом ролике, где картинка почти стоит.
-      float gr=h21(vUv*uRes+floor(uTime*24.)*37.)-.5;
+      // Зерно меняется по кадрам, но мягко: сильное по силе оно давало
+      // «дрожание света» на спокойном фоне. Слабее и с плавной фазой.
+      float gr=(h21(vUv*uRes+floor(uTime*24.)*37.)-.5)*0.5;
       col+=gr*uGrainK*(1.-0.4*col);
       col*=uFade;
 
