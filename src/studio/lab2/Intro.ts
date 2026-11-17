@@ -1407,12 +1407,10 @@ export class Intro {
     // центр вспыхивает на ~0.4 с, края доходят к ~0.65 с, углы — к ~0.95 с.
     // Дальше — уже линия света и сборка эмблемы.
     F.uIris.value = !PO.ignition ? 0 : Math.pow(1 - seg(t, 0.12, 2.0), 1.7);
-    const lineGrow = 1 - Math.pow(1 - seg(t, -0.35, 1.55), 4);
-    // Линия света — уже внутри открытого кадра: сначала «включился экран»,
-    // затем по нему пошла линия.
-    F.uLine.value = lineGrow * 1.25 * ign * easeInOutSine(seg(t, 0.7, 1.8));
+    // Луч постепенно растёт от центра, не достигая краёв в первые кадры.
+    F.uLine.value = 1.25 * ign * easeInOutSine(seg(t, 0.55, 2.6));
     const spark = burst(t, -0.25, 0.35, 0.9);
-    F.uLineI.value = (0.25 + 0.75 * easeOutCubic(seg(t, 0.2, 1.0)) + 0.5 * spark) * (1 - easeInOutSine(seg(t, 1.9, 3.1))) * ign;
+    F.uLineI.value = (0.25 + 0.75 * easeOutCubic(seg(t, 0.2, 1.0)) + 0.5 * spark) * (1 - easeInOutSine(seg(t, 2.4, 3.4))) * ign;
     const so = PO.slitSize;
     const open1 = easeInOutCubic(seg(t, 1.05, 2.75)) * so;
     const open2 = (1 - Math.pow(1 - seg(t, 4.46, 5.2), 4)) * (0.62 - so);

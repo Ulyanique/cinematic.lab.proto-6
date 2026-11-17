@@ -526,7 +526,7 @@ export const finalPass = {
         col*=iris;
         // Короткая вспышка при открытии: гаснет, когда кадр раскрыт.
         float spark=smoothstep(0.0,0.12,1.-uIris)*smoothstep(0.0,0.65,uIris);
-        col+=vec3(1.0,0.72,0.35)*exp(-dist*dist*46.0)*spark*1.6;
+        col+=vec3(1.0,0.72,0.35)*exp(-dist*dist*46.0)*spark*0.35;
       }
 
       // линия-зажигание: горячее ядро + анаморфный шлейф
@@ -535,7 +535,9 @@ export const finalPass = {
       float core=exp(-dy*dy*90000.);
       float halo=exp(-dy*dy*1800.)*0.35+exp(-dy*dy*180.)*0.07;
       float streak=exp(-abs(d.x)*2.4)*exp(-dy*dy*20000.)*0.7;
-      float ig=(core*3.2+halo)*lx+streak*step(0.001,uLine);
+      // Шлейф тоже ограничен растущей длиной линии: иначе он мгновенно
+      // появлялся на всю ширину кадра, даже когда ядро ещё у центра.
+      float ig=(core*3.2+halo+streak)*lx;
       vec3 lc=mix(vec3(1.,0.62,0.2),vec3(1.,0.93,0.75),core);
       col+=lc*ig*uLineI*uLineVisible;
       gl_FragColor=vec4(col,1.);
