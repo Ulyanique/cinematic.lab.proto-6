@@ -42,7 +42,7 @@ export const DEFAULT_CONFIG = {
     logo: {
       enabled: true, delay: 0,
       preset: 'swarm', duration: 1.15, stagger: 0.12, lead: 0.3, easing: 'cubic', intensity: 1, angle: 90, turns: 1,
-      lightPulse: 0, lightPulseSpeed: 0.3,
+      lightPulse: 0, lightPulseSpeed: 0.3, elementFlash: 0, elementFlashStart: 4.5, elementFlashDuration: 0.5,
       x: 0, y: 0, scale: 1, tilt: 0.62, float: 1,
       swarm: 1, sparkCount: 1100, flash: 1,
       deep: '#e4b159', mid: '#ffe29e', top: '#fff2c8', roughness: 0.27, env: 1.6,
@@ -54,19 +54,19 @@ export const DEFAULT_CONFIG = {
       text: 'ЯНТАРНЫЙ ЦИРКУЛЬ', font: 'prata', width: 11.55, tracking: 0.045, depth: 0.15, bevel: 0.04,
       x: 0, y: 0, scale: 1,
       preset: 'fly', order: 'ltr', start: 5.75, stagger: 0.085, duration: 0.95, intensity: 1, easing: 'cubic',
-      lightPulse: 0, lightPulseSpeed: 0.3,
+      lightPulse: 0, lightPulseSpeed: 0.3, elementFlash: 0, elementFlashStart: 4.5, elementFlashDuration: 0.5,
       sparkCount: 70, flash: 1,
       deep: '#e4b159', mid: '#ffe29e', top: '#fff2c8', roughness: 0.25, env: 1.55,
     },
     subtitle: {
       enabled: true, delay: 0,
       text: 'ВЕЧЕР РЕТРОСПЕКТИВА', font: 'forum', width: 7.25, tracking: 0.42, x: 0, y: 0,
-      preset: 'wipe', start: 8.35, duration: 1.9, brightness: 1.45, lightPulse: 0, lightPulseSpeed: 0.3, colA: '#e7bb76', colB: '#ffefc4',
+      preset: 'wipe', start: 8.35, duration: 1.9, brightness: 1.45, lightPulse: 0, lightPulseSpeed: 0.3, elementFlash: 0, elementFlashStart: 4.5, elementFlashDuration: 0.5, colA: '#e7bb76', colB: '#ffefc4',
     },
     date: {
       enabled: true, delay: 0,
       text: '20 НОЯБРЯ 2026 ГОДА', font: 'forum', width: 4.45, tracking: 0.3, x: 0, y: 0,
-      preset: 'wipe', start: 9.55, duration: 1.6, brightness: 1.35, lightPulse: 0, lightPulseSpeed: 0.3, colA: '#e7bf7c', colB: '#fff1cb',
+      preset: 'wipe', start: 9.55, duration: 1.6, brightness: 1.35, lightPulse: 0, lightPulseSpeed: 0.3, elementFlash: 0, elementFlashStart: 4.5, elementFlashDuration: 0.5, colA: '#e7bf7c', colB: '#fff1cb',
     },
     dividers: {
       enabled: true, delay: 0, first: true, second: true, diamonds: true,
@@ -423,9 +423,12 @@ function textSection(title: string): Section {
   ] };
 }
 function lightPulseSection(): Section {
-  return { title: 'Переиспользуемый эффект: световая пульсация', fields: [
+  return { title: 'Переиспользуемые эффекты элемента', fields: [
     num('lightPulse', 'Пульсация света: сила', 0, 1, 0.01),
     num('lightPulseSpeed', 'Пульсация света: скорость, Гц', 0, 3, 0.01),
+    num('elementFlash', 'Вспышка элемента: сила', 0, 2, 0.01),
+    num('elementFlashStart', 'Вспышка элемента: момент, с', 0, 60, 0.05),
+    num('elementFlashDuration', 'Вспышка элемента: затухание, с', 0.05, 5, 0.05),
   ] };
 }
 
