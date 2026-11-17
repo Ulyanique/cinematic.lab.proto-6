@@ -123,7 +123,8 @@ export function timeLabel(seconds) {
  * @returns {number | null}
  */
 export function clampSeconds(value, min, max) {
-  const number = typeof value === 'number' ? value : Number(String(value ?? '').replace(',', '.'));
+  if (typeof value !== 'number' && String(value ?? '').trim() === '') return null;
+  const number = typeof value === 'number' ? value : Number(String(value).replace(',', '.'));
   if (!Number.isFinite(number)) return null;
   return Math.min(max, Math.max(min, number));
 }
@@ -198,4 +199,10 @@ export function boundaryPct(tl, edge) {
   const { entry, exit, cycle } = phaseValues(tl);
   if (!(cycle > 0)) return 0;
   return edge === 'entry' ? entry / cycle * 100 : (cycle - exit) / cycle * 100;
+}
+
+/** Удержание, необходимое для заданной полной длительности с учётом входа и ухода. */
+export function holdForDuration(tl, duration) {
+  const { entry, exit } = phaseValues(tl);
+  return Math.max(MIN_HOLD, duration - entry - exit);
 }

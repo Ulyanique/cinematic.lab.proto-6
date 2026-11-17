@@ -12,6 +12,7 @@ import { lab2Source, lab5Source } from "./scenes/labs.js";
 import { depthOrder, depthOrderEnabled, introDepthOrder } from "./depth-order.js";
 import { localCycleTime, repeatTime, oncePerCycleTime } from "./playback.js";
 import { cycleDuration } from "./runtime.js";
+import { holdForDuration } from "./operator-timeline.js";
 
 /**
  * Адаптеры лабораторий к общему циклу студии: сцена получает время `update(t)` и
@@ -113,26 +114,27 @@ export class Lab2Scene extends LabScene {
   update(t) {
     super.update(t);
     if (!this.ready) return;
-    // Длительность ролика зависит от «Момента удара», скорости и паузы — таймлайн
-    // студии следует за ней. Исключение одно: длительность уже задана в пульте
-    // явно, и фильм после этого не менялся — тогда значение остаётся за пультом,
-    // иначе поле «Держ.» возвращало бы старое число на следующем же кадре.
+    // Не перезаписываем сохранённую ручную длительность при загрузке.
+    // При изменении настроек фильма подстраиваем удержание так, чтобы сумма
+    // всех фаз, а не одно удержание, равнялась длительности фильма.
     const duration = totalDuration(this.lab);
-    if (this.filmDuration === undefined) this.filmDuration = duration;
+    if (this.filmDuration === undefined) {
+      this.filmDuration = duration;
+      return;
+    }
     if (Math.abs(this.filmDuration - duration) > 1e-3) {
-      // Параметры фильма поменялись в панели: длина ролика снова следует за ним.
       this.filmDuration = duration;
       this.durationFromPanel = false;
+      this.cfg.timeline.holdDuration = holdForDuration(this.cfg.timeline, duration);
     }
-    if (this.durationFromPanel) return;
-    if (Math.abs(this.cfg.timeline.holdDuration - duration) > 1e-3) this.cfg.timeline.holdDuration = duration;
   }
 
   /** Длительность задаётся пультом: следующий кадр её не перетирает. */
   overrideDuration(seconds) {
+    if (!Number.isFinite(seconds) || seconds <= 0) return false;
     this.durationFromPanel = true;
     if (this.ready) this.filmDuration = totalDuration(this.lab);
-    return Number.isFinite(seconds) && seconds > 0;
+    return true;
   }
 
   holdsOwnDuration() { return true; }
