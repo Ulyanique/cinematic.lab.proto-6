@@ -128,6 +128,39 @@ export function setPath<T>(obj: T, path: string, value: any): T {
 /** Длительность ролика в секундах при текущих настройках времени. */
 export const baseDuration = 13.6;
 export const DESIGN_IMPACT = 4.5;
+/** Проектное время последнего движения композиции и его конца (уход). */
+const DESIGN_EXIT = 11.1;
+const DESIGN_EXIT_END = 13.6;
+
+/**
+ * Границы фаз ролика в реальном времени: где кончается появление и где
+ * начинается уход.
+ *
+ * Композиция живёт в «проектном» времени, а `impact` и `speed` его растягивают,
+ * поэтому границы нельзя держать константами: они считаются той же формулой,
+ * что и `totalDuration`. По этим двум числам пульт ставит метки входа и ухода —
+ * метка перестаёт быть декоративной пропорцией и показывает, где на самом деле
+ * заканчивается анимация появления и начинается уход.
+ *
+ * Конец появления — момент удара: до него эмблема собирается из роя, после он
+ * уже стоит. Уход начинается с финального движения: последние 2.5 с проектного
+ * времени композиция уходит, а затем фильм гаснет (`fadeOut`).
+ * @param {{impact:number, speed:number, hold?:number}} g
+ */
+export function phaseBounds(g: { impact: number; speed: number; hold?: number }) {
+  const speed = g.speed > 0 ? g.speed : 1;
+  const impact = g.impact;
+  // та же формула, что и totalDuration: удар + базовый хвост со скоростью + пауза
+  const total = Math.round((impact + (baseDuration - DESIGN_IMPACT) / speed + (g.hold || 0)) * 100) / 100;
+  // в проектном времени уход начинается на DESIGN_EXIT, в реальном — с учётом скорости
+  const exitAt = impact + (DESIGN_EXIT - DESIGN_IMPACT) / speed;
+  const exitEnd = impact + (DESIGN_EXIT_END - DESIGN_IMPACT) / speed;
+  return {
+    entry: Math.max(0.1, Math.min(impact, total * 0.5)),
+    exit: Math.max(0.3, Math.min(exitEnd - exitAt, total - impact)),
+    exitAt: Math.min(exitAt, total),
+  };
+}
 export function totalDuration(c: Config) {
   const g = c.general;
   return Math.round((g.impact + (baseDuration - DESIGN_IMPACT) / g.speed + g.hold) * 100) / 100;

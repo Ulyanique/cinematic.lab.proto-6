@@ -1,6 +1,6 @@
 import { createSharedSceneConfig } from "./shared-visuals.js";
 import { WAITING_DEFAULTS } from "./waiting.js";
-import { DEFAULT_CONFIG, SCHEMA as LAB2_SCHEMA, totalDuration as lab2Duration } from "../lab2/config.ts";
+import { DEFAULT_CONFIG, SCHEMA as LAB2_SCHEMA, totalDuration as lab2Duration, phaseBounds } from "../lab2/config.ts";
 import { DEFAULT_SETTINGS } from "../lab5/settings.ts";
 import { TL as LAB5_TL } from "../lab5/timeline.ts";
 import { MEDIA_CLIPS, mediaOptions, VIDEO_FIT_OPTIONS } from "../lab5/media.ts";
@@ -28,11 +28,27 @@ export const LAB2_BRAND_ID = "lab-swarm-brand";
 export const LAB_IDS = Object.freeze([LAB2_ID, LAB5_ID, LAB2_BRAND_ID]);
 export const isLabScene = (id) => LAB_IDS.includes(id);
 
-/** Таймлайн ролика-лаборатории: вся длительность — «удержание», её выставляет сам ролик. */
-function labTimeline(duration) {
+/**
+ * Таймлайн ролика-лаборатории по фазам её фильма: появление · основная картинка ·
+ * уход.
+ *
+ * Раньше вся длительность лежала в «удержании» (0 / всё / 0), и метки входа и
+ * ухода стояли по краям полосы — то есть ничего не ограничивали. Теперь границы
+ * считает `phaseBounds` по той же формуле, что и длительность фильма: метка
+ * входа — конец появления (момент удара), метка ухода — начало ухода.
+ * @param {number} duration полная длина фильма, секунды
+ * @param {{entry:number, exit:number}} bounds
+ */
+function labTimeline(duration, bounds) {
   const base = WAITING_DEFAULTS.timeline;
+  const entry = Math.max(0, Math.min(bounds.entry, duration - 0.4));
+  const exit = Math.max(0, Math.min(bounds.exit, duration - entry - 0.2));
   return {
-    drawDuration: 0, emergeDuration: 0, holdDuration: duration, fadeDuration: 0, restDuration: 0,
+    // вход — одной стадией: у фильма один пролог, делить его на «контур» и
+    // «появление» нечего, и подпись «Вход» честно равна всей анимации появления.
+    drawDuration: entry, emergeDuration: 0,
+    holdDuration: Math.max(0.2, duration - entry - exit),
+    fadeDuration: exit, restDuration: 0,
     startDelay: 0, ringsIntro: base.ringsIntro, speed: 1, beatBpm: base.beatBpm, beatOffset: base.beatOffset,
   };
 }
@@ -102,7 +118,8 @@ export function lab2Source(cfg) {
 }
 
 export const LAB2_DEFAULTS = (() => {
-  const cfg = createSharedSceneConfig(labTimeline(13.6));
+  const srcPre = plain(DEFAULT_CONFIG);
+  const cfg = createSharedSceneConfig(labTimeline(lab2Duration(srcPre), phaseBounds(srcPre.general)));
   cfg.transition = { duration: 0.9 };
   cfg.caption.titleVisible = false;
   const src = plain(DEFAULT_CONFIG);
@@ -136,6 +153,9 @@ export const LAB2_BRAND_DEFAULTS = (() => {
   // Минута: длина фильма — «удар + базовый хвост + финальная пауза», поэтому
   // минута задаётся паузой. Всё остальное в ритме остаётся как в «Интро».
   src.general.hold = 60 - lab2Duration(src);
+  // Границы фаз — из того же «минутного» general: появление до удара, уход —
+  // последнее движение композиции. Метки на пульте должны совпадать с кадром.
+  cfg.timeline = labTimeline(60, phaseBounds(src.general));
   for (const [scope] of LAB2_SCOPES) {
     const part = ["general", "camera", "post"].includes(scope) ? src[scope] : src.layers[scope];
     cfg[LAB2_PREFIX + scope] = part;
@@ -235,8 +255,12 @@ function lab5Default(key) {
   return DEFAULT_SETTINGS[key];
 }
 
+/**
+ * Лаборатория 11 живёт не общей схемой, а своим таймлайном визитов: появление и
+ * уход заданы в `TL` — первым подъёмом камеры и финальным движением.
+ */
 export const LAB5_DEFAULTS = (() => {
-  const cfg = createSharedSceneConfig(labTimeline(LAB5_TL.end));
+  const cfg = createSharedSceneConfig(labTimeline(LAB5_TL.end, { entry: LAB5_TL.visit0, exit: LAB5_TL.end - LAB5_TL.exitStart }));
   cfg.transition = { duration: 0.9 };
   cfg.caption.titleVisible = false;
   for (const [id, fields] of Object.entries(LAB5_FIELDS)) {
