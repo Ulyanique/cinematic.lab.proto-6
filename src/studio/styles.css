@@ -247,11 +247,12 @@ body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
 }
 
 /* Подписи фаз: в покое строки их нет — только полоса и цифры. Наведение на
-   пульт (или фокус в поле) проявляет имена и длительности: под полосой для
-   фаз, над полем — для чисел. Абсолютное положение нужно, чтобы появление
-   текста не двигало саму строку. */
+   пульт (или фокус в поле) проявляет имена и длительности. Подписи стоят НАД
+   полосой — на той же линии, что подписи числовых полей («Вход», «Держ.»),
+   поэтому фраза «вход 5.0» читается сверху вниз в одном порядке. Высота
+   резервируется всегда, чтобы появление текста не двигало строку. */
 .operator-legend {
-  position: absolute; left: 0; right: 0; top: calc(100% + 1px); height: 11px;
+  position: absolute; left: 0; right: 0; bottom: calc(100% + 4px); height: 11px;
   opacity: 0; transition: opacity .16s ease; pointer-events: none;
 }
 .operator-legend-item {
@@ -270,7 +271,7 @@ body.operator-idle:not(.ui-on) .studio-buttons { opacity: .35; }
    вниз относительно кнопок. Подпись — всплывающая, над полем. */
 .operator-field { position: relative; display: flex; align-items: center; min-width: 0; }
 .operator-field-label {
-  position: absolute; left: 50%; bottom: calc(100% + 5px);
+  position: absolute; left: 50%; bottom: calc(100% + 4px);
   transform: translateX(-50%);
   color: rgba(255, 214, 140, .62); font-size: 9px; line-height: 1;
   letter-spacing: .14em; text-transform: uppercase; white-space: nowrap;

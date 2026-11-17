@@ -159,8 +159,8 @@ export function createOperatorControls({ getState, seek, setPhase, setDuration, 
       return mark;
     })));
     // Подписи фаз: в строке их не видно — они проявляются при наведении на
-    // пульт. Лежат они под полосой и не участвуют в раскладке, поэтому полоса
-    // стоит ровно по центру кнопок, а не съезжает вверх на высоту текста.
+    // пульт. Лежат они НАД полосой, на одной линии с подписями числовых полей,
+    // и не участвуют в раскладке, поэтому строка не дёргается от текста.
     legendEl.replaceChildren(...segments.map((segment) => {
       const cell = document.createElement("span");
       cell.className = `operator-legend-item operator-legend-${segment.key}`;
