@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { fxCycleTime } from "./fx-cycle.js";
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 
 /**
@@ -488,8 +489,9 @@ export class FxStack {
 
     const k = (key) => Math.max(0, Number(cfg[key]) || 0);
     const speed = Math.max(0.05, Number(cfg.speed) || 1);
-    const rel = time - (span?.start || 0);
-    const total = Math.max(0.1, (span?.end ?? 1e9) - (span?.start || 0));
+    const clock = fxCycleTime(time, span);
+    const rel = clock.relative;
+    const total = Math.max(0.1, clock.total);
     const fx = smooth(0, Math.max(0.001, cfg.fadeIn), rel) * (1 - smooth(total - Math.max(0.001, cfg.fadeOut), total, rel));
     const ev = rel - (Number(cfg.eventTime) || 0);
     const tint = hexToRgb(cfg.tint);
@@ -498,14 +500,14 @@ export class FxStack {
     ou.uSrc.value = this.texture;
     ou.uTime.value = rel * speed + 3.7;
     ou.uEv.value = ev;
-    ou.uFx.value = (cfg.fadeIn <= 0 && cfg.fadeOut <= 0) ? 1 : fx;
+    ou.uFx.value = clock.beforeStart ? 0 : (cfg.fadeIn <= 0 && cfg.fadeOut <= 0) ? 1 : fx;
     ou.uAspect.value = aspect;
     ou.uDust.value = k("dust"); ou.uBokeh.value = k("bokeh"); ou.uEmber.value = k("embers"); ou.uRays.value = k("rays");
     ou.uFlare.value = k("flare"); ou.uSweep.value = k("sweep"); ou.uShock.value = k("shock"); ou.uRings.value = k("rings");
     ou.uHaze.value = k("haze"); ou.uZoom.value = k("zoom"); ou.uCA.value = k("aberration");
     ou.uTint.value.set(tint[0], tint[1], tint[2]);
     // y в UV идёт снизу вверх, а в панели — сверху вниз
-    ou.uOrigin.value.set(Number(cfg.originX) || 0.5, 1 - (Number.isFinite(cfg.originY) ? cfg.originY : 0.42));
+    ou.uOrigin.value.set(Number.isFinite(cfg.originX) ? cfg.originX : 0.5, 1 - (Number.isFinite(cfg.originY) ? cfg.originY : 0.42));
     this._pass(this.mats.overlay, this.rt.base);
 
     const bloom = k("bloom"), streak = k("streak"), ghosts = k("ghosts");
