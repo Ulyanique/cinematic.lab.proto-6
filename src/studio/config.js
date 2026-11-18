@@ -1,3 +1,4 @@
+import { migratePartnersStage } from "./partners-stage.js";
 import { migrateIntroBackground } from "./background-migration.js";
 import { DECOR_SLOTS } from "./brand-decor-config.js";
 import { PARTICLE_CLOUD_IDS } from "./particle-cloud-config.js";
@@ -18,8 +19,6 @@ export const DEFAULTS = WAITING_DEFAULTS;
 // Схема UI: группы → поля. type: range | color | bool
 export const SCHEMA = [
   { id: "partners", title: "Спонсоры и организаторы", fields: [
-    {key:"title",label:"Название вечера",type:"text",maxLength:120},
-    {key:"subtitle",label:"Подзаголовок",type:"text",maxLength:120},
     {key:"organizerLabel",label:"Заголовок организатора",type:"text",maxLength:60},
     {key:"coorganizerLabel",label:"Заголовок соорганизатора",type:"text",maxLength:60},
     {key:"organizer1",label:"Организатор 1",type:"text",maxLength:80},
@@ -37,7 +36,7 @@ export const SCHEMA = [
     ]},
     {key:"frameVisible",label:"Показывать рамку",type:"bool"},
     {key:"curtainVisible",label:"Показывать занавес",type:"bool"},
-    {key:"curtainWidth",label:"Занавес: ширина, px",type:"range",min:320,max:760,step:4},
+    {key:"curtainWidth",label:"Занавес у края: ширина, px",type:"range",min:20,max:180,step:4},
     {key:"motion",label:"Движение декора при удержании",type:"range",min:0,max:1,step:.01},
   ] },
   // Заставка одного спонсора: тот же кадр, что у «Спонсоров», но знак крупно
@@ -461,11 +460,12 @@ export function mergeConfig(defaults, patch) {
 export function loadSceneConfig(sceneId, defaults, onReadError) {
   const cfg = cloneDefaults(defaults);
   let raw = null;
-  let migrateIntroBackgroundNeeded = false;
+  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false;
   let migratePhotoCenter = false, migratePhotoSize = false, migrateBrandCenter = false, migrateGuides = false, migrateFinaleGuides = false, migrateBrandLift = false;
   try {
     raw = localStorage.getItem(sceneStorageKey(sceneId));
     if (!raw && sceneId === "waiting") raw = localStorage.getItem(LEGACY_KEY);
+    if (sceneId === "partners") migratePartnersStageNeeded = !localStorage.getItem("partners-stage-minute-v1");
     if (sceneId === "lab-swarm-brand") migrateIntroBackgroundNeeded = !localStorage.getItem("lab-swarm-brand-minute-hold-v1");
     if (sceneId === "photo-pause") {
       migratePhotoCenter = !localStorage.getItem(PHOTO_CENTER_MIGRATION);
@@ -483,6 +483,9 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     return cfg;
   }
   if (!raw) {
+    if (migratePartnersStageNeeded) {
+      try { localStorage.setItem("partners-stage-minute-v1", "1"); } catch (e) { /* noop */ }
+    }
     if (migrateIntroBackgroundNeeded) {
       try { localStorage.setItem("lab-swarm-brand-minute-hold-v1", "1"); } catch (e) { /* noop */ }
     }
@@ -508,6 +511,13 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
   }
   try {
     let saved = JSON.parse(raw);
+    if (migratePartnersStageNeeded) {
+      saved = migratePartnersStage(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-stage-minute-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
     if (migrateIntroBackgroundNeeded) {
       saved = migrateIntroBackground(saved, defaults);
       try {

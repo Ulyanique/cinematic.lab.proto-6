@@ -5,15 +5,15 @@ import proelectroUrl from './assets/partners/proelectro.svg';
 import proelectroschitUrl from './assets/partners/proelectroschit.svg';
 import promrukavUrl from './assets/partners/promrukav.svg';
 import keazUrl from './assets/partners/keaz.svg';
-import { partnersCues, drawPartnersDecor, drawAmberAtmosphere, drawBreathingBackground } from './partners-graphics.js';
-import { glintSpan, reveal, easeOutBack, pairLayout } from './partners-motion.js';
+import { drawPartnersDecor, drawAmberAtmosphere, drawBreathingBackground } from './partners-graphics.js';
+import { partnersStageCues, drawStageCurtains } from './partners-stage.js';
+import { PartnersCenterLogo } from './partners-center-logo.js';
+import { glintSpan, easeOutBack } from './partners-motion.js';
 import { computePhase } from './timeline.js';
 import { BASE_FRAME } from './scenes/catalog.js';
 import { masterSize, masterId } from './output-profile.js';
-import { fontName } from './fonts.js';
 import { DEFAULT_QUALITY, isQualityPreset, suggestedQuality } from './quality-presets.js';
 import { PARTNERS_DEFAULTS } from './scenes/partners.js';
-import { textSafeLeft, fitFontSize } from './text-safe-area.js';
 
 const loadImage = url => new Promise(resolve => {
   if (!url) { resolve(null); return; }
@@ -104,29 +104,10 @@ export function drawMarkGlint(ctx, logo, x, y, w, h, span, alpha) {
   ctx.restore();
 }
 
-// Ось композиции и центры колонок. Заголовок, подзаголовок и линия под ним
-// раньше стояли на 900 — на 60 px левее оси кадра, из-за чего вся верхняя часть
-// выглядела смещённой, хотя ярусы уже стояли по центру. Теперь ось одна на кадр.
-const CONTENT_CENTER = BASE_FRAME.width / 2;
-const COLUMN_LEFT = 690;
-const COLUMN_RIGHT = 1230;
-
-// Ширина поднята с 440: у ПРОэлектрощит и КЭАЗ соотношение сторон 4,8:1 и 5,3:1,
-// поэтому прежний потолок ширины срезал им ВЫСОТУ (92 и 83 px против 105 у
-// соседей) — в одном ярусе знаки выглядели разного веса. Столбцы разнесены на
-// 540 px, так что 500 px по ширине не сближает группы.
+// Предельный размер одного знака; масштаб не меняет пропорции.
 const MARK_MAX_WIDTH = 500;
 const MARK_MAX_HEIGHT = 105;
 const MARK_SUPERSAMPLE = 2;
-
-// Контейнер яруса: 1010 px по центру кадра. Знаки прижимаются к его внешним
-// краям, между ними остаётся не меньше PAIR_INNER_GAP. Ширина общая для обоих
-// ярусов, поэтому внешние края всех четырёх знаков встают в единые колонки.
-// 1010 подобрано так, чтобы самый широкий ярус (411+500 у организаторов) влезал
-// в полный размер без ужима: 411+500+90 = 1001. При 900 знаки ужимались на 11 %,
-// при 840 зазор схлопывался и пары срастались в один блок.
-const PAIR_WIDTH = 1010;
-const PAIR_INNER_GAP = 90;
 
 // Золотая заливка использует альфу SVG/PNG, а не прямоугольную белую плашку.
 /**
@@ -289,6 +270,7 @@ export async function preloadPartnerCustomLogos(partnersCfg) {
 export class PartnersScene {
   constructor(canvas, cfg) {
     this.cfg = cfg;
+    this.centerLogo = new PartnersCenterLogo();
     this.isIntro = false;
     this.contourWaves = null;
     // Стиль известен из настроек сразу: готовим только нужный вариант логотипов.
@@ -404,7 +386,7 @@ export class PartnersScene {
     const ctx = this.cardCtx, w = BASE_FRAME.width, h = BASE_FRAME.height, cfg = this.cfg, tl = cfg.timeline;
     ctx.setTransform(master.width / w, 0, 0, master.height / h, 0, 0);
     const phase = computePhase(t, tl), data = cfg.partners;
-    const cue = partnersCues(phase, tl, data.motion ?? 1), visible = cue.visible;
+    const cue = partnersStageCues(phase, tl, data.motion ?? 1), visible = cue.visible;
     this._blackFrame = visible <= 0;
 
     // Непрозрачная чёрная заливка уже стирает прошлый кадр: отдельный clearRect
@@ -419,111 +401,19 @@ export class PartnersScene {
     drawBreathingBackground(ctx, backgroundCanvas, w, h, phase.local, phase.cycle);
     ctx.drawImage(staticLayer, 0, 0, w, h);
     ctx.restore();
-    // Зоны защиты: заголовок с подзаголовком сверху и оба яруса знаков.
+    // Защищаем от частиц области знаков в верхних боковых колонках.
     drawAmberAtmosphere(ctx, phase.local, (data.motion ?? 1) * visible, phase.cycle, [
-      { x: 380, y: 80, w: 1160, h: 290 },
-      { x: 400, y: 380, w: 1120, h: 500 },
+      { x: 190, y: 70, w: 470, h: 450 },
+      { x: 1260, y: 70, w: 470, h: 450 },
     ]);
-    // Занавес рисуется внутри декора, после рамки: ткань — передний план и
-    // должна перекрывать позолоту, а не лежать под ней.
+    // Здесь рисуем рамку; занавес окажется поверх всех элементов ниже.
     drawPartnersDecor(ctx, cue, data, curtainImage);
-    const displayFont = fontName(cfg.typography?.font || 'cormorant-garamond');
     const text = (value, x, y, font, color, alpha, maxWidth, entry = 1) => {
       ctx.save(); ctx.globalAlpha = alpha; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = font; ctx.fillStyle = color;
       ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 9; ctx.shadowOffsetY = 3;
       ctx.fillText(String(value ?? ''), x, y + 22 * (1 - entry), maxWidth); ctx.restore();
     };
-    const gold = '#e9ca91', warm = '#d2ac70', ivory = '#f6e4be';
-    const title = visible * cue.title;
-    const heading = String(data.title ?? '').toLocaleUpperCase('ru-RU');
-    // Заголовок из золотой фольги: вертикальный металлический градиент делает
-    // буквы похожими на тиснение, а по нему раз в цикл проходит свет.
-    // Раньше заголовок был залит ровным цветом и читался как обычный текст.
-    const foilGradient = (top, bottom) => {
-      const foil = ctx.createLinearGradient(0, top, 0, bottom);
-      foil.addColorStop(0, '#fff9ea');
-      foil.addColorStop(.28, '#f7e3b7');
-      foil.addColorStop(.52, '#eed4a3');
-      foil.addColorStop(.74, '#d5ae74');
-      foil.addColorStop(.9, '#b98f56');
-      foil.addColorStop(1, '#e6cd9c');
-      return foil;
-    };
-    /**
-     * Заголовок из золотой фольги. Кегль приходит из безопасной зоны, поэтому
-     * строка не может уйти под занавес; blur-радиус и градиент считаются от
-     * него же, иначе металл «разъезжается» при смене размера.
-     */
-    const drawFoilTitle = (value, x, y, alpha, size) => {
-      if (alpha <= 0.003) return;
-      const drop = 22 * (1 - cue.title);
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.font = `600 ${size}px "${displayFont}", serif`;
-      const half = size * 0.5;
-      ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 9; ctx.shadowOffsetY = 3;
-      // Базовый слой: металл по высоте буквы (от светлого верха к тёмному низу).
-      ctx.fillStyle = foilGradient(y - half, y + half);
-      ctx.fillText(value, x, y + drop);
-      // Второй слой — сам блик. Аддитивно, поэтому металл не «выцветает»,
-      // а именно вспыхивает на проходе полосы.
-      const sweep = glintSpan(phase.local, { start: 5.6, span: 1.9, from: -0.12, to: 1.12 });
-      if (sweep != null) {
-        const width = ctx.measureText(value).width;
-        const left = x - width / 2, band = width * 0.13;
-        const at = left + width * sweep;
-        const shine = ctx.createLinearGradient(at - band * 2.4, 0, at + band * 2.4, 0);
-        shine.addColorStop(0, 'rgba(255,255,255,0)');
-        shine.addColorStop(.42, 'rgba(255,252,236,.42)');
-        shine.addColorStop(.5, 'rgba(255,255,255,.68)');
-        shine.addColorStop(.58, 'rgba(255,252,236,.42)');
-        shine.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.shadowColor = 'transparent';
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.fillStyle = shine;
-        ctx.fillText(value, x, y + drop);
-      }
-      ctx.restore();
-    };
-    // Блок заголовка стоит строго на оси кадра: смещение «оптически влево»
-    // читалось как небрежность, а не как замысел.
-    // Безопасная зона: занавес висит поверх кадра, его ширина задаётся в
-    // настройках. Раньше предел ширины был числом 1100, и при широкой шторе
-    // первая буква заголовка оказывалась под тканью.
-    // Граница берётся ДЛЯ СТРОКИ заголовка: кромка ткани диагональная, и на
-    // высоте заголовка она дальше «средней» доли ширины — общая граница
-    // пропускала первую букву под ткань при широкой шторе.
-    const safe = textSafeLeft(data, { atY: 160 - 48 });
-    const titleFit = fitFontSize({
-      size: 96, min: 44,
-      measure: (size) => {
-        ctx.font = `600 ${size}px "${displayFont}", serif`;
-        return ctx.measureText(heading).width;
-      },
-    }, safe);
-    drawFoilTitle(heading, CONTENT_CENTER, 160, title, titleFit.size);
-    const subtitleSafe = textSafeLeft(data, { atY: 270 - 25 });
-    text(data.subtitle, CONTENT_CENTER, 270, `400 49px "${displayFont}", serif`, gold, title,
-      Math.min(1080, 2 * (960 - subtitleSafe)), cue.title);
-    // Линия расходится от центра, а ромб появляется последним и чуть крупнее:
-    // взгляд успевает пройти по кадру сверху вниз, а не схватить всё сразу.
-    const ornament = (y, alpha, width, center = 960, diamond = 1) => {
-      if (width <= 0.5) return;
-      ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = warm; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(center - width, y); ctx.lineTo(center - 16, y); ctx.moveTo(center + 16, y); ctx.lineTo(center + width, y); ctx.stroke();
-      if (diamond > 0) {
-        ctx.translate(center, y); ctx.rotate(Math.PI / 4);
-        const size = 4 * (0.55 + 0.45 * diamond);
-        ctx.globalAlpha = alpha * diamond;
-        ctx.strokeRect(-size, -size, size * 2, size * 2);
-      }
-      ctx.restore();
-    };
-    ornament(330, title * .7, 280 * cue.rule, CONTENT_CENTER, cue.rule);
-    // Разрядка у мелких капсов — типографский приём, который сразу отделяет
-    // «дорогую» вёрстку от обычной. letterSpacing поддерживается Chromium;
-    // если его нет, подпись просто останется без разрядки.
+    const warm = '#d2ac70', ivory = '#f6e4be';
     const trackedLabel = (value, x, y, alpha, entry) => {
       ctx.save();
       ctx.globalAlpha = alpha;
@@ -560,18 +450,10 @@ export class PartnersScene {
       const isDefault = String(data[key] ?? '').trim().toLocaleLowerCase('ru') === defaults[key].toLocaleLowerCase('ru');
       return custom || (isDefault ? builtinMark(key, style) : null);
     };
-    // Знаки готовим один раз на кадр: и для замера пары, и для отрисовки.
-    // Раньше company() и замер звали подготовку по отдельности.
+    // Встроенные и пользовательские знаки готовим один раз на кадр.
     const marks = {
       organizer1: customLogoFor('organizer1'), organizer2: customLogoFor('organizer2'),
       partner1: customLogoFor('partner1'), partner2: customLogoFor('partner2'),
-    };
-    // Ширина знака на экране без отрисовки: нужна, чтобы построить пару
-    // симметрично. Показной масштаб тот же, что в company().
-    const markWidth = (key) => {
-      const logo = marks[key];
-      if (!logo) return 0;
-      return logo.width * Math.min(MARK_MAX_WIDTH / logo.width, MARK_MAX_HEIGHT / logo.height);
     };
     const company = (key, x, y, entry, glintAt, phaseIdx, fit = 1) => {
       const value = data[key];
@@ -644,35 +526,31 @@ export class PartnersScene {
       ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     };
-    tierGlow(CONTENT_CENTER, 495, 620, 190, visible * cue.shadow * .85);
-    tierGlow(CONTENT_CENTER, 785, 620, 190, visible * cue.shadow * .7);
-    // Ярус строится симметрично по КРАЯМ, а не центрированием на фиксированных
-    // колонках: у знаков разные пропорции (3.6:1 у Промрукав, 5.4:1 у КЭАЗ), и
-    // пара из блоков разной ширины читалась сдвинутой вправо — центр групп был
-    // на оси, но зазор между ними 65 px против 20, а внешние поля 485 против 441.
-    // Теперь поля по краям равны, и зазор в середине тоже.
-    // Раскладка пары: общие внешние края, зазор в центре, при нехватке места —
-    // один коэффициент на оба знака (см. pairLayout).
-    const pairSlot = (leftKey, rightKey) => {
-      const lw = markWidth(leftKey), rw = markWidth(rightKey);
-      if (!lw && !rw) return { leftX: COLUMN_LEFT, rightX: COLUMN_RIGHT, fit: 1 };
-      return pairLayout({
-        center: CONTENT_CENTER, leftWidth: lw, rightWidth: rw,
-        container: PAIR_WIDTH, gap: PAIR_INNER_GAP,
-      });
-    };
-    const organizers = pairSlot('organizer1', 'organizer2');
-    // Подписи идут по центрам своих знаков: они относятся к знаку, а не к колонке.
-    label(data.organizerLabel, organizers.leftX, 401, visible * cue.organizerLabel, cue.organizerLabel);
-    label(data.coorganizerLabel, organizers.rightX, 401, visible * cue.organizerLabel, cue.organizerLabel);
-    // Блик идёт очередью уже по «севшему» знаку: 1.69+1.0 с — конец входа.
-    company('organizer1', organizers.leftX, 495, cue.organizer, 2.75, 0, organizers.fit);
-    company('organizer2', organizers.rightX, 495, cue.organizerSecond, 3.25, 1, organizers.fit);
-    ornament(613, visible * cue.separator * .55, 420 * cue.separator, CONTENT_CENTER, cue.separator);
-    label(data.partnerLabel, CONTENT_CENTER, 690, visible * cue.partnerLabel, cue.partnerLabel);
-    const sponsors = pairSlot('partner1', 'partner2');
-    company('partner1', sponsors.leftX, 785, cue.partner, 4.45, 2, sponsors.fit);
-    company('partner2', sponsors.rightX, 785, cue.partnerSecond, 4.95, 3, sponsors.fit);
+    // Все четыре знака в верхней половине и на внешних сторонах кадра.
+    const left = 425, right = 1495, topY = 195, secondY = 420;
+    tierGlow(left, topY, 260, 115, visible * cue.shadow * .5);
+    tierGlow(right, topY, 260, 115, visible * cue.shadow * .5);
+    tierGlow(left, secondY, 260, 115, visible * cue.shadow * .5);
+    tierGlow(right, secondY, 260, 115, visible * cue.shadow * .5);
+    label(data.organizerLabel, left, 105, visible * cue.organizerLabel, cue.organizerLabel);
+    label(data.coorganizerLabel, left, 330, visible * cue.organizerSecond, cue.organizerSecond);
+    label(data.partnerLabel, right, 105, visible * cue.partnerLabel, cue.partnerLabel);
+    company('organizer1', left, topY, cue.organizer, 2.75, 0, .82);
+    company('organizer2', left, secondY, cue.organizerSecond, 3.25, 1, .82);
+    company('partner1', right, topY, cue.partner, 4.45, 2, .82);
+    company('partner2', right, secondY, cue.partnerSecond, 4.95, 3, .82);
+    if (cue.compass > .001) {
+      ctx.save();
+      ctx.globalAlpha = visible * cue.compass;
+      ctx.drawImage(this.centerLogo.render(phase.local, phase.cycle), 730, 255, 460, 460);
+      ctx.restore();
+    }
+    // Занавес расположен поверх всех элементов и в конце закрывается обратно.
+    if (data.curtainVisible !== false) {
+      ctx.save(); ctx.globalAlpha = visible;
+      drawStageCurtains(ctx, curtainImage, cue.curtainOpen, w, h, data.curtainWidth);
+      ctx.restore();
+    }
     this.cardTexture.needsUpdate = true;
   }
 
@@ -683,6 +561,7 @@ export class PartnersScene {
   }
 
   dispose() {
+    this.centerLogo.dispose();
     this._textures.forEach(texture => texture.dispose());
     this.cardMesh.geometry.dispose();
     this.cardMesh.material.dispose();
