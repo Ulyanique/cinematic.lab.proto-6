@@ -27,15 +27,20 @@ export function partnersStageCues(phase, timeline, motion = 1) {
   };
 }
 
-/** Две зеркальные шторы у внешних краёв, без прямоугольной подложки. */
-export function drawStageCurtains(ctx, image, open, width = 1920, height = 1080, edgeWidth = 96) {
-  if (!image) return;
+/** Геометрия занавеса одинакова для Canvas и GPU. */
+export function stageCurtainLayout(image, open, height = 1080, edgeWidth = 96) {
   const p = clamp(open);
   const naturalWidth = image.naturalWidth || image.width || 476;
   const naturalHeight = image.naturalHeight || image.height || 1080;
   const imageWidth = height * naturalWidth / naturalHeight;
   const edge = Math.max(0, Math.min(imageWidth, Number.isFinite(edgeWidth) ? edgeWidth : 96));
-  const x = -(imageWidth - edge) * p;
+  return { x: -(imageWidth - edge) * p, imageWidth };
+}
+
+/** Две зеркальные шторы у внешних краёв, без прямоугольной подложки. */
+export function drawStageCurtains(ctx, image, open, width = 1920, height = 1080, edgeWidth = 96) {
+  if (!image) return;
+  const { x, imageWidth } = stageCurtainLayout(image, open, height, edgeWidth);
   ctx.save();
   ctx.drawImage(image, x, 0, imageWidth, height);
   ctx.translate(width, 0);

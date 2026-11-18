@@ -6,10 +6,11 @@ import proelectroschitUrl from './assets/partners/proelectroschit.svg';
 import promrukavUrl from './assets/partners/promrukav.svg';
 import keazUrl from './assets/partners/keaz.svg';
 import { drawPartnersDecor, drawAmberAtmosphere, drawBreathingBackground } from './partners-graphics.js';
+import { createPartnersCurtains } from './partners-curtains.js';
 import { createPartnersLight } from './partners-light.js';
 import { createPartnersGlitter } from './partners-glitter.js';
 import { createPartnersFrameGlint } from './partners-frame-glint.js';
-import { partnersStageCues, drawStageCurtains, partnersHoldCacheKey } from './partners-stage.js';
+import { partnersStageCues, partnersHoldCacheKey } from './partners-stage.js';
 import introLogoSvg from './lab2/logo.svg?raw';
 import { introOutlineSvg } from './partners-stage.js';
 import { glintSpan, easeOutBack } from './partners-motion.js';
@@ -298,7 +299,7 @@ export class PartnersScene {
       c.width = master.width; c.height = master.height;
       return { canvas: c, ctx: c.getContext('2d') };
     });
-    this._backgroundBuffers = [0, 1].map(() => {
+    this._backgroundBuffers = [0].map(() => {
       const c = document.createElement('canvas');
       c.width = master.width; c.height = master.height;
       return { canvas: c, ctx: c.getContext('2d') };
@@ -325,25 +326,33 @@ export class PartnersScene {
 
     this.cardScene = new THREE.Scene();
     this.backgroundMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2),
-      new THREE.MeshBasicMaterial({ map: this._backgroundTextures[0], toneMapped: false, depthTest: false, depthWrite: false }));
+      new THREE.MeshBasicMaterial({ map: this._backgroundTextures[0], toneMapped: false, transparent: true, depthTest: false, depthWrite: false }));
     this.backgroundMesh.renderOrder = 0;
     this.cardScene.add(this.backgroundMesh);
     this.light = createPartnersLight();
     this.cardScene.add(this.light.mesh);
+    this.frameMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2),
+      new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, depthWrite: false, toneMapped: false }));
+    this.frameMesh.renderOrder = 2;
+    this.cardScene.add(this.frameMesh);
     this.cardCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 2);
     this.cardCamera.position.z = 1;
     this.cardMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2, 2),
       new THREE.MeshBasicMaterial({ map: this.cardTexture, toneMapped: false, transparent: true, depthTest: false, depthWrite: false })
     );
-    this.cardMesh.renderOrder = 2;
+    this.cardMesh.renderOrder = 3;
     this.cardScene.add(this.cardMesh);
     this.glitter = createPartnersGlitter();
-    this.glitter.points.renderOrder = 3;
+    this.glitter.points.renderOrder = 4;
     this.cardScene.add(this.glitter.points);
     this.frameGlint = createPartnersFrameGlint();
     this.frameGlint.mesh.renderOrder = 4;
     this.cardScene.add(this.frameGlint.mesh);
+    this.curtains = createPartnersCurtains();
+    this.cardScene.add(this.curtains.left, this.curtains.right);
+    this.emptyTexture = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat);
+    this.emptyTexture.needsUpdate = true;
     this._w = 0; this._h = 0;
     this.resize();
   }
@@ -363,6 +372,9 @@ export class PartnersScene {
       this._staticLayer = null;
       this._staticLayerKey = "";
       this._frameLayer = null;
+      this._frameTexture?.dispose();
+      this._frameTexture = null;
+      this._backgroundKey = null;
       this._veilLayer = null;
       this._holdTexture = null;
     }
@@ -414,6 +426,38 @@ export class PartnersScene {
     return canvas;
   }
 
+  _updateBackground(master, phase, cue, data) {
+    const tl = this.cfg.timeline;
+    const motion = Math.max(0, Math.min(1, data.motion ?? 1));
+    const key = `${assetsRevision}|${partnersHoldCacheKey(tl)}|${motion}`;
+    const texture = this._backgroundTextures[0];
+    if (this._backgroundKey !== key) {
+      const ctx = this._backgroundBuffers[0].ctx;
+      const w = BASE_FRAME.width, h = BASE_FRAME.height;
+      ctx.setTransform(master.width / w, 0, 0, master.height / h, 0, 0);
+      ctx.globalAlpha = 1; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+      drawBreathingBackground(ctx, backgroundCanvas, w, h, tl.drawDuration + tl.emergeDuration, phase.cycle);
+      ctx.drawImage(this._buildStaticLayer(master, backgroundCanvas), 0, 0, w, h);
+      ctx.save(); ctx.globalAlpha = motion;
+      ctx.drawImage(this._cachedDecoration(master, 'veil'), 0, 0, w, h);
+      ctx.restore();
+      texture.needsUpdate = true;
+      this._backgroundKey = key;
+    }
+    this.backgroundMesh.material.map = texture;
+    this.backgroundMesh.material.opacity = cue.visible * cue.background;
+    if (!this._frameTexture) {
+      this._frameTexture = new THREE.CanvasTexture(this._cachedDecoration(master, 'frame'));
+      this._frameTexture.colorSpace = THREE.SRGBColorSpace;
+      this._frameTexture.generateMipmaps = false;
+      this._frameTexture.minFilter = this._frameTexture.magFilter = THREE.LinearFilter;
+      this.frameMesh.material.map = this._frameTexture;
+      this.frameMesh.material.needsUpdate = true;
+    }
+    this.frameMesh.material.opacity = cue.visible * cue.frame;
+    this.frameMesh.visible = data.frameVisible !== false && cue.frame > .001;
+  }
+
   get quality() { return this._quality; }
   setQuality(id) {
     const next = isQualityPreset(id) ? id : DEFAULT_QUALITY;
@@ -432,7 +476,10 @@ export class PartnersScene {
     const phase = computePhase(t, this.cfg.timeline);
     const holding = phase.name === 'hold' && !phase.beforeStart;
     const cue = partnersStageCues(phase, this.cfg.timeline, this.cfg.partners.motion ?? 1);
-    this.glitter.points.visible = holding && cue.visible > 0;
+    this.glitter.points.visible = cue.visible > 0 && cue.background > .001;
+    this.curtains.update(curtainImage, cue.curtainOpen, this.cfg.partners.curtainWidth, cue.visible, this.cfg.partners.curtainVisible !== false);
+    this._blackFrame = cue.visible <= 0;
+    this._updateBackground(master, phase, cue, this.cfg.partners);
     const light = this.cfg.partnersLight || { enabled: true, strength: .7, speed: 1 };
     const lightStrength = light.enabled === false ? 0 : Math.max(0, Math.min(1.5, Number(light.strength) || 0));
     this.light.uniforms.time.value = phase.local;
@@ -444,20 +491,26 @@ export class PartnersScene {
     this.frameGlint.mesh.visible = glintOpacity > .001;
     this.frameGlint.uniforms.time.value = phase.local;
     this.frameGlint.uniforms.opacity.value = glintOpacity;
-    if (holding) {
+    {
       const u = this.glitter.uniforms;
       u.time.value = phase.local; u.period.value = phase.cycle;
-      u.motion.value = (this.cfg.partners.motion ?? 1) * cue.visible;
+      u.motion.value = (this.cfg.partners.motion ?? 1) * cue.visible * cue.background;
       u.pixelScale.value = master.height / 1080;
     }
     const holdKey = partnersHoldCacheKey(this.cfg.timeline);
     if (holding && this._holdTexture && this._holdRevision === assetsRevision && this._holdKey === holdKey) {
       this._blackFrame = false;
       this.cardMesh.material.map = this._holdTexture;
-      this.backgroundMesh.material.map = this._holdBackgroundTexture;
       return;
     }
     this._holdTexture = null;
+    // Пока шторы движутся, переднего плана ещё нет — никакой перезагрузки
+    // полного холста, только плавное перемещение текстур на видеокарте.
+    if (cue.compass <= .001 && cue.organizer <= .001 && cue.partner <= .001 &&
+        cue.organizerSecond <= .001 && cue.partnerSecond <= .001 && cue.title <= .001) {
+      this.cardMesh.material.map = this.emptyTexture;
+      return;
+    }
     // Чередуем два готовых холста: Chromium гарантированно обновляет WebGL-текстуру
     // без ежекадрового создания полноразмерного DOM-элемента.
     this._bufferIndex = 1 - this._bufferIndex;
@@ -468,44 +521,14 @@ export class PartnersScene {
     // a live texture's image source while WebGL still has it bound.
     this.cardTexture = this._textures[this._bufferIndex];
     this.cardMesh.material.map = this.cardTexture;
-    const bgTarget = this._backgroundBuffers[this._bufferIndex];
-    const bgCtx = bgTarget.ctx;
-    const bgTexture = this._backgroundTextures[this._bufferIndex];
-    this.backgroundMesh.material.map = bgTexture;
-
     const ctx = this.cardCtx, w = BASE_FRAME.width, h = BASE_FRAME.height, cfg = this.cfg, tl = cfg.timeline;
     ctx.setTransform(master.width / w, 0, 0, master.height / h, 0, 0);
     const data = cfg.partners, visible = cue.visible;
     const visualTime = Math.min(phase.local, tl.drawDuration + tl.emergeDuration);
     this._blackFrame = visible <= 0;
 
-    // Фоновое фото, свет и передний план — отдельные слои. В удержании оба
-    // полотна остаются на GPU; меняется только uniform анимации света.
     ctx.clearRect(0, 0, w, h);
-    bgCtx.setTransform(master.width / w, 0, 0, master.height / h, 0, 0);
-    bgCtx.globalAlpha = 1;
-    bgCtx.fillStyle = '#000000'; bgCtx.fillRect(0, 0, w, h);
-    if (visible <= 0) { this.cardTexture.needsUpdate = true; bgTexture.needsUpdate = true; return; }
-    const staticLayer = this._buildStaticLayer(master, backgroundCanvas);
-    bgCtx.save(); bgCtx.globalAlpha = visible * cue.background;
-    drawBreathingBackground(bgCtx, backgroundCanvas, w, h, tl.drawDuration + tl.emergeDuration, phase.cycle);
-    bgCtx.drawImage(staticLayer, 0, 0, w, h);
-    bgCtx.restore();
-    // Защищаем от частиц области знаков в верхних боковых колонках.
-    // Свет и сложную позолоту кэшируем, а искры оставляем живыми.
-    const motion = Math.max(0, Math.min(1, data.motion ?? 1));
-    bgCtx.save(); bgCtx.globalAlpha = visible * cue.background * motion;
-    bgCtx.drawImage(this._cachedDecoration(master, 'veil'), 0, 0, w, h);
-    bgCtx.restore();
-    if (!holding) drawAmberAtmosphere(ctx, phase.local, motion * visible * cue.background, phase.cycle, [
-      { x: 150, y: 70, w: 550, h: 450 },
-      { x: 1220, y: 70, w: 550, h: 450 },
-    ], { veils: false });
-    if (data.frameVisible !== false) {
-      ctx.save(); ctx.globalAlpha = visible * cue.frame;
-      ctx.drawImage(this._cachedDecoration(master, 'frame'), 0, 0, w, h);
-      ctx.restore();
-    }
+    if (visible <= 0) { this.cardTexture.needsUpdate = true; return; }
     // Эмблема проявляется крупно и плавно уменьшается к фоновой композиции.
     if (introOutlineImage && cue.compass > .001) {
       const size = 600 - 260 * cue.compassShrink;
@@ -665,15 +688,8 @@ export class PartnersScene {
     company('organizer2', left, secondY, cue.organizerSecond, 3.25, 1, 1);
     company('partner1', right, topY, cue.partner, 4.45, 2, 1);
     company('partner2', right, secondY, cue.partnerSecond, 4.95, 3, 1);
-    // Занавес расположен поверх всех элементов и в конце закрывается обратно.
-    if (data.curtainVisible !== false) {
-      ctx.save(); ctx.globalAlpha = visible;
-      drawStageCurtains(ctx, curtainImage, cue.curtainOpen, w, h, data.curtainWidth);
-      ctx.restore();
-    }
     this.cardTexture.needsUpdate = true;
-    bgTexture.needsUpdate = true;
-    if (holding) { this._holdBackgroundTexture = bgTexture; this._holdTexture = this.cardTexture; this._holdRevision = assetsRevision; this._holdKey = holdKey; }
+    if (holding) { this._holdTexture = this.cardTexture; this._holdRevision = assetsRevision; this._holdKey = holdKey; }
   }
 
   render() {
@@ -683,6 +699,11 @@ export class PartnersScene {
   }
 
   dispose() {
+    this.curtains.dispose();
+    this.emptyTexture.dispose();
+    this._frameTexture?.dispose();
+    this.frameMesh.geometry.dispose();
+    this.frameMesh.material.dispose();
     this.light.dispose();
     this._backgroundTextures.forEach(texture => texture.dispose());
     this.backgroundMesh.geometry.dispose();
