@@ -107,7 +107,7 @@ test('reference composition places the evening name above the partner rows witho
   assert.equal(PARTNERS_DEFAULTS.stageTitle.y, 150);
   assert.equal(PARTNERS_DEFAULTS.stageSubtitle.y, 235);
   assert.ok(PARTNERS_DEFAULTS.stageOrganizer1.y < PARTNERS_DEFAULTS.stagePartner1.y);
-  assert.equal(SPONSOR_KEAZ_DEFAULTS.stageTitle.y, 780);
+  assert.equal(SPONSOR_KEAZ_DEFAULTS.stageTitle.y, 150);
   const old = { stageTitle: {x:960,y:780}, stageCompass:{x:900,y:540} };
   const next = migratePartnersTopTitle(old);
   assert.equal(next.stageTitle.y, 150);
@@ -131,7 +131,7 @@ test('title divider is wider and editable; subtitle and KEAZ migrate independent
   assert.equal(PARTNERS_DEFAULTS.stageTitleDivider.width, 520);
   assert.equal(PARTNERS_DEFAULTS.stageTitleDivider.y, 195);
   assert.ok(PARTNERS_ELEMENT_SCHEMA.find(s => s.id === 'stageTitleDivider').fields.some(f => f.key === 'width'));
-  assert.equal(SPONSOR_KEAZ_DEFAULTS.stageTitleDivider.width, 360);
+  assert.equal(SPONSOR_KEAZ_DEFAULTS.stageTitleDivider.width, 520);
   const old = { stageSubtitle: { x: 950, y: 250 }, stageTitleDivider: { x: 960, y: 210 }, stageOrganizer1: { scale: .9 }, stagePartner2: { x: 1400, scale: .8 } };
   const next = migratePartnersTitleAndKeaz(old);
   assert.deepEqual(next.stageSubtitle, {x: 950, y: 230});

@@ -15,7 +15,7 @@ PARTNERS_DEFAULTS.transition = {duration:.9};
 PARTNERS_DEFAULTS.partnersIntroBackground = { enabled: false, strength: 1, speed: 1 };
 PARTNERS_DEFAULTS.partnersLight = { enabled: true, strength: .7, speed: 1 };
 PARTNERS_DEFAULTS.partners = {
-  title: 'Янтарный циркуль', subtitle: 'Вечер ретроспектива',
+  title: 'ЯНТАРНЫЙ ЦИРКУЛЬ', subtitle: 'вечер ретроспектива',
   organizerLabel: 'ОРГАНИЗАТОР', coorganizerLabel: 'СООРГАНИЗАТОР', organizer1: 'ПРОэлектро', organizer2: 'ПРОэлектрощит',
   partnerLabel: 'СПОНСОР', partner2Label: 'СПОНСОР', partner1: 'Промрукав', partner2: 'КЭАЗ',
   logoStyle: 'gold',
@@ -44,7 +44,7 @@ function sponsorCard(mark) {
     mark,
     markLogo: "",
     markScale: 1,
-    title: 'Янтарный циркуль', subtitle: 'Вечер ретроспектива',
+    title: 'ЯНТАРНЫЙ ЦИРКУЛЬ', subtitle: 'СПОНСОР',
     logoStyle: 'gold',
     frameVisible: true, curtainVisible: true, curtainWidth: 168, motion: 1,
   };

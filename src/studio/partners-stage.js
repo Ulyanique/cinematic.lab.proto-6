@@ -242,3 +242,30 @@ export function migratePartnersCenterFirst(saved) {
   }
   return next;
 }
+
+/** Переносим стандартные персональные карточки к верхнему титру и подписи. */
+export function migrateSingleSponsorLayout(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  if (next.sponsor?.title === 'Янтарный циркуль') next.sponsor.title = 'ЯНТАРНЫЙ ЦИРКУЛЬ';
+  if (typeof next.sponsor?.subtitle === 'string' && next.sponsor.subtitle.trim().toLocaleLowerCase('ru') === 'вечер ретроспектива') {
+    next.sponsor.subtitle = 'СПОНСОР';
+  }
+  for (const [id, oldY, newY] of [
+    ['stageTitle', 780, 150], ['stageTitleDivider', 818, 215], ['stageSubtitle', 845, 265],
+    ['stageSingleMark', 220, 385], ['stageCompass', 540, 715],
+  ]) {
+    const layer = next[id];
+    if (layer?.x === 960 && layer?.y === oldY) layer.y = newY;
+  }
+  if (next.stageTitleDivider?.width === 360) next.stageTitleDivider.width = 520;
+  if (next.stageSubtitle?.color === '#c8a873') next.stageSubtitle.color = '#d2ac70';
+  return next;
+}
+
+/** Сохраняем прежний вид стандартных надписей, не меняя собственный текст. */
+export function migratePartnerTextCase(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  if (next.partners?.title === 'Янтарный циркуль') next.partners.title = 'ЯНТАРНЫЙ ЦИРКУЛЬ';
+  if (next.partners?.subtitle === 'Вечер ретроспектива') next.partners.subtitle = 'вечер ретроспектива';
+  return next;
+}

@@ -28,7 +28,12 @@ export function partnerElementDefaults(single = false) {
     if ((single && groupOnly.has(s.id)) || (!single && singleOnly.has(s.id))) continue;
     out[s.id] = { ...s.defaults };
   }
-  if (!single) {
+  if (single) {
+    const reference = { stageTitle: [960, 150], stageTitleDivider: [960, 215], stageSubtitle: [960, 265], stageSingleMark: [960, 385], stageCompass: [960, 715] };
+    for (const [id, [x, y]] of Object.entries(reference)) Object.assign(out[id], { x, y });
+    out.stageTitleDivider.width = 520;
+    out.stageSubtitle.color = '#d2ac70';
+  } else {
     const reference = {
       stageTitle: [960, 150], stageTitleDivider: [960, 195], stageSubtitle: [960, 235],
       stageCompass: [960, 475], stageOrganizer1: [430, 350], stageOrganizer2: [1460, 350],

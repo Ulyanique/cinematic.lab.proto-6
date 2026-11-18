@@ -14,7 +14,7 @@ test('hit testing chooses the topmost target and excludes disabled elements', ()
   const cfg = structuredClone(PARTNERS_DEFAULTS);
   cfg.stageOrganizer1.enabled = false;
   assert.equal(sponsorDragElements(cfg).some(e => e.id === 'stageOrganizer1'), false);
-  assert.equal(hitElement({x: 960, y: 220}, sponsorDragElements(SPONSOR_KEAZ_DEFAULTS)).id, 'stageSingleMark');
+  assert.equal(hitElement({x: 960, y: 385}, sponsorDragElements(SPONSOR_KEAZ_DEFAULTS)).id, 'stageSingleMark');
   assert.equal(hitElement({x: -300, y: -300}, elements), null);
 });
 

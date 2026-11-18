@@ -1,5 +1,5 @@
 import { PARTNERS_ELEMENT_SCHEMA } from "./partners-elements.js";
-import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge, migrateSponsorLabels, migrateCurtainEdgeV3, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, migratePartnersCompassContrast, migrateEqualPartnerLogoWidths, migratePartnersTitleAndKeaz, migratePartnersCurtainChoreography, migratePartnersCenterFirst } from "./partners-stage.js";
+import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge, migrateSponsorLabels, migrateCurtainEdgeV3, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, migratePartnersCompassContrast, migrateEqualPartnerLogoWidths, migratePartnersTitleAndKeaz, migratePartnersCurtainChoreography, migratePartnersCenterFirst, migrateSingleSponsorLayout, migratePartnerTextCase } from "./partners-stage.js";
 import { migrateIntroBackground } from "./background-migration.js";
 import { DECOR_SLOTS } from "./brand-decor-config.js";
 import { PARTICLE_CLOUD_IDS } from "./particle-cloud-config.js";
@@ -475,7 +475,7 @@ export function mergeConfig(defaults, patch) {
 export function loadSceneConfig(sceneId, defaults, onReadError) {
   const cfg = cloneDefaults(defaults);
   let raw = null;
-  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false, migrateCurtainEdgeNeeded = false, migrateCurtainEdgeV3Needed = false, migrateSponsorLabelsNeeded = false, migrateReferenceLayoutNeeded = false, migratePartnerLabelLinesNeeded = false, migratePartnersTopTitleNeeded = false, migratePartnersCompassContrastNeeded = false, migrateEqualPartnerLogoWidthsNeeded = false, migratePartnersTitleAndKeazNeeded = false, migratePartnersCurtainChoreographyNeeded = false, migratePartnersCenterFirstNeeded = false;
+  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false, migrateCurtainEdgeNeeded = false, migrateCurtainEdgeV3Needed = false, migrateSponsorLabelsNeeded = false, migrateReferenceLayoutNeeded = false, migratePartnerLabelLinesNeeded = false, migratePartnersTopTitleNeeded = false, migratePartnersCompassContrastNeeded = false, migrateEqualPartnerLogoWidthsNeeded = false, migratePartnersTitleAndKeazNeeded = false, migratePartnersCurtainChoreographyNeeded = false, migratePartnersCenterFirstNeeded = false, migrateSingleSponsorLayoutNeeded = false, migratePartnerTextCaseNeeded = false;
   let migratePhotoCenter = false, migratePhotoSize = false, migrateBrandCenter = false, migrateGuides = false, migrateFinaleGuides = false, migrateBrandLift = false;
   try {
     raw = localStorage.getItem(sceneStorageKey(sceneId));
@@ -486,6 +486,7 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     }
     if (sceneId === "partners" || sceneId.startsWith("sponsor-")) migrateCurtainEdgeNeeded = !localStorage.getItem(`curtain-edge-v2:${sceneId}`);
     if (sceneId === "partners" || sceneId.startsWith("sponsor-")) migrateCurtainEdgeV3Needed = !localStorage.getItem(`curtain-edge-v3:${sceneId}`);
+    if (sceneId === "partners") migratePartnerTextCaseNeeded = !localStorage.getItem("partners-text-case-v1");
     if (sceneId === "partners") migratePartnersCenterFirstNeeded = !localStorage.getItem("partners-center-first-v1");
     if (sceneId === "partners") migratePartnersCurtainChoreographyNeeded = !localStorage.getItem("partners-curtain-choreography-v1");
     if (sceneId === "partners") migratePartnersTitleAndKeazNeeded = !localStorage.getItem("partners-title-keaz-v1");
@@ -495,6 +496,7 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     if (sceneId === "partners") migratePartnerLabelLinesNeeded = !localStorage.getItem("partners-label-lines-v1");
     if (sceneId === "partners") migrateReferenceLayoutNeeded = !localStorage.getItem("partners-reference-layout-v1");
     if (sceneId === "partners") migrateSponsorLabelsNeeded = !localStorage.getItem("partners-labels-v2");
+    if (sceneId.startsWith("sponsor-")) migrateSingleSponsorLayoutNeeded = !localStorage.getItem(`single-sponsor-layout-v1:${sceneId}`);
     if (sceneId.startsWith("sponsor-")) migrateSponsorStageNeeded = !localStorage.getItem(`sponsor-stage-v1:${sceneId}`);
     if (sceneId === "lab-swarm-brand") migrateIntroBackgroundNeeded = !localStorage.getItem("lab-swarm-brand-minute-hold-v1");
     if (sceneId === "photo-pause") {
@@ -513,6 +515,8 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     return cfg;
   }
   if (!raw) {
+    if (migratePartnerTextCaseNeeded) { try { localStorage.setItem("partners-text-case-v1", "1"); } catch (e) { /* noop */ } }
+    if (migrateSingleSponsorLayoutNeeded) { try { localStorage.setItem(`single-sponsor-layout-v1:${sceneId}`, "1"); } catch (e) { /* noop */ } }
     if (migratePartnersCenterFirstNeeded) { try { localStorage.setItem("partners-center-first-v1", "1"); } catch (e) { /* noop */ } }
     if (migratePartnersCurtainChoreographyNeeded) { try { localStorage.setItem("partners-curtain-choreography-v1", "1"); } catch (e) { /* noop */ } }
     if (migratePartnersTitleAndKeazNeeded) { try { localStorage.setItem("partners-title-keaz-v1", "1"); } catch (e) { /* noop */ } }
@@ -579,6 +583,13 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
       try {
         localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
         localStorage.setItem(`sponsor-stage-v1:${sceneId}`, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateSingleSponsorLayoutNeeded) {
+      saved = migrateSingleSponsorLayout(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(`single-sponsor-layout-v1:${sceneId}`, "1");
       } catch (e) { onReadError?.(sceneId, e); }
     }
     if (migrateCurtainEdgeNeeded) {
@@ -656,6 +667,13 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
       try {
         localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
         localStorage.setItem("partners-center-first-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migratePartnerTextCaseNeeded) {
+      saved = migratePartnerTextCase(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-text-case-v1", "1");
       } catch (e) { onReadError?.(sceneId, e); }
     }
     if (migrateIntroBackgroundNeeded) {

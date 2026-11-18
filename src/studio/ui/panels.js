@@ -434,7 +434,8 @@ export function createStudioPanels({
       // Сброс слоя целиком: кадр возвращается к стандартному виду, остальные
       // слои не затрагиваются.
       const changedCount = [...new Set([...Object.keys(defaults), ...Object.keys(holder)])]
-        .filter((key) => !same(holder[key], defaults[key])).length;
+        .filter((key) => !same(holder[key], defaults[key])).length + section.fields.filter(field =>
+          field.sourceSection && !same(state.config[field.sourceSection]?.[field.key], state.defaults?.[field.sourceSection]?.[field.key])).length;
       const bar = document.createElement('div');
       bar.className = 'ins-actions ins-actions-tight ins-layer-actions';
       const resetLayer = document.createElement('button');
@@ -730,6 +731,9 @@ export function createStudioPanels({
 
   function resetSection(section) {
     onReset?.({ section: section.id });
+    for (const field of section.fields) {
+      if (field.sourceSection) onReset?.({ section: field.sourceSection, key: field.key });
+    }
     renderInspector();
     renderLayers();
   }
@@ -747,6 +751,11 @@ export function createStudioPanels({
 
   /** Одна строка инспектора: подпись, точка «изменено», поле управления. */
   function buildRow(section, field, holder, defaults) {
+    if (field.sourceSection) {
+      section = { ...section, id: field.sourceSection };
+      holder = getState().config[field.sourceSection] || {};
+      defaults = getState().defaults?.[field.sourceSection] || {};
+    }
     const value = holder[field.key];
     const def = defaults[field.key];
     const changed = def !== undefined && !same(value, def);

@@ -1,3 +1,4 @@
+import { partnerTextFields } from "./partner-text-fields.js";
 import { CircleFinalScene } from "./circle-final-scene.js";
 import { CIRCLE_FINAL_ID } from "./scenes/circle-final.js";
 import { createDragEditor } from "./drag-editor.js";
@@ -293,10 +294,10 @@ const sectionsFor = (id) => SCHEMA.filter((section) => {
   title: section.title,
   // Скрытые для сцены поля убираем здесь, чтобы список слоёв и инспектор
   // показывали ровно одно и то же.
-  fields: section.fields.filter((field) => !fieldHidden(id, section.id, field)).map((field) => ({
+  fields: [...partnerTextFields(id, section.id), ...section.fields.filter((field) => !fieldHidden(id, section.id, field)).map((field) => ({
     ...field,
     label: fieldLabel(id, section.id, field),
-  })),
+  }))],
 }));
 
 panels = createStudioPanels({
