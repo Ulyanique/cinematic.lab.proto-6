@@ -1,4 +1,5 @@
 import { EXTRA_TEXT_PREFIX, extraTextDefaults } from '../extra-text.js';
+import { setGalleryFile, clearGalleryFile, gallerySlotIndex } from '../gallery-media.js';
 import { createFloatPanel, ICON_LAYERS, ICON_GEAR, ICON_EXPORT } from './float-panel.js';
 import { icon as ico } from './icons.js';
 import { groupLayers, layerMeta } from './layer-registry.js';
@@ -926,6 +927,53 @@ export function createStudioPanels({
       });
       row.appendChild(input);
       row._set = () => { input.value = String(holder[field.key]); commit(); };
+    } else if (field.type === 'video') {
+      // Слот видеогалереи: в конфиге — только имя файла, сам Blob уходит в
+      // IndexedDB (gallery-media.js), движок берёт его из памяти сессии.
+      const wrap = document.createElement('span');
+      wrap.className = 'ins-image';
+      const file = document.createElement('input');
+      file.type = 'file';
+      file.accept = 'video/*,image/*';
+      file.hidden = true;
+      const pick = document.createElement('button');
+      pick.type = 'button';
+      const clear = document.createElement('button');
+      clear.type = 'button';
+      clear.innerHTML = ico('close', 12);
+      clear.title = 'Убрать видео из слота';
+      clear.setAttribute('aria-label', 'Убрать видео из слота');
+      const sync = () => {
+        const has = typeof holder[field.key] === 'string' && holder[field.key] !== '';
+        pick.textContent = has ? `Заменить: ${holder[field.key]}` : 'Загрузить…';
+        clear.hidden = !has;
+      };
+      pick.addEventListener('click', () => file.click());
+      file.addEventListener('change', () => {
+        const chosen = file.files?.[0];
+        file.value = '';
+        if (!chosen) return;
+        if (!chosen.type.startsWith('video/') && !chosen.type.startsWith('image/')) {
+          onToast?.('Нужен видео- или фотофайл', true);
+          return;
+        }
+        const slot = gallerySlotIndex(field.key);
+        if (slot < 0) return;
+        holder[field.key] = setGalleryFile(slot, chosen);
+        sync(); commit();
+        onCommand?.(section.id, field.key, holder[field.key]);
+      });
+      clear.addEventListener('click', () => {
+        const slot = gallerySlotIndex(field.key);
+        if (slot >= 0) clearGalleryFile(slot);
+        holder[field.key] = '';
+        sync(); commit();
+        onCommand?.(section.id, field.key, '');
+      });
+      sync();
+      wrap.append(file, pick, clear);
+      row.appendChild(wrap);
+      row._set = sync;
     } else if (field.type === 'image') {
       const wrap = document.createElement('span');
       wrap.className = 'ins-image';

@@ -21,6 +21,10 @@ export const DEFAULTS = WAITING_DEFAULTS;
 // Схема UI: группы → поля. type: range | color | bool
 export const SCHEMA = [
   ...PARTNERS_ELEMENT_SCHEMA,
+  { id: "gallery_video", title: "Видео в галерее", fields: Array.from({ length: 10 }, (_, i) => ({
+    key: `slot${i}`, label: `Видео ${String(i + 1).padStart(2, "0")}`, type: "video",
+    hint: "Видео или фото для панели; пустой слот — плейсхолдер в цветах интро",
+  })) },
   { id: "partnersIntroBackground", title: "Фон интро", fields: [
     { key: "enabled", label: "Использовать вместо картинки", type: "bool" },
     { key: "strength", label: "Яркость", type: "range", min: 0, max: 2, step: .01 },

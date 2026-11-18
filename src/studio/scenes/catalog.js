@@ -1,4 +1,5 @@
 import { CIRCLE_FINAL_ID, CIRCLE_FINAL_DEFAULTS } from "./circle-final.js";
+import { GALLERY_ID, GALLERY_DEFAULTS } from "./gallery.js";
 import { WAITING_DEFAULTS } from "./waiting.js";
 import { BRAND_DEFAULTS } from "./brand.js";
 import { PHOTO_PAUSE_DEFAULTS } from "./photo-pause.js";
@@ -45,6 +46,7 @@ export const SCENES = Object.freeze([
   { id: "finale", title: "Архив — прежнее аутро: История продолжается", code: "A9", label: "Аутро (архив)", status: "ready", archived: true, defaults: FINALE_DEFAULTS },
   { id: LAB2_OUTRO_ID, title: "Аутро — интро в обратном направлении", code: "09", label: "Аутро", status: "ready", defaults: LAB2_OUTRO_DEFAULTS },
   { id: CIRCLE_FINAL_ID, title: "Логотип и лучи — финальный кадр", code: "10", label: "Логотип и лучи", status: "ready", defaults: CIRCLE_FINAL_DEFAULTS },
+  { id: GALLERY_ID, title: "Видеогалерея — золотой коридор из десяти панелей", code: "12", label: "Видеогалерея", status: "ready", defaults: GALLERY_DEFAULTS },
   // Кинематографичные лаборатории (cinematic-lab-proto-2 и proto-5).
   // Первая анимация программы. Внутри — 3D-эмблема из роя частиц; в интерфейсе
   // она называется просто «Интро», потому что открывает показ.

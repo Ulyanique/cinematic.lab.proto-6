@@ -1,6 +1,8 @@
 import { EXTRA_TEXT_PREFIX, extraTextDefaults, extraTextSections, drawExtraTexts } from "./extra-text.js";
 import { partnerTextFields } from "./partner-text-fields.js";
 import { CircleFinalScene } from "./circle-final-scene.js";
+import { GalleryScene } from "./gallery-scene.js";
+import { GALLERY_ID } from "./scenes/gallery.js";
 import { CIRCLE_FINAL_ID } from "./scenes/circle-final.js";
 import { createDragEditor } from "./drag-editor.js";
 import "./styles.css";
@@ -74,7 +76,7 @@ let sceneId = activeScene.id;
 // Настройки каждой готовой сцены живут отдельно: в браузере свой ключ на сцену.
 // Заставки отдельных спонсоров — те же страницы программы, поэтому идут в общем
 // списке: у каждой свой конфиг, своя кнопка и своя запись.
-const READY_IDS = ["waiting", "brand", "partners", "sponsor-promrukav", "sponsor-keaz", "photo-pause", "finale", LAB2_ID, LAB2_BRAND_ID, LAB2_OUTRO_ID, LAB5_ID, CIRCLE_FINAL_ID];
+const READY_IDS = ["waiting", "brand", "partners", "sponsor-promrukav", "sponsor-keaz", "photo-pause", "finale", LAB2_ID, LAB2_BRAND_ID, LAB2_OUTRO_ID, LAB5_ID, CIRCLE_FINAL_ID, GALLERY_ID];
 const configs = new Map();
 const storageFailures = new Set();
 for (const id of READY_IDS) {
@@ -262,7 +264,7 @@ const adapters = { waiting: LogoScene, brand: BrandScene,
   // Заставки спонсоров — один класс, знак берётся из своего конфига.
   "sponsor-promrukav": SponsorScene, "sponsor-keaz": SponsorScene,
   // Кинематографичные лаборатории proto-2 и proto-5
-  [LAB2_ID]: Lab2Scene, [LAB2_BRAND_ID]: Lab2BrandScene, [LAB2_OUTRO_ID]: Lab2OutroScene, [LAB5_ID]: Lab5Scene, [CIRCLE_FINAL_ID]: CircleFinalScene };
+  [LAB2_ID]: Lab2Scene, [LAB2_BRAND_ID]: Lab2BrandScene, [LAB2_OUTRO_ID]: Lab2OutroScene, [LAB5_ID]: Lab5Scene, [CIRCLE_FINAL_ID]: CircleFinalScene, [GALLERY_ID]: GalleryScene };
 let scene = new adapters[sceneId](canvas, cfg);
 // Пресет качества запоминаем между запусками: на площадке важно не искать его
 // заново. Значение по умолчанию — полный кадр превью.

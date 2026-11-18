@@ -20,7 +20,7 @@ import { lab2FrameTiming, lab2OutroFrameTiming } from "./lab2-timing.js";
  * рисует кадр `render()` в холст сцены (2D), откуда его берут и предпросмотр, и
  * покадровый экспорт, и общий слой эффектов.
  */
-class LabScene {
+export class LabScene {
   constructor(canvas, cfg) {
     this.cfg = cfg;
     this.canvas = canvas;
