@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PARTNERS_ELEMENT_SCHEMA, partnerElementDefaults, elementVisibility, labelLineLayout } from '../src/studio/partners-elements.js';
-import { migrateCurtainEdge, migrateCurtainEdgeV3, migrateSponsorLabels, migratePartnersReferenceLayout, migratePartnerLabelLines, partnersStageCues } from '../src/studio/partners-stage.js';
+import { migrateCurtainEdge, migrateCurtainEdgeV3, migrateSponsorLabels, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, partnersStageCues } from '../src/studio/partners-stage.js';
 import { sectionAllowed, eyeKey } from '../src/studio/ui/field-rules.js';
 import { PARTNERS_DEFAULTS, SPONSOR_KEAZ_DEFAULTS } from '../src/studio/scenes/partners.js';
 
@@ -100,4 +100,18 @@ test('label decoration extends outward without crossing the text', () => {
   assert.deepEqual(labelLineLayout(500, 200, -1, 20, 300), { near: 380, far: 80 });
   assert.deepEqual(labelLineLayout(1400, 200, 1, 20, 300), { near: 1520, far: 1820 });
   assert.deepEqual(labelLineLayout(0, 800, -1, 0, 0), { near: -230, far: -230 });
+});
+
+
+test('reference composition places the evening name above the partner rows without overriding custom placement', () => {
+  assert.equal(PARTNERS_DEFAULTS.stageTitle.y, 150);
+  assert.equal(PARTNERS_DEFAULTS.stageSubtitle.y, 255);
+  assert.ok(PARTNERS_DEFAULTS.stageOrganizer1.y < PARTNERS_DEFAULTS.stagePartner1.y);
+  assert.equal(SPONSOR_KEAZ_DEFAULTS.stageTitle.y, 780);
+  const old = { stageTitle: {x:960,y:780}, stageCompass:{x:900,y:540} };
+  const next = migratePartnersTopTitle(old);
+  assert.equal(next.stageTitle.y, 150);
+  assert.equal(next.stageCompass.x, 900);
+  assert.equal(next.stageCompass.y, 540);
+  assert.equal(old.stageTitle.y, 780);
 });

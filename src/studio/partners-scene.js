@@ -9,6 +9,7 @@ import { drawPartnersDecor, drawAmberAtmosphere, drawBreathingBackground } from 
 import { elementVisibility, labelLineLayout } from './partners-elements.js';
 import { createPartnersCurtains } from './partners-curtains.js';
 import { createPartnersLight } from './partners-light.js';
+import { createPartnersIntroBackground } from './partners-intro-background.js';
 import { createPartnersGlitter } from './partners-glitter.js';
 import { createPartnersFrameGlint } from './partners-frame-glint.js';
 import { partnersStageCues, partnersHoldCacheKey, PARTNERS_MARK_LAYOUT } from './partners-stage.js';
@@ -371,6 +372,8 @@ export class PartnersScene {
       new THREE.MeshBasicMaterial({ map: this._backgroundTextures[0], toneMapped: false, transparent: true, depthTest: false, depthWrite: false }));
     this.backgroundMesh.renderOrder = 0;
     this.cardScene.add(this.backgroundMesh);
+    this.introBackground = createPartnersIntroBackground();
+    this.cardScene.add(this.introBackground.mesh);
     this.light = createPartnersLight();
     this.cardScene.add(this.light.mesh);
     this.frameMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2),
@@ -490,7 +493,7 @@ export class PartnersScene {
     }
     this.backgroundMesh.material.map = texture;
     const bg = this.cfg.stageBackground;
-    this.backgroundMesh.visible = bg?.enabled !== false;
+    this.backgroundMesh.visible = bg?.enabled !== false && this.cfg.partnersIntroBackground?.enabled !== true;
     this.backgroundMesh.material.opacity = cue.visible * cue.background * (bg?.opacity ?? 1);
     this.backgroundMesh.scale.setScalar(bg?.scale ?? 1);
     this.backgroundMesh.position.set(((bg?.x ?? 960) - 960) / 960, (540 - (bg?.y ?? 540)) / 540, 0);
@@ -543,6 +546,12 @@ export class PartnersScene {
       data.curtainVisible !== false && curtainLayer?.enabled !== false, curtainLayer);
     this._blackFrame = cue.visible <= 0;
     this._updateBackground(master, phase, cue, data);
+    const introBg = config.partnersIntroBackground;
+    const introUniforms = this.introBackground.uniforms;
+    this.introBackground.mesh.visible = introBg?.enabled === true && cue.background > .001 && cue.visible > 0;
+    introUniforms.uTime.value = phase.local * (introBg?.speed ?? 1);
+    introUniforms.uBeam.value = introUniforms.uRib.value = introBg?.strength ?? 1;
+    introUniforms.uOpacity.value = cue.visible * cue.background;
     const light = this.cfg.partnersLight || { enabled: true, strength: .7, speed: 1 };
     const lightStrength = light.enabled === false ? 0 : Math.max(0, Math.min(1.5, Number(light.strength) || 0));
     this.light.uniforms.time.value = phase.local;
@@ -811,6 +820,7 @@ export class PartnersScene {
     this.frameMesh.geometry.dispose();
     this.frameMesh.material.dispose();
     this.light.dispose();
+    this.introBackground.dispose();
     this._backgroundTextures.forEach(texture => texture.dispose());
     this.backgroundMesh.geometry.dispose();
     this.backgroundMesh.material.dispose();

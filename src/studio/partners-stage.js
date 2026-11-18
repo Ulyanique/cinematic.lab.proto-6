@@ -170,3 +170,19 @@ export function migratePartnerLabelLines(saved) {
   if (next.partners?.partner2Label === 'СПОНСОРЫ') next.partners.partner2Label = 'СПОНСОР';
   return next;
 }
+
+/** Меняем прежнюю стандартную расстановку; пользовательские координаты не трогаем. */
+export function migratePartnersTopTitle(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  const positions = {
+    stageTitle: [960,780,960,150], stageTitleDivider: [960,818,960,215], stageSubtitle: [960,845,960,255],
+    stageCompass: [960,540,960,475], stageOrganizer1: [430,260,430,350], stageOrganizer2: [1380,260,1460,350],
+    stagePartner1: [410,500,450,560], stagePartner2: [1490,500,1460,560],
+    stageOrganizerLabel: [510,175,570,270], stageCoorganizerLabel: [1300,175,1370,270],
+    stagePartnerLabel: [490,365,600,450], stagePartnerLabel2: [1410,365,1320,450],
+  };
+  for (const [id, [x0, y0, x, y]] of Object.entries(positions)) {
+    if (next[id]?.x === x0 && next[id]?.y === y0) { next[id].x = x; next[id].y = y; }
+  }
+  return next;
+}

@@ -487,9 +487,9 @@ export class Intro {
       this.dots.push({ s, size, t0, R: arc.R, angle, speed: arc.speed });
     };
     const makeCorner = (group, direction) => {
-      const inner = mk(group, 1.24, { speed: 0.25 * direction, w: 0.0035, alpha: 0.72 });
-      mk(group, 1.43, { speed: -0.19 * direction, dash: 145, w: 0.0025, alpha: 0.48 });
-      const outer = mk(group, 1.58, { speed: 0.16 * direction, w: 0.003, alpha: 0.58 });
+      const inner = mk(group, 1.24, { speed: 0.25 * direction, w: 0.008, alpha: 1.3 });
+      mk(group, 1.43, { speed: -0.19 * direction, dash: 145, w: 0.005, alpha: 0.82 });
+      const outer = mk(group, 1.58, { speed: 0.16 * direction, w: 0.007, alpha: 1.08 });
       node(inner, 0.75, 0.075, 0.5);
       node(outer, 2.2, 0.065, 0.7);
     };

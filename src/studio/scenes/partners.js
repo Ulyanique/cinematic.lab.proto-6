@@ -11,6 +11,7 @@ PARTNERS_DEFAULTS.timeline.drawDuration += 4;
 PARTNERS_DEFAULTS.timeline.holdDuration -= 4;
 Object.assign(PARTNERS_DEFAULTS, partnerElementDefaults(false));
 PARTNERS_DEFAULTS.transition = {duration:.9};
+PARTNERS_DEFAULTS.partnersIntroBackground = { enabled: false, strength: 1, speed: 1 };
 PARTNERS_DEFAULTS.partnersLight = { enabled: true, strength: .7, speed: 1 };
 PARTNERS_DEFAULTS.partners = {
   title: 'Янтарный циркуль', subtitle: 'Вечер ретроспектива',
@@ -33,6 +34,7 @@ function sponsorCard(mark) {
   const defaults = createSharedSceneConfig(createSceneTimeline(42.5));
   defaults.timeline.drawDuration += 4;
   defaults.timeline.holdDuration -= 4;
+  defaults.partnersIntroBackground = { enabled: false, strength: 1, speed: 1 };
   defaults.partnersLight = { enabled: true, strength: .7, speed: 1 };
   Object.assign(defaults, partnerElementDefaults(true));
   defaults.transition = { duration: .9 };

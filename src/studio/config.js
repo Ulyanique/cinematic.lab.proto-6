@@ -1,5 +1,5 @@
 import { PARTNERS_ELEMENT_SCHEMA } from "./partners-elements.js";
-import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge, migrateSponsorLabels, migrateCurtainEdgeV3, migratePartnersReferenceLayout, migratePartnerLabelLines } from "./partners-stage.js";
+import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge, migrateSponsorLabels, migrateCurtainEdgeV3, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle } from "./partners-stage.js";
 import { migrateIntroBackground } from "./background-migration.js";
 import { DECOR_SLOTS } from "./brand-decor-config.js";
 import { PARTICLE_CLOUD_IDS } from "./particle-cloud-config.js";
@@ -20,6 +20,11 @@ export const DEFAULTS = WAITING_DEFAULTS;
 // Схема UI: группы → поля. type: range | color | bool
 export const SCHEMA = [
   ...PARTNERS_ELEMENT_SCHEMA,
+  { id: "partnersIntroBackground", title: "Фон интро", fields: [
+    { key: "enabled", label: "Использовать вместо картинки", type: "bool" },
+    { key: "strength", label: "Яркость", type: "range", min: 0, max: 2, step: .01 },
+    { key: "speed", label: "Скорость света", type: "range", min: 0, max: 2, step: .01 },
+  ] },
   { id: "partnersLight", title: "Играющий свет на фоне", fields: [
     {key:"enabled",label:"Показывать свет",type:"bool"},
     {key:"strength",label:"Яркость света",type:"range",min:0,max:1.5,step:.01},
@@ -470,7 +475,7 @@ export function mergeConfig(defaults, patch) {
 export function loadSceneConfig(sceneId, defaults, onReadError) {
   const cfg = cloneDefaults(defaults);
   let raw = null;
-  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false, migrateCurtainEdgeNeeded = false, migrateCurtainEdgeV3Needed = false, migrateSponsorLabelsNeeded = false, migrateReferenceLayoutNeeded = false, migratePartnerLabelLinesNeeded = false;
+  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false, migrateCurtainEdgeNeeded = false, migrateCurtainEdgeV3Needed = false, migrateSponsorLabelsNeeded = false, migrateReferenceLayoutNeeded = false, migratePartnerLabelLinesNeeded = false, migratePartnersTopTitleNeeded = false;
   let migratePhotoCenter = false, migratePhotoSize = false, migrateBrandCenter = false, migrateGuides = false, migrateFinaleGuides = false, migrateBrandLift = false;
   try {
     raw = localStorage.getItem(sceneStorageKey(sceneId));
@@ -481,6 +486,7 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     }
     if (sceneId === "partners" || sceneId.startsWith("sponsor-")) migrateCurtainEdgeNeeded = !localStorage.getItem(`curtain-edge-v2:${sceneId}`);
     if (sceneId === "partners" || sceneId.startsWith("sponsor-")) migrateCurtainEdgeV3Needed = !localStorage.getItem(`curtain-edge-v3:${sceneId}`);
+    if (sceneId === "partners") migratePartnersTopTitleNeeded = !localStorage.getItem("partners-top-title-v1");
     if (sceneId === "partners") migratePartnerLabelLinesNeeded = !localStorage.getItem("partners-label-lines-v1");
     if (sceneId === "partners") migrateReferenceLayoutNeeded = !localStorage.getItem("partners-reference-layout-v1");
     if (sceneId === "partners") migrateSponsorLabelsNeeded = !localStorage.getItem("partners-labels-v2");
@@ -502,6 +508,7 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     return cfg;
   }
   if (!raw) {
+    if (migratePartnersTopTitleNeeded) { try { localStorage.setItem("partners-top-title-v1", "1"); } catch (e) { /* noop */ } }
     if (migratePartnerLabelLinesNeeded) { try { localStorage.setItem("partners-label-lines-v1", "1"); } catch (e) { /* noop */ } }
     if (migrateReferenceLayoutNeeded) { try { localStorage.setItem("partners-reference-layout-v1", "1"); } catch (e) { /* noop */ } }
     if (migrateCurtainEdgeV3Needed) { try { localStorage.setItem(`curtain-edge-v3:${sceneId}`, "1"); } catch (e) { /* noop */ } }
@@ -597,6 +604,13 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
       try {
         localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
         localStorage.setItem("partners-label-lines-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migratePartnersTopTitleNeeded) {
+      saved = migratePartnersTopTitle(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-top-title-v1", "1");
       } catch (e) { onReadError?.(sceneId, e); }
     }
     if (migrateIntroBackgroundNeeded) {

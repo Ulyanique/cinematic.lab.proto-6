@@ -47,6 +47,7 @@ export const LAYER_META = Object.freeze({
   colors: { group: 'Кадр', label: 'Цвета', hint: 'золото и материалы' },
 
   // ── свет ──────────────────────────────────────────────────────────────
+  partnersIntroBackground: { group: 'Кадр', label: 'Фон интро', hint: 'отдельный фон вместо картинки', eye: 'enabled' },
   partnersLight: { group: 'Свет', label: 'Играющий свет на фоне', hint: 'лучи на фоновой картинке', eye: 'enabled' },
   lights: { group: 'Свет', label: 'Свет и тени', hint: 'окружение и ключевой свет' },
   topIllumination: { group: 'Свет', label: 'Верхнее свечение', hint: 'ореол и лучи сверху', eye: 'enabled' },

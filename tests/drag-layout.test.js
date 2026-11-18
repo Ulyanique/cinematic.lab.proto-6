@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { framePoint, hitElement, sponsorDragElements, clampPosition, snapBox } from '../src/studio/drag-layout.js';
+import { framePoint, hitElement, sponsorDragElements, clampPosition, snapBox, resizeScale } from '../src/studio/drag-layout.js';
 import { PARTNERS_DEFAULTS, SPONSOR_KEAZ_DEFAULTS } from '../src/studio/scenes/partners.js';
 
 test('pointer conversion respects preview size and offset', () => {
@@ -9,8 +9,8 @@ test('pointer conversion respects preview size and offset', () => {
 });
 test('hit testing chooses the topmost target and excludes disabled elements', () => {
   const elements = sponsorDragElements(PARTNERS_DEFAULTS);
-  assert.equal(hitElement({x: 430, y: 260}, elements).id, 'stageOrganizer1');
-  assert.equal(hitElement({x: 1410, y: 365}, elements).id, 'stagePartnerLabel2');
+  assert.equal(hitElement({x: 430, y: 350}, elements).id, 'stageOrganizer1');
+  assert.equal(hitElement({x: 1320, y: 450}, elements).id, 'stagePartnerLabel2');
   const cfg = structuredClone(PARTNERS_DEFAULTS);
   cfg.stageOrganizer1.enabled = false;
   assert.equal(sponsorDragElements(cfg).some(e => e.id === 'stageOrganizer1'), false);
@@ -30,4 +30,18 @@ test('smart guides snap to canvas centre and neighboring centres or edges', () =
   assert.equal(edge.x, 400); // right edge 425 meets left edge 425
   assert.deepEqual(edge.guides, [{ axis: 'x', value: 425 }]);
   assert.deepEqual(snapBox({ id: 'a', x: 600, y: 700, w: 20, h: 20 }, [b], 4, 4), { x: 600, y: 700, guides: [] });
+});
+
+
+test('frame is selected only at its border, not over other elements', () => {
+  const frame = sponsorDragElements(PARTNERS_DEFAULTS).find(e => e.id === 'stageFrame');
+  assert.equal(hitElement({ x: frame.x - frame.w / 2 + 5, y: frame.y }, [frame]).id, 'stageFrame');
+  assert.equal(hitElement({ x: frame.x, y: frame.y }, [frame]), null);
+});
+test('corner resizing is proportional, bounded and has no initial jump', () => {
+  const box = { w: 400, h: 200 };
+  const start = { x: 200, y: 100 };
+  assert.equal(resizeScale(box, start, start, 1, .2, 2), 1);
+  assert.equal(resizeScale(box, start, { x: 400, y: 200 }, 1, .2, 2), 2);
+  assert.equal(resizeScale(box, start, { x: -1000, y: -1000 }, 1, .2, 2), .2);
 });

@@ -4,13 +4,18 @@ export function framePoint(rect, clientX, clientY) {
 }
 export function hitElement(point, elements) {
   // Frontmost matching target wins; thin elements remain practical to grab.
-  return [...elements].reverse().find(e => Math.abs(point.x - e.x) <= e.w / 2 && Math.abs(point.y - e.y) <= e.h / 2) || null;
+  return [...elements].reverse().find(e => {
+    const dx = Math.abs(point.x - e.x), dy = Math.abs(point.y - e.y);
+    if (dx > e.w / 2 || dy > e.h / 2) return false;
+    return !e.borderOnly || Math.min(e.w / 2 - dx, e.h / 2 - dy) <= 42;
+  }) || null;
 }
 export function clampPosition(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 export function sponsorDragElements(cfg) {
   const items = [
+    ['stageFrame', 1710, 930],
     ['stageCompass', 360, 370],
     ['stageOrganizer1', 590, 170], ['stageOrganizer2', 590, 170],
     ['stagePartner1', 590, 170], ['stagePartner2', 590, 170], ['stageSingleMark', 700, 230],
@@ -22,7 +27,7 @@ export function sponsorDragElements(cfg) {
     const layer = cfg[id];
     if (!layer || layer.enabled === false) return [];
     const scale = Number.isFinite(layer.scale) ? layer.scale : 1;
-    return [{ id, x: layer.x, y: layer.y, w: w * scale, h: h * scale, kind: 'frame' }];
+    return [{ id, x: layer.x, y: layer.y, w: w * scale, h: h * scale, kind: 'frame', borderOnly: id === 'stageFrame', scaleKey: 'scale' }];
   });
 }
 
@@ -48,4 +53,13 @@ export function snapBox(box, others, thresholdX, thresholdY) {
     if (best) { result[axis] += best.delta; result.guides.push({ axis, value: best.target }); }
   }
   return result;
+}
+
+/** Масштабирование за нижний правый угол с сохранением пропорций. */
+export function resizeScale(box, start, point, original, min, max) {
+  const x = box.w / 2, y = box.h / 2;
+  const denom = x * x + y * y;
+  if (!Number.isFinite(original) || denom < 1) return original;
+  const ratio = 1 + ((point.x - start.x) * x + (point.y - start.y) * y) / denom;
+  return clampPosition(original * ratio, min, max);
 }

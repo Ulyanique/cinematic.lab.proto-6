@@ -373,6 +373,9 @@ const dragEditor = createDragEditor({
   getState: () => ({ id: sceneId, cfg, canvas, scene, recording: Boolean(recording), sections: sectionsFor(sceneId) }),
   onMessage: (message) => toast(message),
   onSelect: (id) => panels.selectFromCanvas(id),
+  commitScale: (id, section, key, value, live) => commitSceneConfig(id, config => {
+    if (config[section]) config[section][key] = value;
+  }, { live }),
   commit: (id, section, xKey, yKey, x, y, live) => commitSceneConfig(id, config => {
     if (config[section]) { config[section][xKey] = x; config[section][yKey] = y; }
   }, { live }),

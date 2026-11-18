@@ -27,6 +27,16 @@ export function partnerElementDefaults(single = false) {
     if ((single && groupOnly.has(s.id)) || (!single && singleOnly.has(s.id))) continue;
     out[s.id] = { ...s.defaults };
   }
+  if (!single) {
+    const reference = {
+      stageTitle: [960, 150], stageTitleDivider: [960, 215], stageSubtitle: [960, 255],
+      stageCompass: [960, 475], stageOrganizer1: [430, 350], stageOrganizer2: [1460, 350],
+      stagePartner1: [450, 560], stagePartner2: [1460, 560],
+      stageOrganizerLabel: [570, 270], stageCoorganizerLabel: [1370, 270],
+      stagePartnerLabel: [600, 450], stagePartnerLabel2: [1320, 450],
+    };
+    for (const [id, [x, y]] of Object.entries(reference)) Object.assign(out[id], { x, y });
+  }
   return out;
 }
 export const PARTNERS_ELEMENT_SCHEMA = PARTNERS_ELEMENTS.map(s => ({
