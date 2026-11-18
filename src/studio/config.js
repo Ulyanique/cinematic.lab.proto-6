@@ -1,4 +1,4 @@
-import { migratePartnersStage, migratePartnersSequence } from "./partners-stage.js";
+import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage } from "./partners-stage.js";
 import { migrateIntroBackground } from "./background-migration.js";
 import { DECOR_SLOTS } from "./brand-decor-config.js";
 import { PARTICLE_CLOUD_IDS } from "./particle-cloud-config.js";
@@ -55,7 +55,7 @@ export const SCHEMA = [
     ] },
     { key: "markLogo", label: "Свой файл знака (SVG/PNG)", type: "image" },
     { key: "markScale", label: "Размер знака", type: "range", min: 0.5, max: 1.8, step: 0.01 },
-    { key: "title", label: "Надпись сверху", type: "text", maxLength: 60 },
+    { key: "title", label: "Название под эмблемой", type: "text", maxLength: 60 },
     { key: "subtitle", label: "Подзаголовок", type: "text", maxLength: 80 },
     { key: "logoStyle", label: "Оформление знака", type: "select", options: [
       { value: "gold", label: "Золотое тиснение" },
@@ -63,7 +63,7 @@ export const SCHEMA = [
     ] },
     { key: "frameVisible", label: "Показывать рамку", type: "bool" },
     { key: "curtainVisible", label: "Показывать занавес", type: "bool" },
-    { key: "curtainWidth", label: "Занавес: ширина, px", type: "range", min: 320, max: 760, step: 4 },
+    { key: "curtainWidth", label: "Занавес у края: ширина, px", type: "range", min: 20, max: 180, step: 4 },
     { key: "motion", label: "Движение декора при удержании", type: "range", min: 0, max: 1, step: 0.01 },
   ] },
   { id: "intro", title: "Последовательность интро", fields: [
@@ -467,7 +467,7 @@ export function mergeConfig(defaults, patch) {
 export function loadSceneConfig(sceneId, defaults, onReadError) {
   const cfg = cloneDefaults(defaults);
   let raw = null;
-  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false;
+  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false;
   let migratePhotoCenter = false, migratePhotoSize = false, migrateBrandCenter = false, migrateGuides = false, migrateFinaleGuides = false, migrateBrandLift = false;
   try {
     raw = localStorage.getItem(sceneStorageKey(sceneId));
@@ -476,6 +476,7 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
       migratePartnersStageNeeded = !localStorage.getItem("partners-stage-minute-v1");
       migratePartnersSequenceNeeded = !localStorage.getItem("partners-stage-sequence-v1");
     }
+    if (sceneId.startsWith("sponsor-")) migrateSponsorStageNeeded = !localStorage.getItem(`sponsor-stage-v1:${sceneId}`);
     if (sceneId === "lab-swarm-brand") migrateIntroBackgroundNeeded = !localStorage.getItem("lab-swarm-brand-minute-hold-v1");
     if (sceneId === "photo-pause") {
       migratePhotoCenter = !localStorage.getItem(PHOTO_CENTER_MIGRATION);
@@ -493,6 +494,9 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     return cfg;
   }
   if (!raw) {
+    if (migrateSponsorStageNeeded) {
+      try { localStorage.setItem(`sponsor-stage-v1:${sceneId}`, "1"); } catch (e) { /* noop */ }
+    }
     if (migratePartnersSequenceNeeded) {
       try { localStorage.setItem("partners-stage-sequence-v1", "1"); } catch (e) { /* noop */ }
     }
@@ -536,6 +540,13 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
       try {
         localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
         localStorage.setItem("partners-stage-sequence-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateSponsorStageNeeded) {
+      saved = migrateSponsorStage(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(`sponsor-stage-v1:${sceneId}`, "1");
       } catch (e) { onReadError?.(sceneId, e); }
     }
     if (migrateIntroBackgroundNeeded) {

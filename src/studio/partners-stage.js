@@ -78,3 +78,18 @@ export function migratePartnersSequence(saved) {
   }
   return next;
 }
+
+/** Перенос старых персональных заставок без потери знаков и своих настроек. */
+export function migrateSponsorStage(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  if (next.sponsor && Number.isFinite(next.sponsor.curtainWidth) && next.sponsor.curtainWidth > 180) {
+    next.sponsor.curtainWidth = Math.max(20, Math.min(180, Math.round(next.sponsor.curtainWidth * 96 / 476)));
+  }
+  const t = next.timeline;
+  if (t && t.drawDuration === 2.6 && t.emergeDuration === 2.4 &&
+      Math.abs(t.holdDuration - 7.5) < 1e-6 && t.fadeDuration === 2.3 && t.restDuration === 1.2) {
+    t.drawDuration = 6.6;
+    t.holdDuration = 30;
+  }
+  return next;
+}

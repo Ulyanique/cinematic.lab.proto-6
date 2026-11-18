@@ -22,6 +22,9 @@ export const SECTION_NOTES = {
 /** Разделы, которые вообще показываются у сцены. */
 export function sectionAllowed(sceneId, sectionId, labSectionAllowed) {
   if (labSectionAllowed && labSectionAllowed(sceneId, sectionId) === false) return false;
+  if (sceneId.startsWith('sponsor-')) {
+    return ['sponsor', 'partnersLight', 'typography', 'timeline', 'playback', 'transition'].includes(sectionId);
+  }
   if (sceneId === 'partners') {
     return ['partners', 'partnersLight', 'typography', 'timeline', 'playback', 'transition'].includes(sectionId);
   }

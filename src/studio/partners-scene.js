@@ -279,12 +279,13 @@ export async function preloadPartnerCustomLogos(partnersCfg) {
  * основной сцены и с двойной буферизацией 2D-полотна (0 аллокаций canvas на кадр).
  */
 export class PartnersScene {
-  constructor(canvas, cfg) {
+  constructor(canvas, cfg, { single = false } = {}) {
     this.cfg = cfg;
+    this.single = single;
     this.isIntro = false;
     this.contourWaves = null;
     // Стиль известен из настроек сразу: готовим только нужный вариант логотипов.
-    setPartnersLogoStyle(cfg.partners?.logoStyle);
+    setPartnersLogoStyle((single ? cfg.sponsor : cfg.partners)?.logoStyle);
     this._quality = suggestedQuality(masterId());
     this.renderer = new THREE.WebGLRenderer({
       canvas, antialias: false, alpha: false, powerPreference: 'high-performance', stencil: false, depth: false,
@@ -474,27 +475,28 @@ export class PartnersScene {
     const master = masterSize();
     if (this._w !== master.width || this._h !== master.height) this.resize();
     const phase = computePhase(t, this.cfg.timeline);
+    const data = this.single ? this.cfg.sponsor : this.cfg.partners;
     const holding = phase.name === 'hold' && !phase.beforeStart;
-    const cue = partnersStageCues(phase, this.cfg.timeline, this.cfg.partners.motion ?? 1);
+    const cue = partnersStageCues(phase, this.cfg.timeline, data.motion ?? 1);
     this.glitter.points.visible = cue.visible > 0 && cue.background > .001;
-    this.curtains.update(curtainImage, cue.curtainOpen, this.cfg.partners.curtainWidth, cue.visible, this.cfg.partners.curtainVisible !== false);
+    this.curtains.update(curtainImage, cue.curtainOpen, data.curtainWidth, cue.visible, data.curtainVisible !== false);
     this._blackFrame = cue.visible <= 0;
-    this._updateBackground(master, phase, cue, this.cfg.partners);
+    this._updateBackground(master, phase, cue, data);
     const light = this.cfg.partnersLight || { enabled: true, strength: .7, speed: 1 };
     const lightStrength = light.enabled === false ? 0 : Math.max(0, Math.min(1.5, Number(light.strength) || 0));
     this.light.uniforms.time.value = phase.local;
     this.light.uniforms.speed.value = Math.max(0, Math.min(2, Number(light.speed) || 0));
     this.light.uniforms.strength.value = lightStrength * cue.visible * cue.background;
     this.light.mesh.visible = this.light.uniforms.strength.value > .001;
-    const glintOpacity = this.cfg.partners.frameVisible !== false && cue.curtainOpen >= .999
-      ? cue.visible * cue.frame * Math.max(0, Math.min(1, this.cfg.partners.motion ?? 1)) : 0;
+    const glintOpacity = data.frameVisible !== false && cue.curtainOpen >= .999
+      ? cue.visible * cue.frame * Math.max(0, Math.min(1, data.motion ?? 1)) : 0;
     this.frameGlint.mesh.visible = glintOpacity > .001;
     this.frameGlint.uniforms.time.value = phase.local;
     this.frameGlint.uniforms.opacity.value = glintOpacity;
     {
       const u = this.glitter.uniforms;
       u.time.value = phase.local; u.period.value = phase.cycle;
-      u.motion.value = (this.cfg.partners.motion ?? 1) * cue.visible * cue.background;
+      u.motion.value = (data.motion ?? 1) * cue.visible * cue.background;
       u.pixelScale.value = master.height / 1080;
     }
     const holdKey = partnersHoldCacheKey(this.cfg.timeline);
@@ -523,7 +525,7 @@ export class PartnersScene {
     this.cardMesh.material.map = this.cardTexture;
     const ctx = this.cardCtx, w = BASE_FRAME.width, h = BASE_FRAME.height, cfg = this.cfg, tl = cfg.timeline;
     ctx.setTransform(master.width / w, 0, 0, master.height / h, 0, 0);
-    const data = cfg.partners, visible = cue.visible;
+    const visible = cue.visible;
     const visualTime = Math.min(phase.local, tl.drawDuration + tl.emergeDuration);
     this._blackFrame = visible <= 0;
 
@@ -578,7 +580,7 @@ export class PartnersScene {
     /** Знак из настроек (свой файл) либо встроенный, если имя не меняли. */
     const customLogoFor = (key) => {
       const custom = resolveCustomLogo(data[`${key}Logo`], style, () => {
-        if (window.__logo?.activeScene?.id === 'partners' && window.__logo?.cfg?.playback?.paused) {
+        if ((window.__logo?.activeScene?.id === 'partners' || window.__logo?.activeScene?.id?.startsWith('sponsor-')) && window.__logo?.cfg?.playback?.paused) {
           window.__logo.renderAt(window.__logo.time);
         }
       });
@@ -586,12 +588,19 @@ export class PartnersScene {
       return custom || (isDefault ? builtinMark(key, style) : null);
     };
     // Встроенные и пользовательские знаки готовим один раз на кадр.
-    const marks = {
+    const singleKey = data.mark === 'keaz' ? 'partner2' : 'partner1';
+    const marks = this.single ? {
+      single: resolveCustomLogo(data.markLogo, style, () => {
+        if (window.__logo?.activeScene?.id?.startsWith('sponsor-') && window.__logo?.cfg?.playback?.paused) {
+          window.__logo.renderAt(window.__logo.time);
+        }
+      }) || builtinMark(singleKey, style),
+    } : {
       organizer1: customLogoFor('organizer1'), organizer2: customLogoFor('organizer2'),
       partner1: customLogoFor('partner1'), partner2: customLogoFor('partner2'),
     };
     const company = (key, x, y, entry, glintAt, phaseIdx, fit = 1) => {
-      const value = data[key];
+      const value = this.single ? (data.mark === 'keaz' ? 'КЭАЗ' : 'Промрукав') : data[key];
       const logo = marks[key];
       // Мягкий подъём с перелётом: p идёт 0→1, overshoot даёт «доезд».
       const p = entry <= 0 ? 0 : Math.min(1.06, easeOutBack(entry));
@@ -632,7 +641,7 @@ export class PartnersScene {
       ctx.translate(cx, cy);
       ctx.scale(grow, grow);
       // Клип по кадру при входе остаётся: он не даёт знаку «вылезать» за блок.
-      ctx.beginPath(); ctx.rect(-295, -85, 590, 170); ctx.clip();
+      ctx.beginPath(); ctx.rect(-295 * fit, -85 * fit, 590 * fit, 170 * fit); ctx.clip();
       ctx.drawImage(logo, -lw / 2, -lh / 2, lw, lh);
       // Блик проходит уже по проявленному знаку — иначе он светит в пустоту.
       if (!holding) drawMarkGlint(ctx, logo, -lw / 2, -lh / 2, lw, lh,
@@ -662,6 +671,11 @@ export class PartnersScene {
     };
     // Все четыре знака в верхней половине и на внешних сторонах кадра.
     const left = 425, right = 1495, topY = 245, secondY = 465;
+    if (this.single) {
+      const scale = 1.45 * Math.max(.5, Math.min(1.8, Number(data.markScale) || 1));
+      tierGlow(960, 220, 400, 130, visible * cue.shadow * .5);
+      company('single', 960, 220, cue.organizer, 2.75, 0, scale);
+    } else {
     tierGlow(left, topY, 260, 115, visible * cue.shadow * .5);
     tierGlow(right, topY, 260, 115, visible * cue.shadow * .5);
     tierGlow(left, secondY, 260, 115, visible * cue.shadow * .5);
@@ -688,6 +702,7 @@ export class PartnersScene {
     company('organizer2', left, secondY, cue.organizerSecond, 3.25, 1, 1);
     company('partner1', right, topY, cue.partner, 4.45, 2, 1);
     company('partner2', right, secondY, cue.partnerSecond, 4.95, 3, 1);
+    }
     this.cardTexture.needsUpdate = true;
     if (holding) { this._holdTexture = this.cardTexture; this._holdRevision = assetsRevision; this._holdKey = holdKey; }
   }

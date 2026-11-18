@@ -733,7 +733,8 @@ async function runOfflineRecording(job, overlay, download) {
       fabricReady,
       partnersReady,
       ensureContourFont(exportFonts),
-      sceneId === "partners" ? preloadPartnerCustomLogos(cfg) : null,
+      sceneId === "partners" ? preloadPartnerCustomLogos(cfg.partners)
+        : sceneId.startsWith("sponsor-") ? preloadPartnerCustomLogos({ partner1Logo: cfg.sponsor.markLogo, logoStyle: cfg.sponsor.logoStyle }) : null,
     ]); // ассеты не меняются в середине записи
     const segments = [{
       id: sceneId,
@@ -910,7 +911,7 @@ function frame(now) {
     // На паузе сцена уже перерисовывается при seek и изменении настроек.
     // Во время воспроизведения удержание спонсоров больше не перезагружает
     // большой Canvas каждый кадр, поэтому рендерим с частотой дисплея.
-    if (sceneId !== "partners" || !cfg.playback.paused) runtime.advance(elapsed, renderDt);
+    if ((sceneId !== "partners" && !sceneId.startsWith("sponsor-")) || !cfg.playback.paused) runtime.advance(elapsed, renderDt);
     if (previewTransition) drawPreviewTransition(overlayCtx());
     if (operator.auto && !cfg.playback.paused && !transition &&
         crossedBoundary(before, runtime.time, cfg.timeline.startDelay, runtime.cycle)) {

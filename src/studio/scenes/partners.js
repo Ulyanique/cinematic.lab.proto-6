@@ -28,7 +28,10 @@ PARTNERS_DEFAULTS.partners = {
 // вертикаль общего ролика, поэтому заставки стыкуются с ним без шва.
 /** @param {"promrukav"|"keaz"} mark */
 function sponsorCard(mark) {
-  const defaults = createSharedSceneConfig(createSceneTimeline(16));
+  const defaults = createSharedSceneConfig(createSceneTimeline(42.5));
+  defaults.timeline.drawDuration += 4;
+  defaults.timeline.holdDuration -= 4;
+  defaults.partnersLight = { enabled: true, strength: .7, speed: 1 };
   defaults.transition = { duration: .9 };
   defaults.sponsor = {
     // Знак: встроенный (keaz | promrukav) или свой файл в markLogo.
@@ -37,7 +40,7 @@ function sponsorCard(mark) {
     markScale: 1,
     title: 'Янтарный циркуль', subtitle: 'Вечер ретроспектива',
     logoStyle: 'gold',
-    frameVisible: true, curtainVisible: true, curtainWidth: 476, motion: 1,
+    frameVisible: true, curtainVisible: true, curtainWidth: 96, motion: 1,
   };
   // Текст у заставки целиком в кадре (заголовок, подзаголовок, разделитель),
   // поэтому штатный DOM-титр выключен и ничего не дублирует.
