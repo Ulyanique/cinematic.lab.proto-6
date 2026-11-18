@@ -110,3 +110,28 @@ export function migrateCurtainEdge(saved, section) {
   if (next[section]?.curtainWidth === 96) next[section].curtainWidth = 144;
   return next;
 }
+
+/** Сдвигаем только прежнюю стандартную ширину, пользовательские значения остаются. */
+export function migrateCurtainEdgeV3(saved, section) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  if (next[section]?.curtainWidth === 144) next[section].curtainWidth = 168;
+  return next;
+}
+
+/** Разделить общий заголовок, сохранив настроенные пользователем стиль и текст. */
+export function migrateSponsorLabels(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  if (next.partners) {
+    const text = next.partners.partnerLabel;
+    if (text === 'СПОНСОРЫ') next.partners.partnerLabel = 'СПОНСОР';
+    if (next.partners.partner2Label === undefined && typeof text === 'string') {
+      next.partners.partner2Label = text === 'СПОНСОРЫ' ? 'СПОНСОР' : text;
+    }
+  }
+  const old = next.stagePartnerLabel;
+  if (old && typeof old === 'object') {
+    if (!next.stagePartnerLabel2) next.stagePartnerLabel2 = { ...old, x: 1420 };
+    if (old.x === 960) old.x = 500;
+  }
+  return next;
+}

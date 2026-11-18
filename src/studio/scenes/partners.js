@@ -15,11 +15,11 @@ PARTNERS_DEFAULTS.partnersLight = { enabled: true, strength: .7, speed: 1 };
 PARTNERS_DEFAULTS.partners = {
   title: 'Янтарный циркуль', subtitle: 'Вечер ретроспектива',
   organizerLabel: 'ОРГАНИЗАТОР', coorganizerLabel: 'СООРГАНИЗАТОР', organizer1: 'ПРОэлектро', organizer2: 'ПРОэлектрощит',
-  partnerLabel: 'СПОНСОРЫ', partner1: 'Промрукав', partner2: 'КЭАЗ',
+  partnerLabel: 'СПОНСОР', partner2Label: 'СПОНСОР', partner1: 'Промрукав', partner2: 'КЭАЗ',
   logoStyle: 'gold',
   organizer1Logo: '', organizer2Logo: '', partner1Logo: '', partner2Logo: '',
   // Оставшаяся у края ширина раскрытых занавесов.
-  curtainWidth: 144,
+  curtainWidth: 168,
   frameVisible: true, curtainVisible: true, foliageVisible: true, compassVisible: true, motion: 1,
 };
 
@@ -43,7 +43,7 @@ function sponsorCard(mark) {
     markScale: 1,
     title: 'Янтарный циркуль', subtitle: 'Вечер ретроспектива',
     logoStyle: 'gold',
-    frameVisible: true, curtainVisible: true, curtainWidth: 144, motion: 1,
+    frameVisible: true, curtainVisible: true, curtainWidth: 168, motion: 1,
   };
   // Текст у заставки целиком в кадре (заголовок, подзаголовок, разделитель),
   // поэтому штатный DOM-титр выключен и ничего не дублирует.

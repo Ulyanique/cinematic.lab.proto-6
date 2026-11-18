@@ -777,7 +777,8 @@ export class PartnersScene {
       divider(cfg.stageDividerRight, Math.min(cue.organizerSecond, cue.partnerSecond));
       label(cfg.stageOrganizerLabel, data.organizerLabel, visible * cue.organizerLabel, cue.organizerLabel);
       label(cfg.stageCoorganizerLabel, data.coorganizerLabel, visible * cue.organizerSecond, cue.organizerSecond);
-      label(cfg.stagePartnerLabel, data.partnerLabel, visible * cue.partnerLabel, cue.partnerLabel);
+      label(cfg.stagePartnerLabel, data.partnerLabel, visible * cue.partner, cue.partner);
+      label(cfg.stagePartnerLabel2, data.partner2Label, visible * cue.partnerSecond, cue.partnerSecond);
       company('organizer1', cfg.stageOrganizer1, cue.organizer, 2.75, 0);
       company('organizer2', cfg.stageOrganizer2, cue.organizerSecond, 3.25, 1);
       company('partner1', cfg.stagePartner1, cue.partner, 4.45, 2);

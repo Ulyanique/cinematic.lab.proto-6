@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PARTNERS_ELEMENT_SCHEMA, partnerElementDefaults, elementVisibility } from '../src/studio/partners-elements.js';
-import { migrateCurtainEdge, partnersStageCues } from '../src/studio/partners-stage.js';
+import { migrateCurtainEdge, migrateCurtainEdgeV3, migrateSponsorLabels, partnersStageCues } from '../src/studio/partners-stage.js';
 import { sectionAllowed, eyeKey } from '../src/studio/ui/field-rules.js';
 import { PARTNERS_DEFAULTS, SPONSOR_KEAZ_DEFAULTS } from '../src/studio/scenes/partners.js';
 
@@ -18,7 +18,7 @@ test('editable layers are scene-specific, independently configured, and have eye
   }
   assert.equal(PARTNERS_DEFAULTS.stagePartner2.scale, .8);
   assert.equal(SPONSOR_KEAZ_DEFAULTS.stageSingleMark.x, 960);
-  assert.equal(PARTNERS_DEFAULTS.partners.curtainWidth, 144);
+  assert.equal(PARTNERS_DEFAULTS.partners.curtainWidth, 168);
 });
 
 test('custom mark entry follows edited time and reverses with scene progress', () => {
@@ -38,5 +38,31 @@ test('curtain width migration changes only the old default', () => {
     assert.equal(migrateCurtainEdge(original, section)[section].curtainWidth, 144);
     assert.equal(original[section].curtainWidth, 96);
     assert.equal(migrateCurtainEdge({ [section]: { curtainWidth: 128 } }, section)[section].curtainWidth, 128);
+  }
+});
+
+
+test('sponsor labels are separate, align over logos and preserve old custom text and style', () => {
+  assert.equal(PARTNERS_DEFAULTS.stagePartnerLabel.x, PARTNERS_DEFAULTS.stagePartner1.x);
+  assert.equal(PARTNERS_DEFAULTS.stagePartnerLabel2.x, PARTNERS_DEFAULTS.stagePartner2.x);
+  assert.equal(PARTNERS_DEFAULTS.partners.partnerLabel, 'СПОНСОР');
+  assert.equal(PARTNERS_DEFAULTS.partners.partner2Label, 'СПОНСОР');
+  const old = { partners: { partnerLabel: 'СПОНСОРЫ' }, stagePartnerLabel: { x: 960, opacity: .7, color: '#ffffff' } };
+  const next = migrateSponsorLabels(old);
+  assert.equal(next.partners.partnerLabel, 'СПОНСОР');
+  assert.equal(next.partners.partner2Label, 'СПОНСОР');
+  assert.equal(next.stagePartnerLabel.x, 500);
+  assert.equal(next.stagePartnerLabel2.x, 1420);
+  assert.equal(next.stagePartnerLabel2.opacity, .7);
+  assert.equal(old.stagePartnerLabel.x, 960);
+  const custom = migrateSponsorLabels({ partners: { partnerLabel: 'ПАРТНЁР' }, stagePartnerLabel: { x: 350 } });
+  assert.equal(custom.partners.partner2Label, 'ПАРТНЁР');
+  assert.equal(custom.stagePartnerLabel.x, 350);
+});
+
+test('new curtain migration preserves custom widths and affects all sponsor scenes', () => {
+  for (const section of ['partners', 'sponsor']) {
+    assert.equal(migrateCurtainEdgeV3({ [section]: { curtainWidth: 144 } }, section)[section].curtainWidth, 168);
+    assert.equal(migrateCurtainEdgeV3({ [section]: { curtainWidth: 128 } }, section)[section].curtainWidth, 128);
   }
 });

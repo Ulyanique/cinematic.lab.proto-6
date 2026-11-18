@@ -8,7 +8,7 @@ test('individual sponsors share timing, curtains and optional light', () => {
   for (const cfg of [a, b]) {
     assert.equal(cfg.timeline.drawDuration + cfg.timeline.emergeDuration, 9);
     assert.equal(cfg.timeline.holdDuration, 30);
-    assert.equal(cfg.sponsor.curtainWidth, 144);
+    assert.equal(cfg.sponsor.curtainWidth, 168);
     assert.equal(cfg.partnersLight.enabled, true);
   }
   assert.equal(a.sponsor.mark, 'promrukav');

@@ -8,7 +8,8 @@ export const PARTNERS_ELEMENTS = Object.freeze([
   spec('stageSingleMark', 'Логотип спонсора', 960, 220, { start: 57, end: 65 }),
   spec('stageOrganizerLabel', 'Подпись организатора', 500, 130, { color: '#d2ac70' }),
   spec('stageCoorganizerLabel', 'Подпись соорганизатора', 1420, 130, { color: '#d2ac70' }),
-  spec('stagePartnerLabel', 'Подпись спонсоров', 960, 330, { color: '#d2ac70' }),
+  spec('stagePartnerLabel', 'Подпись спонсора 1', 500, 330, { color: '#d2ac70' }),
+  spec('stagePartnerLabel2', 'Подпись спонсора 2', 1420, 330, { color: '#d2ac70' }),
   spec('stageDividerLeft', 'Левый разделитель', 500, 290),
   spec('stageDividerRight', 'Правый разделитель', 1420, 290),
   spec('stageBackground', 'Фоновая картинка', 960, 540, { backgroundImage: '' }),
@@ -20,7 +21,7 @@ export const PARTNERS_ELEMENTS = Object.freeze([
   spec('stageSubtitle', 'Подзаголовок', 960, 845, { color: '#c8a873' }),
 ]);
 const singleOnly = new Set(['stageSingleMark']);
-const groupOnly = new Set(['stageOrganizer1', 'stageOrganizer2', 'stagePartner1', 'stagePartner2', 'stageOrganizerLabel', 'stageCoorganizerLabel', 'stagePartnerLabel', 'stageDividerLeft', 'stageDividerRight']);
+const groupOnly = new Set(['stageOrganizer1', 'stageOrganizer2', 'stagePartner1', 'stagePartner2', 'stageOrganizerLabel', 'stageCoorganizerLabel', 'stagePartnerLabel', 'stagePartnerLabel2', 'stageDividerLeft', 'stageDividerRight']);
 export function partnerElementDefaults(single = false) {
   const out = {};
   for (const s of PARTNERS_ELEMENTS) {

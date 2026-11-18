@@ -1,5 +1,5 @@
 import { PARTNERS_ELEMENT_SCHEMA } from "./partners-elements.js";
-import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge } from "./partners-stage.js";
+import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge, migrateSponsorLabels, migrateCurtainEdgeV3 } from "./partners-stage.js";
 import { migrateIntroBackground } from "./background-migration.js";
 import { DECOR_SLOTS } from "./brand-decor-config.js";
 import { PARTICLE_CLOUD_IDS } from "./particle-cloud-config.js";
@@ -34,7 +34,8 @@ export const SCHEMA = [
     {key:"organizer1Logo",label:"Организатор 1: свой логотип",type:"image"},
     {key:"organizer2",label:"Соорганизатор",type:"text",maxLength:80},
     {key:"organizer2Logo",label:"Соорганизатор: свой логотип",type:"image"},
-    {key:"partnerLabel",label:"Заголовок спонсоров",type:"text",maxLength:60},
+    {key:"partnerLabel",label:"Подпись спонсора 1",type:"text",maxLength:60},
+    {key:"partner2Label",label:"Подпись спонсора 2",type:"text",maxLength:60},
     {key:"partner1",label:"Партнёр 1",type:"text",maxLength:80},
     {key:"partner1Logo",label:"Партнёр 1: свой логотип",type:"image"},
     {key:"partner2",label:"Партнёр 2",type:"text",maxLength:80},
@@ -469,7 +470,7 @@ export function mergeConfig(defaults, patch) {
 export function loadSceneConfig(sceneId, defaults, onReadError) {
   const cfg = cloneDefaults(defaults);
   let raw = null;
-  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false, migrateCurtainEdgeNeeded = false;
+  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false, migrateCurtainEdgeNeeded = false, migrateCurtainEdgeV3Needed = false, migrateSponsorLabelsNeeded = false;
   let migratePhotoCenter = false, migratePhotoSize = false, migrateBrandCenter = false, migrateGuides = false, migrateFinaleGuides = false, migrateBrandLift = false;
   try {
     raw = localStorage.getItem(sceneStorageKey(sceneId));
@@ -479,6 +480,8 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
       migratePartnersSequenceNeeded = !localStorage.getItem("partners-stage-sequence-v1");
     }
     if (sceneId === "partners" || sceneId.startsWith("sponsor-")) migrateCurtainEdgeNeeded = !localStorage.getItem(`curtain-edge-v2:${sceneId}`);
+    if (sceneId === "partners" || sceneId.startsWith("sponsor-")) migrateCurtainEdgeV3Needed = !localStorage.getItem(`curtain-edge-v3:${sceneId}`);
+    if (sceneId === "partners") migrateSponsorLabelsNeeded = !localStorage.getItem("partners-labels-v2");
     if (sceneId.startsWith("sponsor-")) migrateSponsorStageNeeded = !localStorage.getItem(`sponsor-stage-v1:${sceneId}`);
     if (sceneId === "lab-swarm-brand") migrateIntroBackgroundNeeded = !localStorage.getItem("lab-swarm-brand-minute-hold-v1");
     if (sceneId === "photo-pause") {
@@ -497,6 +500,8 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     return cfg;
   }
   if (!raw) {
+    if (migrateCurtainEdgeV3Needed) { try { localStorage.setItem(`curtain-edge-v3:${sceneId}`, "1"); } catch (e) { /* noop */ } }
+    if (migrateSponsorLabelsNeeded) { try { localStorage.setItem("partners-labels-v2", "1"); } catch (e) { /* noop */ } }
     if (migrateCurtainEdgeNeeded) {
       try { localStorage.setItem(`curtain-edge-v2:${sceneId}`, "1"); } catch (e) { /* noop */ }
     }
@@ -560,6 +565,20 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
       try {
         localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
         localStorage.setItem(`curtain-edge-v2:${sceneId}`, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateCurtainEdgeV3Needed) {
+      saved = migrateCurtainEdgeV3(saved, sceneId === "partners" ? "partners" : "sponsor");
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(`curtain-edge-v3:${sceneId}`, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateSponsorLabelsNeeded) {
+      saved = migrateSponsorLabels(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-labels-v2", "1");
       } catch (e) { onReadError?.(sceneId, e); }
     }
     if (migrateIntroBackgroundNeeded) {
