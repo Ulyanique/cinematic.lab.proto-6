@@ -37,7 +37,11 @@ export function drawStageCurtains(ctx, image, open, width = 1920, height = 1080,
       ctx.restore();
     }
     if (image) {
-      const imageWidth = Math.max(edge * 3, half * (1 - p) + edge * 3 * p);
+      // Размер ткани постоянен: движение задаёт только позиция. Исходные
+      // пропорции PNG сохраняются при любом размере мастер-кадра.
+      const naturalWidth = image.naturalWidth || image.width || 476;
+      const naturalHeight = image.naturalHeight || image.height || 1080;
+      const imageWidth = height * naturalWidth / naturalHeight;
       ctx.drawImage(image, covered - imageWidth, 0, imageWidth, height);
     }
     ctx.restore();

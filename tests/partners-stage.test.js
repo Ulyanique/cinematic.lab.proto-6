@@ -50,3 +50,21 @@ test('open curtains have no solid burgundy backing', async () => {
   drawStageCurtains(ctx, image, 0);
   assert.equal(calls.filter(c => c[0] === 'backing').length, 2);
 });
+
+
+test('curtain image keeps its aspect and dimensions throughout movement', async () => {
+  const { drawStageCurtains } = await import('../src/studio/partners-stage.js');
+  const calls = [];
+  const ctx = {
+    globalAlpha: 1, save() {}, restore() {}, beginPath() {}, rect() {}, clip() {}, translate() {}, scale() {}, fillRect() {},
+    drawImage(...args) { calls.push(args); },
+  };
+  const image = { naturalWidth: 476, naturalHeight: 1080 };
+  for (const p of [0, .25, .5, .75, 1]) drawStageCurtains(ctx, image, p);
+  assert.equal(calls.length, 10);
+  for (const [, , , width, height] of calls) {
+    assert.equal(width, 476);
+    assert.equal(height, 1080);
+  }
+  assert.notEqual(calls[0][1], calls[8][1]);
+});
