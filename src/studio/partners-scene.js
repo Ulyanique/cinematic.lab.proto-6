@@ -669,7 +669,7 @@ export class PartnersScene {
       ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     };
-    // Организаторы выше; обе колонки ближе к центральной оси.
+    // Два организатора сверху, два спонсора ниже, по одному в каждой колонке.
     const L = PARTNERS_MARK_LAYOUT;
     if (this.single) {
       const scale = 1.45 * Math.max(.5, Math.min(1.8, Number(data.markScale) || 1)) *
@@ -678,8 +678,8 @@ export class PartnersScene {
       company('single', 960, 220, cue.organizer, 2.75, 0, scale);
     } else {
       tierGlow(L.left, L.organizerTop, 260, 115, visible * cue.shadow * .5);
-      tierGlow(L.left, L.organizerBottom, 260, 115, visible * cue.shadow * .5);
-      tierGlow(L.right, L.sponsorTop, 260, 115, visible * cue.shadow * .5);
+      tierGlow(L.right, L.organizerBottom, 260, 115, visible * cue.shadow * .5);
+      tierGlow(L.left, L.sponsorTop, 260, 115, visible * cue.shadow * .5);
       tierGlow(L.right, L.sponsorBottom, 260, 115, visible * cue.shadow * .5);
       const divider = (x, y, opacity) => {
         if (opacity <= .001) return;
@@ -693,14 +693,14 @@ export class PartnersScene {
         ctx.beginPath(); ctx.moveTo(x - 250, y); ctx.lineTo(x + 250, y); ctx.stroke();
         ctx.restore();
       };
-      divider(L.left, L.organizerDivider, Math.min(cue.organizer, cue.organizerSecond));
-      divider(L.right, L.sponsorDivider, Math.min(cue.partner, cue.partnerSecond));
+      divider(L.left, L.organizerDivider, Math.min(cue.organizer, cue.partner));
+      divider(L.right, L.sponsorDivider, Math.min(cue.organizerSecond, cue.partnerSecond));
       label(data.organizerLabel, L.left, L.organizerLabel, visible * cue.organizerLabel, cue.organizerLabel);
-      label(data.coorganizerLabel, L.left, L.coorganizerLabel, visible * cue.organizerSecond, cue.organizerSecond);
-      label(data.partnerLabel, L.right, L.sponsorLabel, visible * cue.partnerLabel, cue.partnerLabel);
+      label(data.coorganizerLabel, L.right, L.coorganizerLabel, visible * cue.organizerSecond, cue.organizerSecond);
+      label(data.partnerLabel, 960, L.sponsorLabel, visible * cue.partnerLabel, cue.partnerLabel);
       company('organizer1', L.left, L.organizerTop, cue.organizer, 2.75, 0, 1);
-      company('organizer2', L.left, L.organizerBottom, cue.organizerSecond, 3.25, 1, 1);
-      company('partner1', L.right, L.sponsorTop, cue.partner, 4.45, 2, 1);
+      company('organizer2', L.right, L.organizerBottom, cue.organizerSecond, 3.25, 1, 1);
+      company('partner1', L.left, L.sponsorTop, cue.partner, 4.45, 2, 1);
       company('partner2', L.right, L.sponsorBottom, cue.partnerSecond, 4.95, 3, L.keazScale);
     }
     this.cardTexture.needsUpdate = true;

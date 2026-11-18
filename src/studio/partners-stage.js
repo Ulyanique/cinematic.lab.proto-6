@@ -9,7 +9,7 @@ export function partnersStageCues(phase, timeline, motion = 1) {
   const closing = smooth(exitStart, exitStart + exitDuration, t);
   const p = t < entry ? t / entry : t < exitStart ? 1 : 1 - closing;
   const visible = phase.beforeStart ? 0 : 1 - smooth(exitStart + exitDuration * .92, exitStart + exitDuration, t);
-  // Четыре знака по вертикали: организатор, соорганизатор, спонсоры.
+  // Сначала организатор и соорганизатор, затем два спонсора.
   const organizer = smooth(.57, .65, p);
   const organizerSecond = smooth(.67, .75, p);
   const partner = smooth(.77, .85, p);
@@ -97,9 +97,9 @@ export function migrateSponsorStage(saved) {
 /** Координаты колонок в кадре 1920×1080 и относительный размер КЭАЗ. */
 export const PARTNERS_MARK_LAYOUT = Object.freeze({
   left: 500, right: 1420,
-  organizerTop: 205, organizerBottom: 395,
-  sponsorTop: 475, sponsorBottom: 630,
-  organizerLabel: 130, coorganizerLabel: 320, sponsorLabel: 390,
-  organizerDivider: 290, sponsorDivider: 555,
+  organizerTop: 205, organizerBottom: 205,
+  sponsorTop: 475, sponsorBottom: 475,
+  organizerLabel: 130, coorganizerLabel: 130, sponsorLabel: 330,
+  organizerDivider: 290, sponsorDivider: 290,
   keazScale: .8,
 });
