@@ -33,7 +33,7 @@ test('existing settings retain assets and get 30 seconds of hold', () => {
   assert.equal(migratePartnersStage({ timeline: { holdDuration: 45 } }).timeline.holdDuration, 45);
 });
 
-test('open curtains have no solid burgundy backing', async () => {
+test('curtains have no solid burgundy backing at any time', async () => {
   const { drawStageCurtains } = await import('../src/studio/partners-stage.js');
   const calls = [];
   const ctx = {
@@ -48,7 +48,8 @@ test('open curtains have no solid burgundy backing', async () => {
   assert.equal(calls.filter(c => c[0] === 'image').length, 2);
   calls.length = 0;
   drawStageCurtains(ctx, image, 0);
-  assert.equal(calls.filter(c => c[0] === 'backing').length, 2);
+  assert.equal(calls.filter(c => c[0] === 'backing').length, 0);
+  assert.equal(calls.filter(c => c[0] === 'image').length, 2);
 });
 
 
@@ -66,5 +67,7 @@ test('curtain image keeps its aspect and dimensions throughout movement', async 
     assert.equal(width, 476);
     assert.equal(height, 1080);
   }
-  assert.notEqual(calls[0][1], calls[8][1]);
+  assert.ok(calls[0][1] === 0); // at the left edge, not in the centre
+  assert.equal(calls[8][1], -380); // slides outwards
+  assert.equal(calls[0][1], calls[1][1]); // mirrored curtain shares the motion
 });

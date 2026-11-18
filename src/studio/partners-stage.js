@@ -20,33 +20,21 @@ export function partnersStageCues(phase, timeline, motion = 1) {
   };
 }
 
-/** Две зеркальные непрозрачные половины; в покое ткань остаётся у края. */
+/** Две зеркальные шторы у внешних краёв, без прямоугольной подложки. */
 export function drawStageCurtains(ctx, image, open, width = 1920, height = 1080, edgeWidth = 96) {
+  if (!image) return;
   const p = clamp(open);
-  const half = width / 2;
-  const edge = Math.max(0, Math.min(width * .1, Number.isFinite(edgeWidth) ? edgeWidth : 96));
-  const covered = half + (edge - half) * p;
-  const drawHalf = () => {
-    ctx.save();
-    ctx.beginPath(); ctx.rect(0, 0, covered, height); ctx.clip();
-    // Плотная подложка нужна лишь пока сцена закрыта. По мере раскрытия
-    // она исчезает, оставляя у края только прозрачный PNG с тканью.
-    if (p < 1) {
-      ctx.save(); ctx.globalAlpha *= (1 - p);
-      ctx.fillStyle = '#26040b'; ctx.fillRect(0, 0, covered, height);
-      ctx.restore();
-    }
-    if (image) {
-      // Размер ткани постоянен: движение задаёт только позиция. Исходные
-      // пропорции PNG сохраняются при любом размере мастер-кадра.
-      const naturalWidth = image.naturalWidth || image.width || 476;
-      const naturalHeight = image.naturalHeight || image.height || 1080;
-      const imageWidth = height * naturalWidth / naturalHeight;
-      ctx.drawImage(image, covered - imageWidth, 0, imageWidth, height);
-    }
-    ctx.restore();
-  };
-  ctx.save(); drawHalf(); ctx.translate(width, 0); ctx.scale(-1, 1); drawHalf(); ctx.restore();
+  const naturalWidth = image.naturalWidth || image.width || 476;
+  const naturalHeight = image.naturalHeight || image.height || 1080;
+  const imageWidth = height * naturalWidth / naturalHeight;
+  const edge = Math.max(0, Math.min(imageWidth, Number.isFinite(edgeWidth) ? edgeWidth : 96));
+  const x = -(imageWidth - edge) * p;
+  ctx.save();
+  ctx.drawImage(image, x, 0, imageWidth, height);
+  ctx.translate(width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(image, x, 0, imageWidth, height);
+  ctx.restore();
 }
 
 /** Обновляем только прежнюю длительность и стандартную ширину старой шторы. */
