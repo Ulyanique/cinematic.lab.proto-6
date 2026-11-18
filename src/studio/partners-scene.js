@@ -7,6 +7,7 @@ import promrukavUrl from './assets/partners/promrukav.svg';
 import keazUrl from './assets/partners/keaz.svg';
 import { drawPartnersDecor, drawAmberAtmosphere, drawBreathingBackground } from './partners-graphics.js';
 import { elementVisibility, labelLineLayout } from './partners-elements.js';
+import { drawPartnersOrnament } from './partners-ornament.js';
 import { createPartnersCurtains } from './partners-curtains.js';
 import { createPartnersLight } from './partners-light.js';
 import { createPartnersIntroBackground } from './partners-intro-background.js';
@@ -644,6 +645,8 @@ export class PartnersScene {
       ctx.beginPath(); ctx.moveTo(x - half, y); ctx.lineTo(x + half, y); ctx.stroke();
       ctx.restore();
     }
+
+    if (!this.single) drawPartnersOrnament(ctx, cfg.stageOrnament, visible * cue.partnerSecond);
 
     const trackedLabel = (value, x, y, alpha, entry, color = warm, line = null) => {
       ctx.save();

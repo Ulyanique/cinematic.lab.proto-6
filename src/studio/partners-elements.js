@@ -18,9 +18,10 @@ export const PARTNERS_ELEMENTS = Object.freeze([
   spec('stageTitle', 'Название вечера', 960, 780, { color: '#ecd4a1' }),
   spec('stageSubtitle', 'Подзаголовок', 960, 845, { color: '#c8a873' }),
   spec('stageTitleDivider', 'Разделитель названия и подзаголовка', 960, 818, { color: '#e5bd7c' }),
+  spec('stageOrnament', 'Нижний золотой орнамент', 960, 823, { color: '#e5bd7c' }),
 ]);
 const singleOnly = new Set(['stageSingleMark']);
-const groupOnly = new Set(['stageOrganizer1', 'stageOrganizer2', 'stagePartner1', 'stagePartner2', 'stageOrganizerLabel', 'stageCoorganizerLabel', 'stagePartnerLabel', 'stagePartnerLabel2']);
+const groupOnly = new Set(['stageOrganizer1', 'stageOrganizer2', 'stagePartner1', 'stagePartner2', 'stageOrganizerLabel', 'stageCoorganizerLabel', 'stagePartnerLabel', 'stagePartnerLabel2', 'stageOrnament']);
 export function partnerElementDefaults(single = false) {
   const out = {};
   for (const s of PARTNERS_ELEMENTS) {
