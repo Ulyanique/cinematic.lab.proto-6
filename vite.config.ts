@@ -24,12 +24,9 @@ function copyVideoFolder(): Plugin {
       const from = path.resolve(__dirname, "video");
       const to = path.resolve(__dirname, "dist", "video");
       if (!fs.existsSync(from)) return;
-      fs.mkdirSync(to, { recursive: true });
-      for (const name of fs.readdirSync(from)) {
-        const source = path.join(from, name);
-        if (!fs.statSync(source).isFile()) continue;
-        fs.copyFileSync(source, path.join(to, name));
-      }
+      // Рекурсивно: кроме роликов вечера в корне есть video/gallery/01..10.mp4
+      // (клипы видеогалереи), их тоже надо забрать в сборку.
+      fs.cpSync(from, to, { recursive: true });
     },
   };
 }

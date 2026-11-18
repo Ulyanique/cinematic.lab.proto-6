@@ -83,7 +83,6 @@ export class GalleryEngine {
   private cometGlow: THREE.Sprite
   private trailParticles: THREE.Points
   private particleSeeds: { phase: number; spread: number; tangent: number; strand: number; twinkle: number }[] = []
-  private starSprite: THREE.Sprite
   private starGlow: THREE.Sprite
   private starLight: THREE.PointLight
   private camLight: THREE.PointLight
@@ -177,13 +176,11 @@ export class GalleryEngine {
     this.scene.add(this.panelLight)
 
     // звезда в конце коридора
-    this.starSprite = new THREE.Sprite(spriteMat(starTexture(16, 9)))
     this.starGlow = new THREE.Sprite(spriteMat(glow))
-    this.corridor.add(this.starSprite, this.starGlow)
+    this.corridor.add(this.starGlow)
     this.starLight = new THREE.PointLight(0xffd08a, 0, 0, 2)
     this.scene.add(this.starLight)
     const sp = this.sample(this.sStar).p
-    this.starSprite.position.copy(sp)
     this.starGlow.position.copy(sp)
     this.starLight.position.copy(sp)
 
@@ -273,6 +270,13 @@ export class GalleryEngine {
 
   /** Играют ли видео слотов в предпросмотре (адаптер ставит по паузе пульта). */
   setPlaying(playing: boolean) { this.playing = playing }
+
+  /** Загрузить встроенный клип по URL в один слот; возвращает успех. */
+  async assignSlotUrl(index: number, url: string): Promise<boolean> {
+    const slot = this.slots[index]
+    if (!slot || this.disposed) return false
+    return slot.load(url, 'video')
+  }
 
   /** Загрузить файл (видео или фото) в один слот; возвращает успех. */
   async assignSlotFile(index: number, file: Blob): Promise<boolean> {
@@ -414,30 +418,27 @@ export class GalleryEngine {
     return m
   }
 
-  /** Вертикальные монолиты-прямоугольники разных размеров вдоль коридора. */
+  /** Вертикальные плиты-монолиты: сплошная стена вдоль коридора по сторонам,
+   *  в стороне от траектории, почти чёрные с едва заметными золотыми рёбрами. */
   private buildMonoliths() {
     const mats = [
-      new THREE.MeshStandardMaterial({ color: 0xcf9a3c, metalness: 0.88, roughness: 0.32, flatShading: true }),
-      new THREE.MeshStandardMaterial({ color: 0x8a6126, metalness: 0.85, roughness: 0.42, flatShading: true }),
-      new THREE.MeshStandardMaterial({ color: 0xe6cb8e, metalness: 0.9, roughness: 0.26, flatShading: true }),
-      new THREE.MeshStandardMaterial({ color: 0x3a2a17, metalness: 0.8, roughness: 0.5, flatShading: true }),
+      new THREE.MeshStandardMaterial({ color: 0x171009, metalness: 0.72, roughness: 0.62, flatShading: true }),
+      new THREE.MeshStandardMaterial({ color: 0x100d0a, metalness: 0.68, roughness: 0.66, flatShading: true }),
+      new THREE.MeshStandardMaterial({ color: 0x1d150c, metalness: 0.75, roughness: 0.58, flatShading: true }),
     ]
-    const pickMat = () => mats[Math.random() < 0.34 ? 0 : Math.random() < 0.45 ? 1 : Math.random() < 0.6 ? 2 : 3]
-
     const linePos: number[] = []
     const lineCol: number[] = []
     const base = new THREE.Color(1.0, 0.8, 0.42)
     const v = new THREE.Vector3()
     const v2 = new THREE.Vector3()
 
-    const addMonolith = (w: number, h: number, d: number, pos: THREE.Vector3, yaw: number) => {
+    const addMonolith = (w: number, h: number, d: number, pos: THREE.Vector3, yaw: number, bright: number) => {
       const geo = new THREE.BoxGeometry(w, h, d)
-      const m = new THREE.Mesh(geo, pickMat())
+      const m = new THREE.Mesh(geo, mats[(Math.random() * mats.length) | 0])
       m.position.copy(pos)
       m.rotation.y = yaw
       m.updateMatrix()
       this.corridor.add(m)
-      // светящиеся рёбра прямоугольника
       const eg = new THREE.EdgesGeometry(geo)
       const p = eg.getAttribute('position')
       for (let i = 0; i < p.count; i += 2) {
@@ -445,7 +446,7 @@ export class GalleryEngine {
         v2.fromBufferAttribute(p, i + 1)
         v.applyMatrix4(m.matrix)
         v2.applyMatrix4(m.matrix)
-        const k = 0.45 + Math.pow(Math.random(), 2) * 0.8
+        const k = bright * (0.55 + Math.pow(Math.random(), 2) * 0.75)
         linePos.push(v.x, v.y, v.z, v2.x, v2.y, v2.z)
         lineCol.push(base.r * k, base.g * k, base.b * k, base.r * k, base.g * k, base.b * k)
       }
@@ -454,24 +455,42 @@ export class GalleryEngine {
 
     const total = S(FLASH_T) + 70
     const P = new THREE.Vector3()
-    // вертикально стоящие прямоугольники разных размеров, основания на полу
-    for (let n = 0; n < 80; n++) {
-      const s = rand(-15, total)
-      const side = Math.random() < 0.5 ? -1 : 1
-      const d = 16 + Math.pow(Math.random(), 1.2) * 38
-      const pose = this.sample(s)
-      P.copy(pose.p).addScaledVector(pose.r, side * d)
-      const w = rand(2, 7.5)
-      const h = rand(9, 27)
-      const dep = rand(2, 7.5)
-      P.y = FLOOR_Y + h / 2
-      addMonolith(w, h, dep, P, Math.random() * Math.PI)
+    for (const side of [-1, 1]) {
+      // передний ряд: плиты вплотную, как кирпичная стена вдоль коридора
+      let s = -16
+      while (s < total) {
+        const w = rand(6.5, 10.5)
+        const h = rand(14, 32)
+        const dep = rand(3.5, 6)
+        const pose = this.sample(s)
+        const d = rand(15.5, 18.5)
+        P.copy(pose.p).addScaledVector(pose.r, side * d)
+        P.y = FLOOR_Y + h / 2
+        // плита параллельна плоскости коридора: лицевая к траектории
+        const yaw = Math.atan2(pose.r.x, pose.r.z) + (side < 0 ? Math.PI : 0)
+        addMonolith(w, h, dep, P, yaw, 0.34)
+        s += w * 0.94
+      }
+      // второй ряд: выше и дальше, тоже без просветов, ещё темнее
+      let s2 = -24
+      while (s2 < total) {
+        const w = rand(10, 15)
+        const h = rand(20, 36)
+        const dep = rand(4, 7)
+        const pose = this.sample(s2)
+        const d = rand(22, 25.5)
+        P.copy(pose.p).addScaledVector(pose.r, side * d)
+        P.y = FLOOR_Y + h / 2
+        const yaw = Math.atan2(pose.r.x, pose.r.z) + (side < 0 ? Math.PI : 0)
+        addMonolith(w, h, dep, P, yaw, 0.2)
+        s2 += w * 0.96
+      }
     }
 
     const g = new LineSegmentsGeometry()
     g.setPositions(linePos)
     g.setColors(lineCol)
-    const lines = new LineSegments2(g, this.makeLineMat(0.9, true))
+    const lines = new LineSegments2(g, this.makeLineMat(0.8, true))
     lines.frustumCulled = false
     this.corridor.add(lines)
   }
@@ -506,16 +525,19 @@ export class GalleryEngine {
       const g = new LineSegmentsGeometry()
       g.setPositions(gridEdges(y))
       const mat = this.makeLineMat(width, false)
-      mat.color = new THREE.Color(0xc39a60)
+      mat.color = new THREE.Color(0xd6b57e)
       mat.transparent = true
       mat.opacity = opacity
       mat.depthWrite = false
+      // Сетка не должна теряться в тумане и на ярких переходах кадра —
+      // она всегда остаётся «чертёжом» поверх тёмного пола/потолка.
+      mat.fog = false
       const lines = new LineSegments2(g, mat)
       lines.frustumCulled = false
       this.corridor.add(lines)
     }
-    addGrid(FLOOR_Y, 2.0, 0.5)
-    addGrid(30, 1.6, 0.32)
+    addGrid(FLOOR_Y, 2.4, 0.72)
+    addGrid(30, 1.9, 0.52)
   }
 
   private buildDust() {
@@ -872,7 +894,7 @@ export class GalleryEngine {
       const target = this.tmpB.copy(this.sample(sc + PANEL_DIST + 4).p)
       target.y += 1.0
       const starW = smooth(FLASH_T - 4.0, FLASH_T - 1.0, t)
-      target.lerp(this.starSprite.position, starW)
+      target.lerp(this.starGlow.position, starW)
       cam.position.copy(camPos)
       cam.fov = 41 - 4 * starW
       cam.updateProjectionMatrix()
@@ -886,21 +908,26 @@ export class GalleryEngine {
       this.updateStar(t)
     } else {
       const tb = t - FLASH_T
-      cam.position.set(Math.sin(tb * 0.35) * 0.9, FIN_Y + Math.cos(tb * 0.3) * 0.4, 42 - 0.4 * tb)
+      cam.position.set(Math.sin(tb * 0.35) * 0.7, FIN_Y + Math.cos(tb * 0.3) * 0.35, 33 - 0.55 * tb)
       cam.fov = 50 - 4 * Math.exp(-tb * 1.2)
       cam.updateProjectionMatrix()
       cam.up.set(0, 1, 0)
       cam.lookAt(0, FIN_Y, 0)
+      // Эмблема интро — главный герой финала: поднимаем отражения.
+      this.scene.environmentIntensity = 0.32 + 0.75 * smooth(0, 1.6, tb)
       this.cometLight.intensity = 0
       this.starLight.intensity = 0
-      this.camLight.intensity = 0
+      // тёплый «камерный» свет, чтобы эмблема не уходила в силуэт
+      this.camLight.position.copy(cam.position).add(this.tmpC.set(0, 1.5, 6))
+      this.camLight.intensity = 70
       this.finale.update(tb, t)
     }
 
-    // ── фон интро: лучи и ленты дышат, параллакс от камеры ──
+    // ── фон интро, но БЕЗ лучей: эффект «прожекторов» в начале убран по просьбе.
+    //    Остаются мягкие ленты и неоновое свечение — тот же спокойный фон, что и на сцене.
     const bu = this.bgMat.uniforms
     bu.uTime.value = t
-    bu.uBeam.value = 0.55 + 0.12 * Math.sin(t * 0.45)
+    bu.uBeam.value = 0
     bu.uRib.value = 0.45 + 0.08 * Math.sin(t * 0.6 + 1)
     bu.uGlow.value = 0.25
     bu.uFlash.value = flash * 0.6
@@ -995,16 +1022,15 @@ export class GalleryEngine {
   }
 
   private updateStar(t: number) {
+    // Лучистой звезды с анаморфным штрихом больше нет: только мягкий круглый
+    // отблеск в конце коридора — без «лучей во все стороны».
     const k = smooth(FLASH_T - 4.4, FLASH_T, t)
     const visibility = smooth(clipCenter(MEDIA.length - 1) + PANEL_AFTER, FLASH_T - 1.1, t)
-    const sz = 5 + 28 * k * k
-    const twinkle = 1 + 0.06 * Math.sin(t * 13)
-    this.starSprite.scale.set(sz * 2.2 * twinkle, sz * 2.2 * twinkle, 1)
-    this.starGlow.scale.set(sz * 1.8, sz * 1.8, 1)
-    ;(this.starSprite.material as THREE.SpriteMaterial).opacity = (0.3 + 0.55 * k) * visibility
-    ;(this.starSprite.material as THREE.SpriteMaterial).rotation = t * 0.08
-    ;(this.starGlow.material as THREE.SpriteMaterial).opacity = (0.2 + 0.8 * k) * visibility
-    this.starLight.intensity = 2500 * k * k * visibility
+    const twinkle = 1 + 0.05 * Math.sin(t * 13)
+    const sz = (4 + 8 * k * k) * twinkle
+    this.starGlow.scale.set(sz * 1.35, sz * 1.35, 1)
+    ;(this.starGlow.material as THREE.SpriteMaterial).opacity = (0.22 + 0.6 * k) * visibility
+    this.starLight.intensity = 1800 * k * k * visibility
   }
 
   private updatePanels(t: number) {

@@ -3,6 +3,7 @@ import { GalleryEngine } from './gallery/engine.ts';
 import { END_T } from './gallery/config.ts';
 import { GALLERY_SLOT_COUNT } from './scenes/gallery.js';
 import { galleryFileFor, galleryNameFor, clearGalleryFile, loadGalleryFiles } from './gallery-media.js';
+import { isBuiltinGalleryName, builtinGalleryUrl } from './gallery-defaults.js';
 
 /**
  * Адаптер видеогалереи к общему циклу студии (как Lab5Scene у «Монолитов»):
@@ -50,12 +51,16 @@ export class GalleryScene extends LabScene {
         continue;
       }
       const file = galleryFileFor(i);
-      if (!file) {
+      if (file) {
+        const ok = await this.engine.assignSlotFile(i, file);
+        if (!ok) this.errors[i] = `Не удалось открыть «${desired}» — проверьте формат видео`;
+      } else if (isBuiltinGalleryName(desired)) {
+        // Встроенный клиент из сборки: свой файл всегда в приоритете выше.
+        const ok = await this.engine.assignSlotUrl(i, builtinGalleryUrl(desired));
+        if (!ok) this.errors[i] = `Не удалось открыть встроенный «${desired}»`;
+      } else {
         this.errors[i] = `Файл «${desired}» не найден в этом браузере — загрузите его снова`;
-        continue;
       }
-      const ok = await this.engine.assignSlotFile(i, file);
-      if (!ok) this.errors[i] = `Не удалось открыть «${desired}» — проверьте формат видео`;
       if (this.disposed) return;
     }
   }
