@@ -256,7 +256,7 @@ const lightDensity = (x, y) => {
   return 0.22 + 0.78 * Math.min(1, a + b);
 };
 
-const GLITTER = [];
+export const GLITTER = [];
 // Отбор с плотностью: пока не набрали нужное число крупинок. Сид фиксирован,
 // поэтому раскладка одинакова в каждом кадре и в экспорте.
 while (GLITTER.length < 1150) {

@@ -6,7 +6,8 @@ import proelectroschitUrl from './assets/partners/proelectroschit.svg';
 import promrukavUrl from './assets/partners/promrukav.svg';
 import keazUrl from './assets/partners/keaz.svg';
 import { drawPartnersDecor, drawAmberAtmosphere, drawBreathingBackground } from './partners-graphics.js';
-import { partnersStageCues, drawStageCurtains } from './partners-stage.js';
+import { createPartnersGlitter } from './partners-glitter.js';
+import { partnersStageCues, drawStageCurtains, partnersHoldCacheKey } from './partners-stage.js';
 import introLogoSvg from './lab2/logo.svg?raw';
 import { introOutlineSvg } from './partners-stage.js';
 import { glintSpan, easeOutBack } from './partners-motion.js';
@@ -25,6 +26,7 @@ const loadImage = url => new Promise(resolve => {
 });
 
 let backgroundCanvas, curtainImage, introOutlineImage;
+let assetsRevision = 0;
 const builtinMarks = {};
 /** Исходные изображения встроенных логотипов: нужны, чтобы доделать второй стиль. */
 const builtinMarkSource = {};
@@ -190,6 +192,7 @@ const imageReady = Promise.all([backgroundUrl, curtainUrl, proelectroUrl, proele
     if (marks[i]) builtinMarkSource[key] = marks[i];
     if (marks[i]) builtinMarks[key] = { [style]: renderPartnerMark(marks[i], style) };
   });
+  assetsRevision++;
   return images.every(Boolean);
 });
 export const loadPartnersBackground = () => imageReady;
@@ -245,6 +248,7 @@ function resolveCustomLogo(dataUrl, style, onReady) {
       if (img) {
         if (customLogoCache.size > 32) customLogoCache.clear();
         customLogoCache.set(cacheKey, renderPartnerMark(img, style));
+        assetsRevision++;
         onReady?.();
       }
     });
@@ -262,7 +266,7 @@ export async function preloadPartnerCustomLogos(partnersCfg) {
     const cacheKey = `${style}:${url}`;
     if (customLogoCache.has(cacheKey)) return;
     const img = await loadImage(url);
-    if (img) customLogoCache.set(cacheKey, renderPartnerMark(img, style));
+    if (img) { customLogoCache.set(cacheKey, renderPartnerMark(img, style)); assetsRevision++; }
   });
   await Promise.all(tasks);
 }
@@ -313,6 +317,8 @@ export class PartnersScene {
       new THREE.MeshBasicMaterial({ map: this.cardTexture, toneMapped: false })
     );
     this.cardScene.add(this.cardMesh);
+    this.glitter = createPartnersGlitter();
+    this.cardScene.add(this.glitter.points);
     this._w = 0; this._h = 0;
     this.resize();
   }
@@ -333,6 +339,7 @@ export class PartnersScene {
       this._staticLayerKey = "";
       this._frameLayer = null;
       this._veilLayer = null;
+      this._holdTexture = null;
     }
   }
 
@@ -389,12 +396,31 @@ export class PartnersScene {
     this._quality = next;
     return true;
   }
+  configChanged() { this._holdTexture = null; }
+  refreshTextTexture() { this.configChanged(); }
   setCaptionSource() {}
   setCaptionVisible() {}
 
   update(t) {
     const master = masterSize();
     if (this._w !== master.width || this._h !== master.height) this.resize();
+    const phase = computePhase(t, this.cfg.timeline);
+    const holding = phase.name === 'hold' && !phase.beforeStart;
+    const cue = partnersStageCues(phase, this.cfg.timeline, this.cfg.partners.motion ?? 1);
+    this.glitter.points.visible = holding && cue.visible > 0;
+    if (holding) {
+      const u = this.glitter.uniforms;
+      u.time.value = phase.local; u.period.value = phase.cycle;
+      u.motion.value = (this.cfg.partners.motion ?? 1) * cue.visible;
+      u.pixelScale.value = master.height / 1080;
+    }
+    const holdKey = partnersHoldCacheKey(this.cfg.timeline);
+    if (holding && this._holdTexture && this._holdRevision === assetsRevision && this._holdKey === holdKey) {
+      this._blackFrame = false;
+      this.cardMesh.material.map = this._holdTexture;
+      return;
+    }
+    this._holdTexture = null;
     // Чередуем два готовых холста: Chromium гарантированно обновляет WebGL-текстуру
     // без ежекадрового создания полноразмерного DOM-элемента.
     this._bufferIndex = 1 - this._bufferIndex;
@@ -408,8 +434,8 @@ export class PartnersScene {
 
     const ctx = this.cardCtx, w = BASE_FRAME.width, h = BASE_FRAME.height, cfg = this.cfg, tl = cfg.timeline;
     ctx.setTransform(master.width / w, 0, 0, master.height / h, 0, 0);
-    const phase = computePhase(t, tl), data = cfg.partners;
-    const cue = partnersStageCues(phase, tl, data.motion ?? 1), visible = cue.visible;
+    const data = cfg.partners, visible = cue.visible;
+    const visualTime = Math.min(phase.local, tl.drawDuration + tl.emergeDuration);
     this._blackFrame = visible <= 0;
 
     // Непрозрачная чёрная заливка уже стирает прошлый кадр: отдельный clearRect
@@ -421,7 +447,7 @@ export class PartnersScene {
     // полноэкранный градиент выполняются один раз, а не 60 раз в секунду.
     const staticLayer = this._buildStaticLayer(master, backgroundCanvas);
     ctx.save(); ctx.globalAlpha = visible;
-    drawBreathingBackground(ctx, backgroundCanvas, w, h, phase.local, phase.cycle);
+    drawBreathingBackground(ctx, backgroundCanvas, w, h, tl.drawDuration + tl.emergeDuration, phase.cycle);
     ctx.drawImage(staticLayer, 0, 0, w, h);
     ctx.restore();
     // Защищаем от частиц области знаков в верхних боковых колонках.
@@ -430,7 +456,7 @@ export class PartnersScene {
     ctx.save(); ctx.globalAlpha = visible * motion;
     ctx.drawImage(this._cachedDecoration(master, 'veil'), 0, 0, w, h);
     ctx.restore();
-    drawAmberAtmosphere(ctx, phase.local, motion * visible, phase.cycle, [
+    if (!holding) drawAmberAtmosphere(ctx, phase.local, motion * visible, phase.cycle, [
       { x: 150, y: 70, w: 550, h: 450 },
       { x: 1220, y: 70, w: 550, h: 450 },
     ], { veils: false });
@@ -510,10 +536,9 @@ export class PartnersScene {
       const lw = logo.width * scale;
       const lh = logo.height * scale;
       // Масштаб группы: 0.955 → 1, на перелёте — до 1.008.
-      // На удержании знак медленно «дышит» (±0.4 % размера и ±2 px по высоте):
-      // у каждого своя фаза, поэтому группа не качается синхронно.
-      const breathe = cue.idle * 0.004 * Math.sin(phase.local * 0.62 + phaseIdx * 1.7);
-      const floatY = cue.idle * 2.1 * Math.sin(phase.local * 0.5 + phaseIdx * 2.1);
+      // В конце входа знаки замирают: устойчивый кадр можно держать на GPU.
+      const breathe = cue.idle * 0.004 * Math.sin(visualTime * 0.62 + phaseIdx * 1.7);
+      const floatY = cue.idle * 2.1 * Math.sin(visualTime * 0.5 + phaseIdx * 2.1);
       const grow = 0.955 + 0.045 * p + breathe;
       const cx = x, cy = y + rise + floatY;
       ctx.save();
@@ -538,12 +563,12 @@ export class PartnersScene {
       ctx.beginPath(); ctx.rect(-295, -85, 590, 170); ctx.clip();
       ctx.drawImage(logo, -lw / 2, -lh / 2, lw, lh);
       // Блик проходит уже по проявленному знаку — иначе он светит в пустоту.
-      drawMarkGlint(ctx, logo, -lw / 2, -lh / 2, lw, lh,
+      if (!holding) drawMarkGlint(ctx, logo, -lw / 2, -lh / 2, lw, lh,
         glintSpan(phase.local, { start: glintAt, span: 0.62, from: -0.35, to: 1.35 }),
         visible * Math.min(1, p) * cue.glintStrength);
       // Второй проход на удержании — медленнее и тише. Разнесён по знакам,
       // чтобы свет «гулял» по группе, а не вспыхивал весь сразу.
-      drawMarkGlint(ctx, logo, -lw / 2, -lh / 2, lw, lh,
+      if (!holding) drawMarkGlint(ctx, logo, -lw / 2, -lh / 2, lw, lh,
         glintSpan(phase.local, { start: 7.4 + phaseIdx * 0.35, span: 1.15, from: -0.3, to: 1.3 }),
         visible * Math.min(1, p) * cue.holdGlint * 0.55);
       ctx.restore();
@@ -598,6 +623,7 @@ export class PartnersScene {
       ctx.restore();
     }
     this.cardTexture.needsUpdate = true;
+    if (holding) { this._holdTexture = this.cardTexture; this._holdRevision = assetsRevision; this._holdKey = holdKey; }
   }
 
   render() {
@@ -607,6 +633,7 @@ export class PartnersScene {
   }
 
   dispose() {
+    this.glitter.dispose();
     this._textures.forEach(texture => texture.dispose());
     this.cardMesh.geometry.dispose();
     this.cardMesh.material.dispose();

@@ -80,3 +80,12 @@ test('intro artwork is rendered as an unfilled golden outline', async () => {
   assert.match(outline, /stroke:#D7B56D/);
   assert.match(outline, /<path class="fil0"\/>/);
 });
+
+test('hold cache key changes whenever timeline dimensions change', async () => {
+  const { partnersHoldCacheKey } = await import('../src/studio/partners-stage.js');
+  const base = { ...tl, startDelay: 0 };
+  const key = partnersHoldCacheKey(base);
+  for (const field of ['drawDuration', 'emergeDuration', 'holdDuration', 'fadeDuration', 'restDuration', 'startDelay']) {
+    assert.notEqual(partnersHoldCacheKey({ ...base, [field]: base[field] + 1 }), key, field);
+  }
+});

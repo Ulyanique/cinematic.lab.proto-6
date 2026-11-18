@@ -51,3 +51,9 @@ export function introOutlineSvg(svg) {
     .replace(/width="39\.5198mm" height="41\.4868mm"/, 'width="800" height="840"')
     .replace('.fil0 {fill:#D7B56D}', '.fil0 {fill:none;stroke:#D7B56D;stroke-width:18;stroke-linejoin:round;stroke-linecap:round}');
 }
+
+/** Параметры таймлайна, влияющие на изображение удержания. */
+export function partnersHoldCacheKey(timeline) {
+  return [timeline.drawDuration, timeline.emergeDuration, timeline.holdDuration,
+    timeline.fadeDuration, timeline.restDuration, timeline.startDelay].join('|');
+}
