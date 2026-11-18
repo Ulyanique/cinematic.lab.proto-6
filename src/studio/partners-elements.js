@@ -17,7 +17,7 @@ export const PARTNERS_ELEMENTS = Object.freeze([
   spec('stageCompass', 'Циркуль', 960, 540, { opacity: .42, color: '#e5bd7c' }),
   spec('stageTitle', 'Название вечера', 960, 780, { color: '#ecd4a1' }),
   spec('stageSubtitle', 'Подзаголовок', 960, 845, { color: '#c8a873' }),
-  spec('stageTitleDivider', 'Разделитель названия и подзаголовка', 960, 818, { color: '#e5bd7c' }),
+  spec('stageTitleDivider', 'Разделитель названия и подзаголовка', 960, 818, { color: '#e5bd7c', width: 360 }),
   spec('stageOrnament', 'Нижний золотой орнамент', 960, 823, { color: '#e5bd7c', edgeFade: .75, start: 68, end: 98, glint: .65, glintSpeed: 1 }),
 ]);
 const singleOnly = new Set(['stageSingleMark']);
@@ -30,7 +30,7 @@ export function partnerElementDefaults(single = false) {
   }
   if (!single) {
     const reference = {
-      stageTitle: [960, 150], stageTitleDivider: [960, 215], stageSubtitle: [960, 255],
+      stageTitle: [960, 150], stageTitleDivider: [960, 195], stageSubtitle: [960, 235],
       stageCompass: [960, 475], stageOrganizer1: [430, 350], stageOrganizer2: [1460, 350],
       stagePartner1: [450, 560], stagePartner2: [1460, 560],
       stageOrganizerLabel: [570, 270], stageCoorganizerLabel: [1370, 270],
@@ -38,6 +38,7 @@ export function partnerElementDefaults(single = false) {
     };
     for (const [id, [x, y]] of Object.entries(reference)) Object.assign(out[id], { x, y });
     out.stageCompass.opacity = 1;
+    out.stageTitleDivider.width = 520;
   }
   return out;
 }
@@ -49,6 +50,7 @@ export const PARTNERS_ELEMENT_SCHEMA = PARTNERS_ELEMENTS.map(s => ({
     { key: 'y', label: 'Положение Y, px', type: 'range', min: 0, max: 1080, step: 1 },
     { key: 'scale', label: 'Размер', type: 'range', min: .2, max: 2, step: .01 }]),
     { key: 'opacity', label: 'Непрозрачность', type: 'range', min: 0, max: 1, step: .01 },
+    ...('width' in s.defaults ? [{ key: 'width', label: 'Ширина разделителя, px', type: 'range', min: 60, max: 1100, step: 1 }] : []),
     ...('backgroundImage' in s.defaults ? [{ key: 'backgroundImage', label: 'Своя фоновая картинка', type: 'image' }] : []),
     ...('leftVisible' in s.defaults ? [
       { key: 'leftVisible', label: 'Левая штора', type: 'bool' },

@@ -1,5 +1,5 @@
 import { PARTNERS_ELEMENT_SCHEMA } from "./partners-elements.js";
-import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge, migrateSponsorLabels, migrateCurtainEdgeV3, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, migratePartnersCompassContrast, migrateEqualPartnerLogoWidths } from "./partners-stage.js";
+import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge, migrateSponsorLabels, migrateCurtainEdgeV3, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, migratePartnersCompassContrast, migrateEqualPartnerLogoWidths, migratePartnersTitleAndKeaz } from "./partners-stage.js";
 import { migrateIntroBackground } from "./background-migration.js";
 import { DECOR_SLOTS } from "./brand-decor-config.js";
 import { PARTICLE_CLOUD_IDS } from "./particle-cloud-config.js";
@@ -475,7 +475,7 @@ export function mergeConfig(defaults, patch) {
 export function loadSceneConfig(sceneId, defaults, onReadError) {
   const cfg = cloneDefaults(defaults);
   let raw = null;
-  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false, migrateCurtainEdgeNeeded = false, migrateCurtainEdgeV3Needed = false, migrateSponsorLabelsNeeded = false, migrateReferenceLayoutNeeded = false, migratePartnerLabelLinesNeeded = false, migratePartnersTopTitleNeeded = false, migratePartnersCompassContrastNeeded = false, migrateEqualPartnerLogoWidthsNeeded = false;
+  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false, migrateCurtainEdgeNeeded = false, migrateCurtainEdgeV3Needed = false, migrateSponsorLabelsNeeded = false, migrateReferenceLayoutNeeded = false, migratePartnerLabelLinesNeeded = false, migratePartnersTopTitleNeeded = false, migratePartnersCompassContrastNeeded = false, migrateEqualPartnerLogoWidthsNeeded = false, migratePartnersTitleAndKeazNeeded = false;
   let migratePhotoCenter = false, migratePhotoSize = false, migrateBrandCenter = false, migrateGuides = false, migrateFinaleGuides = false, migrateBrandLift = false;
   try {
     raw = localStorage.getItem(sceneStorageKey(sceneId));
@@ -486,6 +486,7 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     }
     if (sceneId === "partners" || sceneId.startsWith("sponsor-")) migrateCurtainEdgeNeeded = !localStorage.getItem(`curtain-edge-v2:${sceneId}`);
     if (sceneId === "partners" || sceneId.startsWith("sponsor-")) migrateCurtainEdgeV3Needed = !localStorage.getItem(`curtain-edge-v3:${sceneId}`);
+    if (sceneId === "partners") migratePartnersTitleAndKeazNeeded = !localStorage.getItem("partners-title-keaz-v1");
     if (sceneId === "partners") migrateEqualPartnerLogoWidthsNeeded = !localStorage.getItem("partners-equal-logo-widths-v1");
     if (sceneId === "partners") migratePartnersCompassContrastNeeded = !localStorage.getItem("partners-compass-contrast-v1");
     if (sceneId === "partners") migratePartnersTopTitleNeeded = !localStorage.getItem("partners-top-title-v1");
@@ -510,6 +511,7 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     return cfg;
   }
   if (!raw) {
+    if (migratePartnersTitleAndKeazNeeded) { try { localStorage.setItem("partners-title-keaz-v1", "1"); } catch (e) { /* noop */ } }
     if (migrateEqualPartnerLogoWidthsNeeded) { try { localStorage.setItem("partners-equal-logo-widths-v1", "1"); } catch (e) { /* noop */ } }
     if (migratePartnersCompassContrastNeeded) { try { localStorage.setItem("partners-compass-contrast-v1", "1"); } catch (e) { /* noop */ } }
     if (migratePartnersTopTitleNeeded) { try { localStorage.setItem("partners-top-title-v1", "1"); } catch (e) { /* noop */ } }
@@ -629,6 +631,13 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
       try {
         localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
         localStorage.setItem("partners-equal-logo-widths-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migratePartnersTitleAndKeazNeeded) {
+      saved = migratePartnersTitleAndKeaz(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-title-keaz-v1", "1");
       } catch (e) { onReadError?.(sceneId, e); }
     }
     if (migrateIntroBackgroundNeeded) {

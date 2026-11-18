@@ -27,7 +27,8 @@ export function sponsorDragElements(cfg) {
     const layer = cfg[id];
     if (!layer || layer.enabled === false) return [];
     const scale = Number.isFinite(layer.scale) ? layer.scale : 1;
-    return [{ id, x: layer.x, y: layer.y, w: w * scale, h: h * scale, kind: 'frame', borderOnly: id === 'stageFrame', scaleKey: 'scale' }];
+    const width = id === 'stageTitleDivider' ? (layer.width ?? w) : w;
+    return [{ id, x: layer.x, y: layer.y, w: width * scale, h: h * scale, kind: 'frame', borderOnly: id === 'stageFrame', scaleKey: 'scale' }];
   });
 }
 

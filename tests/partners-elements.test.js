@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PARTNERS_ELEMENT_SCHEMA, partnerElementDefaults, elementVisibility, labelLineLayout } from '../src/studio/partners-elements.js';
-import { migrateCurtainEdge, migrateCurtainEdgeV3, migrateSponsorLabels, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, migratePartnersCompassContrast, partnersStageCues } from '../src/studio/partners-stage.js';
+import { migrateCurtainEdge, migrateCurtainEdgeV3, migrateSponsorLabels, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, migratePartnersCompassContrast, migratePartnersTitleAndKeaz, partnersStageCues } from '../src/studio/partners-stage.js';
 import { sectionAllowed, eyeKey } from '../src/studio/ui/field-rules.js';
 import { PARTNERS_DEFAULTS, SPONSOR_KEAZ_DEFAULTS } from '../src/studio/scenes/partners.js';
 
@@ -105,7 +105,7 @@ test('label decoration extends outward without crossing the text', () => {
 
 test('reference composition places the evening name above the partner rows without overriding custom placement', () => {
   assert.equal(PARTNERS_DEFAULTS.stageTitle.y, 150);
-  assert.equal(PARTNERS_DEFAULTS.stageSubtitle.y, 255);
+  assert.equal(PARTNERS_DEFAULTS.stageSubtitle.y, 235);
   assert.ok(PARTNERS_DEFAULTS.stageOrganizer1.y < PARTNERS_DEFAULTS.stagePartner1.y);
   assert.equal(SPONSOR_KEAZ_DEFAULTS.stageTitle.y, 780);
   const old = { stageTitle: {x:960,y:780}, stageCompass:{x:900,y:540} };
@@ -124,4 +124,19 @@ test('compass matches ornament by default without overwriting custom opacity', (
   assert.equal(migratePartnersCompassContrast({ stageCompass: { opacity: .42 } }).stageCompass.opacity, 1);
   assert.equal(migratePartnersCompassContrast({ stageCompass: { opacity: .7 } }).stageCompass.opacity, .7);
   assert.equal(PARTNERS_ELEMENT_SCHEMA.find(s => s.id === 'stageOrnament').fields.some(f => f.key === 'edgeFade'), true);
+});
+
+
+test('title divider is wider and editable; subtitle and KEAZ migrate independently', () => {
+  assert.equal(PARTNERS_DEFAULTS.stageTitleDivider.width, 520);
+  assert.equal(PARTNERS_DEFAULTS.stageTitleDivider.y, 195);
+  assert.ok(PARTNERS_ELEMENT_SCHEMA.find(s => s.id === 'stageTitleDivider').fields.some(f => f.key === 'width'));
+  assert.equal(SPONSOR_KEAZ_DEFAULTS.stageTitleDivider.width, 360);
+  const old = { stageSubtitle: { x: 950, y: 250 }, stageTitleDivider: { x: 960, y: 210 }, stageOrganizer1: { scale: .9 }, stagePartner2: { x: 1400, scale: .8 } };
+  const next = migratePartnersTitleAndKeaz(old);
+  assert.deepEqual(next.stageSubtitle, {x: 950, y: 230});
+  assert.deepEqual(next.stageTitleDivider, {x: 960, y: 190});
+  assert.deepEqual(next.stagePartner2, {x: 1400, scale: .9});
+  assert.equal(old.stageSubtitle.y, 250);
+  assert.equal(old.stagePartner2.scale, .8);
 });

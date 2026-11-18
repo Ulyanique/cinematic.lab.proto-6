@@ -202,3 +202,16 @@ export function migrateEqualPartnerLogoWidths(saved) {
   }
   return next;
 }
+
+/** Поднимаем подпись с разделителем, а КЭАЗ выравниваем по ширине организатора. */
+export function migratePartnersTitleAndKeaz(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  for (const id of ['stageSubtitle', 'stageTitleDivider']) {
+    if (Number.isFinite(next[id]?.y)) next[id].y = Math.max(0, next[id].y - 20);
+  }
+  if (next.stagePartner2 && typeof next.stagePartner2 === 'object') {
+    const organizerScale = next.stageOrganizer1?.scale;
+    next.stagePartner2.scale = Number.isFinite(organizerScale) && organizerScale > 0 ? organizerScale : 1;
+  }
+  return next;
+}
