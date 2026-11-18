@@ -28,7 +28,7 @@ import {
   SCHEMA, cloneDefaults as cloneSchemaDefaults, configToJSON, parseConfigJSON, parseProjectJSON,
 } from "./config.js";
 import { isProjectPayload } from "./ui/dom.js";
-import { depthOrder, depthOrderStep, depthOrderReset } from "./depth-order.js";
+import { sceneDepthOrder, sceneDepthOrderStep, sceneDepthOrderReset } from "./depth-order.js";
 import {
   saveSceneSnapshot, loadSceneSnapshot, hasSceneSnapshot, encodeConfigShareHash,
 } from "./scene-snapshots.js";
@@ -342,9 +342,9 @@ panels = createStudioPanels({
   // Сброс к стандартным: поле, раздел, отдельный эффект и вся сцена.
   onReset: (scope) => resetSceneConfig(sceneId, scope),
   // Порядок слоёв по глубине: список один для всех ролей программы.
-  depthOrder,
-  depthOrderStep,
-  depthOrderReset,
+  depthOrder: sceneDepthOrder,
+  depthOrderStep: sceneDepthOrderStep,
+  depthOrderReset: sceneDepthOrderReset,
   // В стеке эффектов каждая строка — отдельный эффект со своим сбросом.
   effectKeys: { fxStack: EFFECT_KEYS },
   onCommand: (section, key, value, options) => {
@@ -352,6 +352,7 @@ panels = createStudioPanels({
     // кладётся в собственный раздел конфига и сцену не перестраивает.
     if (section === "depthOrder") {
       commitSceneConfig(sceneId, (config) => {
+        if (key === "lab2LayerOrder") { config.lab2LayerOrder = value; return; }
         config.depthOrder = { ...(config.depthOrder || {}), [key]: value };
         // Ручной режим включается первой же стрелкой и выключается сбросом.
         if (key === "enabled" && value !== true) config.depthOrder.enabled = false;

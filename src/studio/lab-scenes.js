@@ -9,7 +9,7 @@ import { TL as LAB5_TL } from "./lab5/timeline.ts";
 import { drawLab5Overlay } from "./lab5/overlay.ts";
 import { loadLab5Fonts } from "./lab5/fonts.ts";
 import { lab2Source, lab5Source } from "./scenes/labs.js";
-import { depthOrder, depthOrderEnabled, introDepthOrder } from "./depth-order.js";
+import { introSceneOrderOverride } from "./depth-order.js";
 import { localCycleTime, repeatTime } from "./playback.js";
 import { cycleDuration } from "./runtime.js";
 import { holdForDuration } from "./operator-timeline.js";
@@ -98,7 +98,7 @@ export class Lab2Scene extends LabScene {
     this.intro.embeddedSize = [this.W, this.H];
     this.intro.onWarn = () => { if (!this.disposed) window.__logo?.renderAt?.(window.__logo.time); };
     // Порядок слоёв — из общей панели студии (если ручной режим включён).
-    this.intro.setDepthOrder?.(depthOrderEnabled(cfg) ? introDepthOrder(depthOrder(cfg), this.intro.cfg.order) : null);
+    this.intro.setDepthOrder?.(introSceneOrderOverride(cfg));
     this._readyPromise = this.intro.init().then(() => { this.ready = !this.disposed; });
     this._redrawWhenReady();
   }
@@ -109,7 +109,7 @@ export class Lab2Scene extends LabScene {
     this.intro.setConfig(this.lab);
     // Порядок слоёв приходит из общей панели «Слои» и раскладывается на
     // собственные слои лаборатории: список для человека один.
-    this.intro.setDepthOrder?.(depthOrderEnabled(this.cfg) ? introDepthOrder(depthOrder(this.cfg), this.intro.cfg.order) : null);
+    this.intro.setDepthOrder?.(introSceneOrderOverride(this.cfg));
   }
 
   update(t) {

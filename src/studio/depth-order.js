@@ -172,3 +172,41 @@ export function applyDepthOrder(config, scene) {
   // отрисовки прозрачных слоёв, а глубина золота — из настроек знака.
   if (scene.logo?.root) scene.logo.root.renderOrder = band('logo') ?? scene.logo.root.renderOrder;
 }
+
+// Собственные слои интро: порядок хранится отдельно в каждой сцене.
+export const INTRO_LAYER_ORDER = Object.freeze(['fx', 'dividers', 'date', 'subtitle', 'title', 'logo', 'compass', 'rings', 'particles']);
+export const INTRO_DEPTH_LABELS = Object.freeze({ fx: 'Световые эффекты', dividers: 'Разделители', date: 'Дата', subtitle: 'Подзаголовок', title: 'Название', logo: 'Эмблема', compass: 'Циркуль', rings: 'Угловые кольца', particles: 'Пыль и боке' });
+export const isIntroDepthScene = id => ['lab-swarm', 'lab-swarm-brand', 'lab-swarm-outro'].includes(id);
+
+/** Интро хранит порядок от ближнего к дальнему; старые настройки глубины сохраняем. */
+export function introSceneOrder(config) {
+  const saved = config?.lab2LayerOrder;
+  if (Array.isArray(saved)) {
+    const valid = saved.filter((id, i) => INTRO_LAYER_ORDER.includes(id) && saved.indexOf(id) === i);
+    return [...valid, ...INTRO_LAYER_ORDER.filter(id => !valid.includes(id))];
+  }
+  return depthOrderEnabled(config) ? introDepthOrder(depthOrder(config), INTRO_LAYER_ORDER) : [...INTRO_LAYER_ORDER];
+}
+
+/** Не меняем исходный рендер, пока пользователь не задавал порядок. */
+export function introSceneOrderOverride(config) {
+  return Array.isArray(config?.lab2LayerOrder) || depthOrderEnabled(config) ? introSceneOrder(config) : null;
+}
+
+/** Возвращает только глубины, действительно поддерживаемые движком сцены. */
+export function sceneDepthOrder(config, sceneId) {
+  if (isIntroDepthScene(sceneId)) return introSceneOrder(config).reverse();
+  if (['waiting', 'brand', 'photo-pause', 'finale'].includes(sceneId)) return depthOrder(config);
+  return [];
+}
+export function sceneDepthOrderStep(config, sceneId, id, direction) {
+  if (!isIntroDepthScene(sceneId)) return sceneDepthOrder(config, sceneId).length ? depthOrderStep(config, id, direction) : null;
+  const order = introSceneOrder(config);
+  const at = order.indexOf(id), target = direction === 'front' ? at - 1 : at + 1;
+  if (at < 0 || target < 0 || target >= order.length) return null;
+  [order[at], order[target]] = [order[target], order[at]];
+  return [{ key: 'lab2LayerOrder', value: order }];
+}
+export function sceneDepthOrderReset(sceneId) {
+  return isIntroDepthScene(sceneId) ? [{ key: 'lab2LayerOrder', value: [...INTRO_LAYER_ORDER] }] : depthOrderReset();
+}

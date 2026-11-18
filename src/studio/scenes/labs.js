@@ -96,7 +96,11 @@ function convertField(f) {
 
 const lab2Sections = LAB2_SCOPES.map(([scope, title]) => {
   const seen = new Set();
-  const fields = [];
+  // В исходной схеме переключатели включения были вынесены за список полей.
+  // Без них иконки в панели были только декоративными.
+  const fields = Object.hasOwn(DEFAULT_CONFIG.layers, scope)
+    ? [{ key: 'enabled', label: 'Показывать слой', type: 'bool' }] : [];
+  if (fields.length) seen.add('enabled');
   for (const group of LAB2_SCHEMA[scope] || []) {
     for (const f of group.fields) {
       if (SKIP(scope, f.k) || seen.has(f.k)) continue;

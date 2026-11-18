@@ -1,7 +1,7 @@
 import { createFloatPanel, ICON_LAYERS, ICON_GEAR, ICON_EXPORT } from './float-panel.js';
 import { icon as ico } from './icons.js';
 import { groupLayers, layerMeta } from './layer-registry.js';
-import { DEPTH_LABELS } from '../depth-order.js';
+import { DEPTH_LABELS, INTRO_DEPTH_LABELS, isIntroDepthScene } from '../depth-order.js';
 import { eyeKey as ruleEyeKey, SECTION_NOTES } from './field-rules.js';
 import { isInteractiveTarget } from './dom.js';
 import { FRAME_SECTIONS, frameSummary, probeDeliveries } from '../output-settings.js';
@@ -176,6 +176,7 @@ export function createStudioPanels({
     const depthBlock = layers.body.querySelector('.lyr-depth');
     if (depthBlock) depthBlock.hidden = false;
     for (const group of layers.body.querySelectorAll('.lyr-group')) {
+      if (group.classList.contains('lyr-depth')) { group.hidden = Boolean(q); continue; }
       let shown = 0;
       for (const row of group.querySelectorAll('.lyr-row')) {
         const text = row.textContent.toLowerCase();
@@ -197,7 +198,7 @@ export function createStudioPanels({
    */
   function renderDepth(frag) {
     const state = getState();
-    const order = typeof depthOrder === 'function' ? depthOrder(state.config) : [];
+    const order = typeof depthOrder === 'function' ? depthOrder(state.config, state.sceneId) : [];
     if (!order.length) return;
     const section = document.createElement('section');
     section.className = 'lyr-group lyr-depth';
@@ -215,7 +216,7 @@ export function createStudioPanels({
 
     const note = document.createElement('p');
     note.className = 'lyr-depth-note';
-    note.textContent = 'Выше — ближе к зрителю. Порядок применяется ко всем роликам и попадает в видео.';
+    note.textContent = 'Выше — ближе к зрителю. Порядок сохраняется для этого ролика и попадает в видео.';
     body.appendChild(note);
 
     if (typeof depthOrderReset === 'function') {
@@ -224,9 +225,8 @@ export function createStudioPanels({
       reset.className = 'lyr-depth-reset';
       reset.innerHTML = withIcon('reset', 'Стандартный порядок', 12);
       reset.title = 'Вернуть исходный порядок слоёв';
-      reset.title = 'Вернуть исходный порядок слоёв';
       reset.addEventListener('click', () => {
-        for (const change of depthOrderReset()) onCommand?.('depthOrder', change.key, change.value);
+        for (const change of depthOrderReset(state.sceneId)) onCommand?.('depthOrder', change.key, change.value);
         renderLayers();
       });
       body.appendChild(reset);
@@ -241,7 +241,7 @@ export function createStudioPanels({
       row.dataset.depth = id;
       const label = document.createElement('span');
       label.className = 'lyr-depth-label';
-      label.textContent = DEPTH_LABELS[id] || id;
+      label.textContent = (isIntroDepthScene(state.sceneId) ? INTRO_DEPTH_LABELS[id] : DEPTH_LABELS[id]) || id;
       const controls = document.createElement('span');
       controls.className = 'lyr-depth-controls';
       const step = (direction, glyph, title, disabled) => {
@@ -253,7 +253,7 @@ export function createStudioPanels({
         button.setAttribute('aria-label', title);
         button.disabled = disabled;
         button.addEventListener('click', () => {
-          const changes = depthOrderStep?.(getState().config, id, direction);
+          const changes = depthOrderStep?.(getState().config, getState().sceneId, id, direction);
           if (!changes) return;
           for (const change of changes) onCommand?.('depthOrder', change.key, change.value);
           renderLayers();
@@ -322,7 +322,7 @@ export function createStudioPanels({
 
         const eye = key
           ? `<button type="button" class="lyr-eye" data-role="eye" aria-pressed="${enabled}" title="${enabled ? 'Скрыть слой' : 'Показать слой'}">${ico(enabled ? 'eye' : 'eyeOff', 14)}</button>`
-          : `<span class="lyr-eye is-empty" aria-hidden="true">${ico('eye', 14)}</span>`;
+          : `<span class="lyr-eye is-empty" aria-hidden="true"></span>`;
         row.innerHTML = `${eye}<span class="lyr-text"><b>${meta.label}</b><i>${meta.hint || ''}</i></span>`;
 
         row.addEventListener('click', (event) => {
