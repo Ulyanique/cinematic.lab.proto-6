@@ -17,8 +17,8 @@ export function sponsorDragElements(cfg) {
   const items = [
     ['stageFrame', 1710, 930],
     ['stageCompass', 360, 370], ['stageOrnament', 1240, 250],
-    ['stageOrganizer1', 590, 170], ['stageOrganizer2', 590, 170],
-    ['stagePartner1', 590, 170], ['stagePartner2', 590, 170], ['stageSingleMark', 700, 230],
+    ['stageOrganizer1', 440, 160], ['stageOrganizer2', 440, 160],
+    ['stagePartner1', 440, 160], ['stagePartner2', 440, 160], ['stageSingleMark', 700, 230],
     ['stageOrganizerLabel', 460, 50], ['stageCoorganizerLabel', 460, 50],
     ['stagePartnerLabel', 460, 50], ['stagePartnerLabel2', 460, 50],
     ['stageTitle', 1000, 75], ['stageSubtitle', 800, 60], ['stageTitleDivider', 360, 18],

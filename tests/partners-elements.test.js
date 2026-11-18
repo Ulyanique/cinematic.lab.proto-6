@@ -16,7 +16,7 @@ test('editable layers are scene-specific, independently configured, and have eye
     assert.equal(sectionAllowed('partners', id), true);
     assert.equal(sectionAllowed('sponsor-keaz', id), true);
   }
-  assert.equal(PARTNERS_DEFAULTS.stagePartner2.scale, .8);
+  assert.equal(PARTNERS_DEFAULTS.stagePartner2.scale, 1);
   assert.equal(SPONSOR_KEAZ_DEFAULTS.stageSingleMark.x, 960);
   assert.equal(PARTNERS_DEFAULTS.partners.curtainWidth, 168);
 });

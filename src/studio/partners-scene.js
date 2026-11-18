@@ -7,6 +7,7 @@ import promrukavUrl from './assets/partners/promrukav.svg';
 import keazUrl from './assets/partners/keaz.svg';
 import { drawPartnersDecor, drawAmberAtmosphere, drawBreathingBackground } from './partners-graphics.js';
 import { elementVisibility, labelLineLayout } from './partners-elements.js';
+import { partnerLogoSize, visibleLogoBounds } from './partner-logo-layout.js';
 import { createPartnersOrnamentLayer } from './partners-ornament-layer.js';
 import { createPartnersCurtains } from './partners-curtains.js';
 import { createPartnersLight } from './partners-light.js';
@@ -63,9 +64,8 @@ export function setPartnersLogoStyle(style) {
   }
 }
 
-// На экране логотип не шире MARK_MAX_WIDTH и не выше MARK_MAX_HEIGHT (см. company()).
-// Готовить его в 1200 px значило держать 14× лишних пикселей и вчетверо больше
-// памяти; масштаб 2× оставляем на смену мастер-профиля и чёткость.
+// Размер промежуточной текстуры ограничен, чтобы не держать лишние пиксели;
+// в общей заставке видимая ширина выравнивается после удаления прозрачных полей.
 // Буфер для блика по золоту: пересобирается в размер знака, поэтому создаётся
 // один раз, а не на каждый кадр (в кадре до четырёх знаков).
 let glintBuffer = null;
@@ -122,10 +122,8 @@ const MARK_SUPERSAMPLE = 2;
 /**
  * Готовит знак к отрисовке: подгоняет под экранный размер и заливает золотом.
  *
- * Прозрачные поля вокруг рисунка срезаются: исходные SVG приходят с разным
- * запасом (у одного 6 % сверху, у другого 20 %), и знаки на экране получались
- * разного веса при одинаковой высоте блока. По срезанным границам вызывающая
- * сторона может выровнять их по оптической массе, а не по пустому полю.
+ * Прозрачные поля удаляются отдельно при подготовке общего кадра, чтобы
+ * пользовательские файлы и встроенные знаки выравнивались по видимой ширине.
  */
 export function renderPartnerMark(image, style = 'gold') {
   const w = Math.max(1, image.naturalWidth || image.width || 600);
@@ -153,26 +151,31 @@ export function renderPartnerMark(image, style = 'gold') {
  * Возвращает доли 0..1; при неудаче — весь канвас.
  */
 export function markBounds(canvas) {
-  const whole = { x: 0, y: 0, width: canvas.width, height: canvas.height };
+  const whole = { x: 0, y: 0, width: 1, height: 1 };
   let ctx;
   try { ctx = canvas.getContext('2d', { willReadFrequently: true }); } catch (e) { return whole; }
   if (!ctx) return whole;
   const { width, height } = canvas;
   let data;
   try { data = ctx.getImageData(0, 0, width, height).data; } catch (e) { return whole; }
-  let minX = width, minY = height, maxX = -1, maxY = -1;
-  for (let y = 0; y < height; y++) {
-    const row = y * width * 4;
-    for (let x = 0; x < width; x++) {
-      // Порог 24 из 255 отсекает почти прозрачную кромку сглаживания.
-      if (data[row + x * 4 + 3] > 24) {
-        if (x < minX) minX = x; if (x > maxX) maxX = x;
-        if (y < minY) minY = y; if (y > maxY) maxY = y;
-      }
-    }
-  }
-  if (maxX < minX || maxY < minY) return whole;
-  return { x: minX / width, y: minY / height, width: (maxX - minX + 1) / width, height: (maxY - minY + 1) / height };
+  // Отсечь почти прозрачную кромку сглаживания, сохранив пропорции.
+  return visibleLogoBounds(data, width, height);
+}
+
+// Прозрачные поля у присланных файлов различаются; кадрируем по видимым
+// пикселям один раз, чтобы именно видимые ширины логотипов совпадали.
+const trimmedMarks = new WeakMap();
+function visiblePartnerMark(canvas) {
+  if (trimmedMarks.has(canvas)) return trimmedMarks.get(canvas);
+  const bounds = markBounds(canvas);
+  const x = Math.round(bounds.x * canvas.width), y = Math.round(bounds.y * canvas.height);
+  const w = Math.max(1, Math.min(canvas.width - x, Math.round(bounds.width * canvas.width)));
+  const h = Math.max(1, Math.min(canvas.height - y, Math.round(bounds.height * canvas.height)));
+  const result = document.createElement('canvas');
+  result.width = w; result.height = h;
+  result.getContext('2d').drawImage(canvas, x, y, w, h, 0, 0, w, h);
+  trimmedMarks.set(canvas, result);
+  return result;
 }
 
 const outlineUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(introOutlineSvg(introLogoSvg))}`;
@@ -738,7 +741,8 @@ export class PartnersScene {
       fit *= element.scale ?? 1;
       const layerVisible = visible * (element.opacity ?? 1);
       const value = this.single ? (data.mark === 'keaz' ? 'КЭАЗ' : 'Промрукав') : data[key];
-      const logo = marks[key];
+      const sourceLogo = marks[key];
+      const logo = sourceLogo && !this.single ? visiblePartnerMark(sourceLogo) : sourceLogo;
       // Мягкий подъём с перелётом: p идёт 0→1, overshoot даёт «доезд».
       const p = entry <= 0 ? 0 : Math.min(1.06, easeOutBack(entry));
       const rise = (1 - Math.min(1, p)) * 26;
@@ -750,12 +754,12 @@ export class PartnersScene {
       // бралась до ограничения пары, а ширина ужималась отдельно — правые
       // знаки (ПРОэлектрощит, КЭАЗ) выходили сжатыми по горизонтали в 1.25 и
       // 1.34 раза. Логотип искажать нельзя ни при каких раскладках.
-      const scale = Math.min(MARK_MAX_WIDTH / logo.width, MARK_MAX_HEIGHT / logo.height) * fit;
-      const lw = logo.width * scale;
-      const lh = logo.height * scale;
+      const size = partnerLogoSize(logo.width, logo.height, { single: this.single, scale: fit });
+      const lw = size.width;
+      const lh = size.height;
       // Масштаб группы: 0.955 → 1, на перелёте — до 1.008.
       // В конце входа знаки замирают: устойчивый кадр можно держать на GPU.
-      const breathe = cue.idle * 0.004 * Math.sin(visualTime * 0.62 + phaseIdx * 1.7);
+      const breathe = this.single ? cue.idle * 0.004 * Math.sin(visualTime * 0.62 + phaseIdx * 1.7) : 0;
       const floatY = cue.idle * 2.1 * Math.sin(visualTime * 0.5 + phaseIdx * 2.1);
       const grow = 0.955 + 0.045 * p + breathe;
       const cx = x, cy = y + rise + floatY;
@@ -777,8 +781,8 @@ export class PartnersScene {
       }
       ctx.translate(cx, cy);
       ctx.scale(grow, grow);
-      // Клип по кадру при входе остаётся: он не даёт знаку «вылезать» за блок.
-      ctx.beginPath(); ctx.rect(-295 * fit, -85 * fit, 590 * fit, 170 * fit); ctx.clip();
+      // В персональных заставках прежний клип; на общей не обрезаем высокие знаки.
+      if (this.single) { ctx.beginPath(); ctx.rect(-295 * fit, -85 * fit, 590 * fit, 170 * fit); ctx.clip(); }
       ctx.drawImage(logo, -lw / 2, -lh / 2, lw, lh);
       // Блик проходит уже по проявленному знаку — иначе он светит в пустоту.
       if (!holding) drawMarkGlint(ctx, logo, -lw / 2, -lh / 2, lw, lh,

@@ -4,7 +4,7 @@ export const PARTNERS_ELEMENTS = Object.freeze([
   spec('stageOrganizer1', 'Организатор · логотип', 430, 260, { start: 57, end: 65 }),
   spec('stageOrganizer2', 'Соорганизатор · логотип', 1380, 260, { start: 67, end: 75 }),
   spec('stagePartner1', 'Спонсор 1 · логотип', 410, 500, { start: 77, end: 85 }),
-  spec('stagePartner2', 'Спонсор 2 · логотип', 1490, 500, { scale: .8, start: 87, end: 98 }),
+  spec('stagePartner2', 'Спонсор 2 · логотип', 1490, 500, { start: 87, end: 98 }),
   spec('stageSingleMark', 'Логотип спонсора', 960, 220, { start: 57, end: 65 }),
   spec('stageOrganizerLabel', 'Подпись организатора', 510, 175, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
   spec('stageCoorganizerLabel', 'Подпись соорганизатора', 1300, 175, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),

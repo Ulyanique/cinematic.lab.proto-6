@@ -193,3 +193,12 @@ export function migratePartnersCompassContrast(saved) {
   if (next.stageCompass?.opacity === .42) next.stageCompass.opacity = 1;
   return next;
 }
+
+/** По просьбе выравниваем размеры четырёх логотипов, сохраняя остальные правки. */
+export function migrateEqualPartnerLogoWidths(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  for (const id of ['stageOrganizer1', 'stageOrganizer2', 'stagePartner1', 'stagePartner2']) {
+    if (next[id] && typeof next[id] === 'object') next[id].scale = 1;
+  }
+  return next;
+}
