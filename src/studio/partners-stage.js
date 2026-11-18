@@ -25,8 +25,9 @@ export function partnersStageCues(phase, timeline, motion = 1, curtainFadePercen
     progress: p, visible, background: smooth(.04, .30, p),
     // Шторы проявляются из чёрного и гаснут при обратном движении.
     curtainOpacity: smooth(0, fadeEnd, p), curtainOpen,
-    compass: smooth(.25, .39, p), compassShrink: smooth(.42, .57, p),
-    title: twoStageCurtains ? smooth(.35, .55, p) : smooth(.55, .66, p),
+    compass: smooth(.25, .39, p), compassShrink: twoStageCurtains ? smooth(.39, .50, p) : smooth(.42, .57, p),
+    // В общей сцене текст появляется только после уменьшения эмблемы.
+    title: twoStageCurtains ? smooth(.50, .60, p) : smooth(.55, .66, p),
     organizerLabel: organizer, organizer, organizerSecond,
     partnerLabel: partner, partner, partnerSecond,
     frame: smooth(.12, .36, p), curtain: 0, shadow: idle, idle,

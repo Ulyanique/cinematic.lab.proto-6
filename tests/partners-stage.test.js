@@ -180,7 +180,7 @@ test('central emblem and heading complete before any group mark appears', async 
   const { migratePartnersCenterFirst } = await import('../src/studio/partners-stage.js');
   const t = PARTNERS_DEFAULTS.timeline;
   const entry = t.drawDuration + t.emergeDuration;
-  const cue = partnersStageCues({local:entry * .59}, t, 1, 8, true);
+  const cue = partnersStageCues({local:entry * .60}, t, 1, 8, true);
   assert.equal(cue.compass, 1); assert.equal(cue.compassShrink, 1); assert.equal(cue.title, 1);
   for (const id of ['stageOrganizer1','stageOrganizer2','stagePartner1','stagePartner2']) {
     assert.equal(elementVisibility(cue.progress, PARTNERS_DEFAULTS[id]), 0);
@@ -190,4 +190,19 @@ test('central emblem and heading complete before any group mark appears', async 
   assert.deepEqual(next.stageOrganizer1,{start:60,end:68,x:40});
   assert.deepEqual(next.stagePartner2, old.stagePartner2);
   assert.equal(old.stageOrganizer1.start, 57);
+});
+
+
+test('group heading waits until the large emblem has finished shrinking', () => {
+  const group = p => partnersStageCues({local: p * 5}, tl, 1, 8, true);
+  for (const p of [.25, .39, .42, .45, .49]) {
+    assert.equal(group(p).title, 0);
+  }
+  assert.equal(group(.5).compassShrink, 1);
+  assert.equal(group(.5).title, 0);
+  assert.ok(group(.55).title > 0 && group(.55).title < 1);
+  assert.equal(group(.60).title, 1);
+  assert.equal(group(.60).organizer, 0);
+  // Персональные заставки сохраняют прежний порядок.
+  assert.equal(at(2.5).compassShrink < 1, true);
 });
