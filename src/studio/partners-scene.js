@@ -7,6 +7,7 @@ import promrukavUrl from './assets/partners/promrukav.svg';
 import keazUrl from './assets/partners/keaz.svg';
 import { drawPartnersDecor, drawAmberAtmosphere, drawBreathingBackground } from './partners-graphics.js';
 import { createPartnersGlitter } from './partners-glitter.js';
+import { createPartnersFrameGlint } from './partners-frame-glint.js';
 import { partnersStageCues, drawStageCurtains, partnersHoldCacheKey } from './partners-stage.js';
 import introLogoSvg from './lab2/logo.svg?raw';
 import { introOutlineSvg } from './partners-stage.js';
@@ -319,6 +320,8 @@ export class PartnersScene {
     this.cardScene.add(this.cardMesh);
     this.glitter = createPartnersGlitter();
     this.cardScene.add(this.glitter.points);
+    this.frameGlint = createPartnersFrameGlint();
+    this.cardScene.add(this.frameGlint.mesh);
     this._w = 0; this._h = 0;
     this.resize();
   }
@@ -408,6 +411,11 @@ export class PartnersScene {
     const holding = phase.name === 'hold' && !phase.beforeStart;
     const cue = partnersStageCues(phase, this.cfg.timeline, this.cfg.partners.motion ?? 1);
     this.glitter.points.visible = holding && cue.visible > 0;
+    const glintOpacity = this.cfg.partners.frameVisible !== false && cue.curtainOpen >= .999
+      ? cue.visible * cue.frame * Math.max(0, Math.min(1, this.cfg.partners.motion ?? 1)) : 0;
+    this.frameGlint.mesh.visible = glintOpacity > .001;
+    this.frameGlint.uniforms.time.value = phase.local;
+    this.frameGlint.uniforms.opacity.value = glintOpacity;
     if (holding) {
       const u = this.glitter.uniforms;
       u.time.value = phase.local; u.period.value = phase.cycle;
@@ -470,7 +478,7 @@ export class PartnersScene {
       const size = 600 - 260 * cue.compassShrink;
       const height = size * 4133.76 / 3937.77;
       ctx.save(); ctx.globalAlpha = visible * cue.compass * .42;
-      ctx.drawImage(introOutlineImage, 960 - size / 2, 455 - height / 2, size, height);
+      ctx.drawImage(introOutlineImage, 960 - size / 2, 540 - height / 2, size, height);
       ctx.restore();
     }
     const text = (value, x, y, font, color, alpha, maxWidth, entry = 1) => {
@@ -480,10 +488,10 @@ export class PartnersScene {
     };
     const warm = '#d2ac70', ivory = '#f6e4be';
     // Подпись появляется под уменьшившейся эмблемой, а не поверх неё.
-    text(String(data.title ?? 'Янтарный циркуль').toLocaleUpperCase('ru'), 960, 685,
-      '600 48px "Cormorant Garamond", Georgia, serif', '#ecd4a1', visible * cue.title, 650, cue.title);
-    text(String(data.subtitle ?? 'вечер ретроспектива').toLocaleLowerCase('ru'), 960, 740,
-      '400 29px "Cormorant Garamond", Georgia, serif', '#c8a873', visible * cue.title, 580, cue.title);
+    text(String(data.title ?? 'Янтарный циркуль').toLocaleUpperCase('ru'), 960, 780,
+      '600 58px "Cormorant Garamond", Georgia, serif', '#ecd4a1', visible * cue.title, 650, cue.title);
+    text(String(data.subtitle ?? 'вечер ретроспектива').toLocaleLowerCase('ru'), 960, 845,
+      '400 36px "Cormorant Garamond", Georgia, serif', '#c8a873', visible * cue.title, 580, cue.title);
 
     const trackedLabel = (value, x, y, alpha, entry) => {
       ctx.save();
@@ -642,6 +650,7 @@ export class PartnersScene {
 
   dispose() {
     this.glitter.dispose();
+    this.frameGlint.dispose();
     this._textures.forEach(texture => texture.dispose());
     this.cardMesh.geometry.dispose();
     this.cardMesh.material.dispose();
