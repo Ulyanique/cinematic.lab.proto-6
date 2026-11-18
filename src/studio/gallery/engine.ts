@@ -4,7 +4,6 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
-import { ConvexGeometry } from 'three/examples/jsm/geometries/ConvexGeometry.js'
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js'
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
@@ -13,6 +12,7 @@ import { MediaSlot } from './media'
 import { clipMediaTime, continuousCameraTime, finaleDim, lightOrbit, lightPanelIndex, lightVisibility, panelMote } from './timeline'
 import { Finale } from './finale'
 import { dotTexture, glowTexture, starTexture } from './textures'
+import { bgVert, bgFrag } from '../lab2/shaders'
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a)
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
@@ -62,6 +62,7 @@ export class GalleryEngine {
   private camera = new THREE.PerspectiveCamera(52, 1, 0.1, 3000)
   private corridor = new THREE.Group()
   private finale: Finale
+  private bgMat!: THREE.ShaderMaterial
   private lineMats: LineMaterial[] = []
   private panels: Panel[] = []
   private slots: MediaSlot[] = []
@@ -120,11 +121,12 @@ export class GalleryEngine {
     this.scene.background = new THREE.Color(0x070402)
     this.scene.fog = new THREE.FogExp2(0x0d0804, 0.0115)
     this.scene.add(this.corridor)
+    this.buildBackground()
 
     this.buildEnvironment()
     this.buildCurve()
     const goldMat = this.buildLights()
-    this.buildShards()
+    this.buildMonoliths()
     this.buildFloor()
     this.buildDust()
 
@@ -317,6 +319,30 @@ export class GalleryEngine {
 
   // ───────────────────────── построение сцены ─────────────────────────
 
+  /** Фон как в интро: экранный шейдер с лучами, лентами и блёстками. */
+  private buildBackground() {
+    this.bgMat = new THREE.ShaderMaterial({
+      vertexShader: bgVert,
+      fragmentShader: bgFrag,
+      depthTest: false,
+      depthWrite: false,
+      uniforms: {
+        uTime: { value: 0 },
+        uAspect: { value: 16 / 9 },
+        uBeam: { value: 0.6 },
+        uRib: { value: 0.5 },
+        uGlow: { value: 0.3 },
+        uFlash: { value: 0 },
+        uFinal: { value: 0 },
+        uCam: { value: new THREE.Vector2() },
+      },
+    })
+    const bg = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.bgMat)
+    bg.frustumCulled = false
+    bg.renderOrder = -100
+    this.scene.add(bg)
+  }
+
   private buildEnvironment() {
     const s = new THREE.Scene()
     s.background = new THREE.Color(0x0a0603)
@@ -388,7 +414,8 @@ export class GalleryEngine {
     return m
   }
 
-  private buildShards() {
+  /** Вертикальные монолиты-прямоугольники разных размеров вдоль коридора. */
+  private buildMonoliths() {
     const mats = [
       new THREE.MeshStandardMaterial({ color: 0xcf9a3c, metalness: 0.88, roughness: 0.32, flatShading: true }),
       new THREE.MeshStandardMaterial({ color: 0x8a6126, metalness: 0.85, roughness: 0.42, flatShading: true }),
@@ -397,169 +424,98 @@ export class GalleryEngine {
     ]
     const pickMat = () => mats[Math.random() < 0.34 ? 0 : Math.random() < 0.45 ? 1 : Math.random() < 0.6 ? 2 : 3]
 
-    const mirror = new THREE.Group()
-    mirror.scale.y = -1
-    mirror.position.y = 2 * FLOOR_Y
-
     const linePos: number[] = []
     const lineCol: number[] = []
     const base = new THREE.Color(1.0, 0.8, 0.42)
     const v = new THREE.Vector3()
     const v2 = new THREE.Vector3()
 
-    const addShard = (geo: THREE.BufferGeometry, pos: THREE.Vector3, rot: THREE.Euler) => {
+    const addMonolith = (w: number, h: number, d: number, pos: THREE.Vector3, yaw: number) => {
+      const geo = new THREE.BoxGeometry(w, h, d)
       const m = new THREE.Mesh(geo, pickMat())
       m.position.copy(pos)
-      m.rotation.copy(rot)
+      m.rotation.y = yaw
       m.updateMatrix()
       this.corridor.add(m)
-      const mc = new THREE.Mesh(geo, m.material)
-      mc.position.copy(pos)
-      mc.rotation.copy(rot)
-      mirror.add(mc)
-      // светящиеся рёбра
-      const eg = new THREE.EdgesGeometry(geo, 22)
+      // светящиеся рёбра прямоугольника
+      const eg = new THREE.EdgesGeometry(geo)
       const p = eg.getAttribute('position')
-      const prob = Math.random() < 0.55 ? 0.13 : 0.04
       for (let i = 0; i < p.count; i += 2) {
         v.fromBufferAttribute(p, i)
         v2.fromBufferAttribute(p, i + 1)
-        const len = v.distanceTo(v2)
-        if (len < 2.2 || Math.random() > prob) continue
         v.applyMatrix4(m.matrix)
         v2.applyMatrix4(m.matrix)
         const k = 0.45 + Math.pow(Math.random(), 2) * 0.8
         linePos.push(v.x, v.y, v.z, v2.x, v2.y, v2.z)
         lineCol.push(base.r * k, base.g * k, base.b * k, base.r * k, base.g * k, base.b * k)
-        // отражение
-        const kk = k * 0.38
-        linePos.push(v.x, 2 * FLOOR_Y - v.y, v.z, v2.x, 2 * FLOOR_Y - v2.y, v2.z)
-        lineCol.push(base.r * kk, base.g * kk, base.b * kk, base.r * kk, base.g * kk, base.b * kk)
       }
       eg.dispose()
     }
 
     const total = S(FLASH_T) + 70
     const P = new THREE.Vector3()
-    // колонны
-    for (let n = 0; n < 75; n++) {
+    // вертикально стоящие прямоугольники разных размеров, основания на полу
+    for (let n = 0; n < 80; n++) {
       const s = rand(-15, total)
       const side = Math.random() < 0.5 ? -1 : 1
-      const d = 23 + Math.pow(Math.random(), 1.3) * 32
+      const d = 16 + Math.pow(Math.random(), 1.2) * 38
       const pose = this.sample(s)
       P.copy(pose.p).addScaledVector(pose.r, side * d)
-      P.y = FLOOR_Y - 1.5
-      const h = rand(14, 62)
-      const pts: THREE.Vector3[] = []
-      const lean = new THREE.Vector3(rand(-1, 1) * 9, 0, rand(-1, 1) * 9)
-      const rx = rand(2.5, 7.5)
-      const rz = rand(2, 6.5)
-      const a0 = Math.random() * 6.28
-      for (let k = 0; k < 5; k++) {
-        const a = a0 + (k / 5) * 6.28 + rand(-0.3, 0.3)
-        pts.push(new THREE.Vector3(Math.cos(a) * rx, 0, Math.sin(a) * rz))
-      }
-      for (let k = 0; k < 4; k++) {
-        const a = a0 + (k / 4) * 6.28 + rand(-0.4, 0.4)
-        const y = h * rand(0.35, 0.65)
-        pts.push(new THREE.Vector3(Math.cos(a) * rx * 0.85 + lean.x * 0.5, y, Math.sin(a) * rz * 0.85 + lean.z * 0.5))
-      }
-      const tops = 3 + Math.floor(Math.random() * 2)
-      for (let k = 0; k < tops; k++) {
-        const a = a0 + (k / tops) * 6.28 + rand(-0.5, 0.5)
-        pts.push(new THREE.Vector3(Math.cos(a) * rx * rand(0.15, 0.55) + lean.x, h * rand(0.82, 1.04), Math.sin(a) * rz * rand(0.15, 0.55) + lean.z))
-      }
-      addShard(new ConvexGeometry(pts), P, new THREE.Euler(rand(-0.05, 0.05), Math.random() * 6.28, rand(-0.05, 0.05)))
+      const w = rand(2, 7.5)
+      const h = rand(9, 27)
+      const dep = rand(2, 7.5)
+      P.y = FLOOR_Y + h / 2
+      addMonolith(w, h, dep, P, Math.random() * Math.PI)
     }
-    // парящие кристаллы
-    for (let n = 0; n < 20; n++) {
-      const s = rand(-10, total)
-      const side = Math.random() < 0.5 ? -1 : 1
-      const d = rand(24, 42)
-      const pose = this.sample(s)
-      P.copy(pose.p).addScaledVector(pose.r, side * d)
-      P.y = rand(6, 42)
-      const sz = rand(2.5, 8)
-      const pts: THREE.Vector3[] = []
-      for (let k = 0; k < 9; k++) pts.push(new THREE.Vector3(rand(-1, 1) * sz, rand(-1, 1) * sz * 1.7, rand(-1, 1) * sz))
-      addShard(new ConvexGeometry(pts), P, new THREE.Euler(Math.random() * 6, Math.random() * 6, Math.random() * 6))
-    }
-    // потолочные «крылья» над трассой
-    for (let n = 0; n < 8; n++) {
-      const s = rand(0, total)
-      const pose = this.sample(s)
-      P.copy(pose.p).addScaledVector(pose.r, rand(-10, 10))
-      P.y = rand(30, 52)
-      const w = rand(10, 24)
-      const pts: THREE.Vector3[] = []
-      for (let k = 0; k < 8; k++) pts.push(new THREE.Vector3(rand(-1, 1) * w, rand(-1, 1) * 1.4, rand(-1, 1) * w))
-      addShard(new ConvexGeometry(pts), P, new THREE.Euler(rand(-0.3, 0.3), Math.random() * 6, rand(-0.3, 0.3)))
-    }
-
-    this.corridor.add(mirror)
 
     const g = new LineSegmentsGeometry()
     g.setPositions(linePos)
     g.setColors(lineCol)
-    const lines = new LineSegments2(g, this.makeLineMat(0.8, true))
+    const lines = new LineSegments2(g, this.makeLineMat(0.9, true))
     lines.frustumCulled = false
     this.corridor.add(lines)
   }
 
+  /** Пол и потолок — только грани полигонов: сами полигоны прозрачны,
+   *  видны золотые рёбра, как чертёж. */
   private buildFloor() {
-    const f = new THREE.Mesh(
-      new THREE.PlaneGeometry(260, 560),
-      new THREE.MeshStandardMaterial({ color: 0x0f0a06, metalness: 0.85, roughness: 0.22, transparent: true, opacity: 0.8, envMapIntensity: 0.7 }),
-    )
-    f.rotation.x = -Math.PI / 2
-    f.position.set(0, FLOOR_Y, -200)
-    this.corridor.add(f)
-
-    // Низкополигональные грани лежат на полу, а не парят в воздухе.
     const cols = 18, rows = 38
-    const points: THREE.Vector3[][] = []
-    for (let z = 0; z <= rows; z++) {
-      const row: THREE.Vector3[] = []
-      for (let x = 0; x <= cols; x++) {
-        const px = -90 + x * (180 / cols) + (x === 0 || x === cols ? 0 : rand(-2.2, 2.2))
-        const pz = 40 - z * (290 / rows) + (z === 0 || z === rows ? 0 : rand(-1.8, 1.8))
-        row.push(new THREE.Vector3(px, FLOOR_Y + 0.025, pz))
+    const gridEdges = (y: number) => {
+      const points: THREE.Vector3[][] = []
+      for (let z = 0; z <= rows; z++) {
+        const row: THREE.Vector3[] = []
+        for (let x = 0; x <= cols; x++) {
+          const px = -90 + x * (180 / cols) + (x === 0 || x === cols ? 0 : rand(-2.2, 2.2))
+          const pz = 40 - z * (290 / rows) + (z === 0 || z === rows ? 0 : rand(-1.8, 1.8))
+          row.push(new THREE.Vector3(px, y, pz))
+        }
+        points.push(row)
       }
-      points.push(row)
+      const edges: number[] = []
+      const push = (a: THREE.Vector3, b: THREE.Vector3) => edges.push(a.x, a.y, a.z, b.x, b.y, b.z)
+      for (let z = 0; z < rows; z++) {
+        for (let x = 0; x < cols; x++) {
+          const a = points[z][x], b = points[z][x + 1], c = points[z + 1][x], d = points[z + 1][x + 1]
+          if ((x + z) % 2) { push(a, b); push(b, c); push(c, a); push(b, d); push(d, c); push(c, b) }
+          else { push(a, b); push(b, d); push(d, a); push(a, d); push(d, c); push(c, a) }
+        }
+      }
+      return edges
     }
-    const vertices: number[] = [], colors: number[] = [], edges: number[] = []
-    const palette = [0x251a10, 0x352418, 0x49331c, 0x1b1510, 0x5a3e22]
-    const addTriangle = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3) => {
-      const color = new THREE.Color(palette[Math.floor(Math.random() * palette.length)])
-      for (const point of [a, b, c]) {
-        vertices.push(point.x, point.y, point.z)
-        colors.push(color.r, color.g, color.b)
-      }
-      for (const [p, q] of [[a, b], [b, c], [c, a]]) {
-        edges.push(p.x, p.y + 0.008, p.z, q.x, q.y + 0.008, q.z)
-      }
+    const addGrid = (y: number, width: number, opacity: number) => {
+      const g = new LineSegmentsGeometry()
+      g.setPositions(gridEdges(y))
+      const mat = this.makeLineMat(width, false)
+      mat.color = new THREE.Color(0xc39a60)
+      mat.transparent = true
+      mat.opacity = opacity
+      mat.depthWrite = false
+      const lines = new LineSegments2(g, mat)
+      lines.frustumCulled = false
+      this.corridor.add(lines)
     }
-    for (let z = 0; z < rows; z++) {
-      for (let x = 0; x < cols; x++) {
-        const a = points[z][x], b = points[z][x + 1], c = points[z + 1][x], d = points[z + 1][x + 1]
-        if ((x + z) % 2) { addTriangle(a, b, c); addTriangle(b, d, c) }
-        else { addTriangle(a, b, d); addTriangle(a, d, c) }
-      }
-    }
-    const geometry = new THREE.BufferGeometry()
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
-    geometry.computeVertexNormals()
-    const facets = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
-      vertexColors: true, metalness: 0.68, roughness: 0.42, transparent: true, opacity: 0.52, depthWrite: false, side: THREE.DoubleSide,
-    }))
-    this.corridor.add(facets)
-    const edgeGeometry = new THREE.BufferGeometry()
-    edgeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(edges, 3))
-    const seams = new THREE.LineSegments(edgeGeometry, new THREE.LineBasicMaterial({
-      color: 0xc39a60, transparent: true, opacity: 0.12, depthWrite: false,
-    }))
-    this.corridor.add(seams)
+    addGrid(FLOOR_Y, 2.0, 0.5)
+    addGrid(30, 1.6, 0.32)
   }
 
   private buildDust() {
@@ -645,11 +601,11 @@ export class GalleryEngine {
       const pFrameMat = frameMat.clone()
       pFrameMat.transparent = true
       const frame = new THREE.Mesh(
-        new THREE.ExtrudeGeometry(shape, { depth: 0.2, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.035, bevelSegments: 2 }),
+        new THREE.ExtrudeGeometry(shape, { depth: 0.6, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.14, bevelSegments: 3 }),
         pFrameMat,
       )
-      frame.position.z = -0.45
-      frame.scale.set(1.006, 1.01, 1)
+      frame.position.z = -0.95
+      frame.scale.set(1.018, 1.022, 1)
 
       // светящийся контур
       const lp: number[] = []
@@ -660,7 +616,7 @@ export class GalleryEngine {
       }
       const lg = new LineSegmentsGeometry()
       lg.setPositions(lp)
-      const lmat = new LineMaterial({ color: 0xffffff, linewidth: 1.0, worldUnits: false })
+      const lmat = new LineMaterial({ color: 0xffffff, linewidth: 2.4, worldUnits: false })
       lmat.color = new THREE.Color(0.78, 0.66, 0.48).multiplyScalar(0.75)
       lmat.fog = true
       lmat.transparent = true
@@ -779,6 +735,7 @@ export class GalleryEngine {
     this.composer.setSize(w, h)
     this.camera.aspect = w / h
     this.camera.updateProjectionMatrix()
+    this.bgMat.uniforms.uAspect.value = w / h
     this.lineMats.forEach((m) => m.resolution.set(w, h))
     const db = this.renderer.getDrawingBufferSize(new THREE.Vector2())
     this.finale.setRes(db.x, db.y)
@@ -822,6 +779,7 @@ export class GalleryEngine {
     this.composer.setSize(width, height)
     this.camera.aspect = width / height
     this.camera.updateProjectionMatrix()
+    this.bgMat.uniforms.uAspect.value = width / height
     this.lineMats.forEach((m) => m.resolution.set(width, height))
     this.finale.setPixelRatio(1)
     this.finale.setRes(width, height)
@@ -938,6 +896,16 @@ export class GalleryEngine {
       this.camLight.intensity = 0
       this.finale.update(tb, t)
     }
+
+    // ── фон интро: лучи и ленты дышат, параллакс от камеры ──
+    const bu = this.bgMat.uniforms
+    bu.uTime.value = t
+    bu.uBeam.value = 0.55 + 0.12 * Math.sin(t * 0.45)
+    bu.uRib.value = 0.45 + 0.08 * Math.sin(t * 0.6 + 1)
+    bu.uGlow.value = 0.25
+    bu.uFlash.value = flash * 0.6
+    bu.uFinal.value = inFinale ? smooth(0, 2, t - FLASH_T) : 0
+    bu.uCam.value.set(cam.position.x * -0.25, (inFinale ? 0 : cam.position.y) * -0.25)
   }
 
   private updateComet(t: number) {

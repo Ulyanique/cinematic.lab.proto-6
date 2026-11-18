@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { ConvexGeometry } from 'three/examples/jsm/geometries/ConvexGeometry.js'
-import { backdropTexture, starTexture, glowTexture } from './textures'
+import { glowTexture } from './textures'
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a)
 
@@ -11,29 +11,167 @@ function randDir() {
   return new THREE.Vector3(s * Math.cos(a), s * Math.sin(a), u)
 }
 
+/**
+ * Финал галереи: объёмный взрыв вместо плоского векторного пятна.
+ * Огненный шар с шумом и френелем, дым, тлеющие искры, лучи-стрики,
+ * ударная волна и осколки — всё в 3D, без фонового градиента и звезды-спрайта.
+ */
 export class Finale {
   group = new THREE.Group()
   light: THREE.PointLight
   private streakMat: THREE.ShaderMaterial
   private dustMat: THREE.ShaderMaterial
   private ringMat: THREE.ShaderMaterial
-  private star: THREE.Sprite
+  private fireMat: THREE.ShaderMaterial
+  private fireball: THREE.Mesh
+  private smokeMat: THREE.ShaderMaterial
+  private emberMat: THREE.ShaderMaterial
   private halo: THREE.Sprite
-  private halo2: THREE.Sprite
-  private backdrop: THREE.Mesh
   private debris: { m: THREE.Mesh; dir: THREE.Vector3; speed: number; axis: THREE.Vector3; spin: number }[] = []
 
   constructor(goldMat: THREE.Material, pixelRatio: number) {
     this.group.visible = false
 
-    // ── фон ──
-    const bt = backdropTexture()
-    this.backdrop = new THREE.Mesh(
-      new THREE.PlaneGeometry(420, 240),
-      new THREE.MeshBasicMaterial({ map: bt, fog: false, depthWrite: false }),
-    )
-    this.backdrop.position.z = -90
-    this.group.add(this.backdrop)
+    // ── огненный шар: шум поверхности, френель, остывание ──
+    this.fireMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: { uTime: { value: 0 }, uFade: { value: 0 } },
+      vertexShader: /* glsl */ `
+        varying vec3 vN; varying vec3 vP;
+        void main(){
+          vN = normalize(normalMatrix * normal);
+          vP = position;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: /* glsl */ `
+        uniform float uTime; uniform float uFade;
+        varying vec3 vN; varying vec3 vP;
+        float hash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+        float noise(vec3 x){
+          vec3 i = floor(x);
+          vec3 f = fract(x);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(mix(hash(i + vec3(0.,0.,0.)), hash(i + vec3(1.,0.,0.)), f.x),
+                         mix(hash(i + vec3(0.,1.,0.)), hash(i + vec3(1.,1.,0.)), f.x), f.y),
+                     mix(mix(hash(i + vec3(0.,0.,1.)), hash(i + vec3(1.,0.,1.)), f.x),
+                         mix(hash(i + vec3(0.,1.,1.)), hash(i + vec3(1.,1.,1.)), f.x), f.y), f.z);
+        }
+        float fbm(vec3 p){
+          float v = 0.0; float a = 0.5;
+          for(int i = 0; i < 4; i++){ v += a * noise(p); p *= 2.03; a *= 0.5; }
+          return v;
+        }
+        void main(){
+          float t = uTime;
+          // поверхность «кипит»: шум плывёт и закручивается
+          float n = fbm(vP * 3.2 + vec3(t * 0.22, t * 0.35, -t * 0.18));
+          float n2 = fbm(vP * 7.5 - vec3(t * 0.45));
+          float body = smoothstep(0.22, 0.9, n * 0.62 + n2 * 0.5);
+          // френель: края шара светятся сильнее — объём вместо плоского диска
+          float fres = pow(1.0 - abs(dot(normalize(vN), vec3(0.0, 0.0, 1.0))), 1.6);
+          float heat = exp(-t * 0.55);
+          vec3 col = mix(vec3(0.30, 0.07, 0.01), vec3(1.0, 0.52, 0.10), body);
+          col = mix(col, vec3(1.0, 0.93, 0.72), pow(body, 2.0) * heat);
+          float alpha = (body * 0.8 + fres * 0.55) * uFade;
+          gl_FragColor = vec4(col * (1.1 + heat * 2.2), alpha);
+        }`,
+    })
+    this.fireball = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), this.fireMat)
+    this.fireball.frustumCulled = false
+    this.fireball.renderOrder = 2
+    this.group.add(this.fireball)
+
+    // ── дым: мягкие тёмные хлопья, расширяются и растворяются ──
+    const SN = 140
+    const sg = new THREE.BufferGeometry()
+    const sdir = new Float32Array(SN * 3)
+    const spar = new Float32Array(SN * 3)
+    for (let i = 0; i < SN; i++) {
+      const d = randDir()
+      sdir.set([d.x, d.y, d.z], i * 3)
+      spar.set([3 + Math.pow(Math.random(), 1.5) * 16, 2.5 + Math.pow(Math.random(), 2) * 7, Math.random()], i * 3)
+    }
+    sg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SN * 3), 3))
+    sg.setAttribute('aDir', new THREE.BufferAttribute(sdir, 3))
+    sg.setAttribute('aP', new THREE.BufferAttribute(spar, 3))
+    this.smokeMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      uniforms: { uTime: { value: 0 }, uPx: { value: pixelRatio }, uMap: { value: glowTexture() } },
+      vertexShader: /* glsl */ `
+        attribute vec3 aDir; attribute vec3 aP;
+        uniform float uTime; uniform float uPx;
+        varying float vA;
+        void main(){
+          float k = 0.55;
+          float r = aP.x * (1.0 - exp(-uTime * k)) / k + 0.5;
+          vec3 p = aDir * r + vec3(sin(uTime * 0.4 + aP.z * 40.0), cos(uTime * 0.33 + aP.z * 31.0), 0.0) * (0.4 + uTime * 0.12);
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          float sz = aP.y * (1.0 + uTime * 1.4) * uPx * (300.0 / max(-mv.z, 0.5));
+          gl_PointSize = clamp(sz, 0.0, 260.0);
+          vA = exp(-uTime * 0.38) * smoothstep(0.0, 0.15, uTime);
+        }`,
+      fragmentShader: /* glsl */ `
+        uniform sampler2D uMap;
+        varying float vA;
+        void main(){
+          float a = texture2D(uMap, gl_PointCoord).a;
+          gl_FragColor = vec4(vec3(0.16, 0.11, 0.07), a * vA * 0.5);
+        }`,
+    })
+    const smoke = new THREE.Points(sg, this.smokeMat)
+    smoke.frustumCulled = false
+    smoke.renderOrder = 3
+    this.group.add(smoke)
+
+    // ── тлеющие искры: яркие точки с гравитацией ──
+    const EN = 220
+    const eg = new THREE.BufferGeometry()
+    const edir = new Float32Array(EN * 3)
+    const epar = new Float32Array(EN * 3)
+    for (let i = 0; i < EN; i++) {
+      const d = randDir()
+      edir.set([d.x, d.y, d.z], i * 3)
+      epar.set([5 + Math.pow(Math.random(), 1.6) * 30, 0.5 + Math.pow(Math.random(), 2) * 2.2, Math.random()], i * 3)
+    }
+    eg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(EN * 3), 3))
+    eg.setAttribute('aDir', new THREE.BufferAttribute(edir, 3))
+    eg.setAttribute('aP', new THREE.BufferAttribute(epar, 3))
+    this.emberMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: { uTime: { value: 0 }, uPx: { value: pixelRatio } },
+      vertexShader: /* glsl */ `
+        attribute vec3 aDir; attribute vec3 aP;
+        uniform float uTime; uniform float uPx;
+        varying float vA; varying float vS;
+        void main(){
+          float t = uTime;
+          vec3 p = aDir * (aP.x * t * exp(-t * 0.12)) + vec3(0.0, -1.6 * t * t, 0.0);
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = clamp(aP.y * uPx * (300.0 / max(-mv.z, 0.5)), 0.0, 26.0);
+          vS = aP.z;
+          vA = exp(-t * 0.5) * smoothstep(0.0, 0.05, t) * step(0.0, -mv.z);
+        }`,
+      fragmentShader: /* glsl */ `
+        varying float vA; varying float vS;
+        void main(){
+          vec2 c = gl_PointCoord - 0.5;
+          float d = length(c) * 2.0;
+          float a = smoothstep(1.0, 0.0, d);
+          vec3 col = mix(vec3(1.0, 0.45, 0.08), vec3(1.0, 0.85, 0.4), vS);
+          gl_FragColor = vec4(col * a * vA * 2.0, a * vA);
+        }`,
+    })
+    const embers = new THREE.Points(eg, this.emberMat)
+    embers.frustumCulled = false
+    embers.renderOrder = 6
+    this.group.add(embers)
 
     // ── лучи-стрики ──
     const N = 1400
@@ -179,28 +317,17 @@ export class Finale {
     ring.renderOrder = 4
     this.group.add(ring)
 
-    // ── звезда в центре ──
-    const star = starTexture(16, 11)
-    this.star = new THREE.Sprite(
-      new THREE.SpriteMaterial({ map: star, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, fog: false, transparent: true }),
-    )
-    this.star.renderOrder = 7
-    this.group.add(this.star)
+    // ── мягкое свечение ядра ──
     const glow = glowTexture()
     this.halo = new THREE.Sprite(
       new THREE.SpriteMaterial({ map: glow, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, fog: false, transparent: true }),
     )
     this.halo.renderOrder = 3
     this.group.add(this.halo)
-    this.halo2 = new THREE.Sprite(
-      new THREE.SpriteMaterial({ map: star, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, fog: false, transparent: true, rotation: 0.6 }),
-    )
-    this.halo2.renderOrder = 7
-    this.group.add(this.halo2)
 
     // ── осколки ──
-    for (let i = 0; i < 70; i++) {
-      const s = rand(0.35, 1.5)
+    for (let i = 0; i < 90; i++) {
+      const s = rand(0.3, 2.0)
       const pts: THREE.Vector3[] = []
       for (let k = 0; k < 7; k++) pts.push(new THREE.Vector3(rand(-1, 1) * s * 1.6, rand(-1, 1) * s, rand(-1, 1) * s * 0.5))
       const m = new THREE.Mesh(new ConvexGeometry(pts), goldMat)
@@ -208,7 +335,7 @@ export class Finale {
       this.debris.push({
         m,
         dir: randDir().multiplyScalar(1),
-        speed: rand(6, 38),
+        speed: rand(6, 45),
         axis: randDir(),
         spin: rand(0.4, 2.4),
       })
@@ -220,6 +347,9 @@ export class Finale {
 
   setPixelRatio(pixelRatio: number) {
     this.streakMat.uniforms.uPx.value = pixelRatio
+    this.dustMat.uniforms.uPx.value = pixelRatio
+    this.smokeMat.uniforms.uPx.value = pixelRatio
+    this.emberMat.uniforms.uPx.value = pixelRatio
   }
 
   setRes(w: number, h: number) {
@@ -231,22 +361,23 @@ export class Finale {
     this.streakMat.uniforms.uTime.value = t
     this.dustMat.uniforms.uTime.value = t
     this.ringMat.uniforms.uTime.value = t
+    this.fireMat.uniforms.uTime.value = t
+    this.smokeMat.uniforms.uTime.value = t
+    this.emberMat.uniforms.uTime.value = t
 
+    // огненный шар: быстрый рост, медленное остывание и сжатие
+    const grow = 4 + 22 * (1 - Math.exp(-t * 1.9))
+    const shrink = 1 - 0.4 * THREE.MathUtils.smoothstep(t, 2.5, 7)
+    this.fireball.scale.setScalar(Math.max(0.001, grow * shrink))
+    this.fireMat.uniforms.uFade.value = t > 0.02 ? Math.exp(-t * 0.45) : 0
+
+    // свечение ядра с лёгким мерцанием
     const burst = Math.exp(-t * 1.1)
-    const s1 = 9 + 70 * Math.exp(-t * 2.6)
-    this.star.scale.set(s1 * 2.0, s1 * 2.0, 1)
-    ;(this.star.material as THREE.SpriteMaterial).opacity = 0.015 + 0.75 * burst
-    ;(this.star.material as THREE.SpriteMaterial).rotation = t * 0.05
-    const s2 = 14 + 30 * Math.exp(-t * 1.6)
-    this.halo2.scale.set(s2 * 2, s2 * 2, 1)
-    ;(this.halo2.material as THREE.SpriteMaterial).opacity = 0.02 + 0.4 * burst
-    this.halo2.material.rotation = 0.6 - t * 0.04
-    const h = 30 + 110 * Math.exp(-t * 1.1)
+    const h = 26 + 90 * Math.exp(-t * 1.3)
     this.halo.scale.set(h, h, 1)
-    ;(this.halo.material as THREE.SpriteMaterial).opacity = 0.05 + 0.65 * burst
+    ;(this.halo.material as THREE.SpriteMaterial).opacity = (0.05 + 0.6 * burst) * (1 + 0.03 * Math.sin(now * 0.7))
 
     this.light.intensity = 9000 * Math.exp(-t * 1.4) + 120
-    ;(this.backdrop.material as THREE.MeshBasicMaterial).color.setScalar(0.5 + 0.38 * burst + 0.025 * Math.sin(now * 0.7))
 
     for (const d of this.debris) {
       const r = (d.speed * (1 - Math.exp(-t * 0.9))) / 0.9 + 1.5
