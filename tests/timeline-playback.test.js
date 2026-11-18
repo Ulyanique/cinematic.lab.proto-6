@@ -38,10 +38,11 @@ test('intro entrance and exit follow edited phase boundaries', () => {
 });
 
 test('long background hold runs naturally and remains visible until exit', () => {
-  const background = { ...timeline, holdDuration: 53 };
-  assert.equal(lab2FrameTiming(10, background, 4.5).filmTime, 10);
-  assert.equal(lab2FrameTiming(40, background, 4.5).fade, 0);
-  assert.equal(lab2FrameTiming(60, background, 4.5).fade, 1);
+  const background = { ...timeline, drawDuration: 11.1, holdDuration: 60 };
+  assert.equal(lab2FrameTiming(10, background, 4.5, 11.1).filmTime, 10);
+  assert.equal(lab2FrameTiming(11.1, background, 4.5, 11.1).filmTime, 11.1);
+  assert.equal(lab2FrameTiming(71.1, background, 4.5, 11.1).fade, 0);
+  assert.equal(lab2FrameTiming(73.6, background, 4.5, 11.1).fade, 1);
 });
 
 test('zero entry or fade and a rest phase are well-defined', () => {
@@ -50,4 +51,15 @@ test('zero entry or fade and a rest phase are well-defined', () => {
   assert.equal(lab2FrameTiming(1.9, edited, 4.5).fade, 0);
   assert.equal(lab2FrameTiming(2, edited, 4.5).fade, 1);
   assert.equal(lab2FrameTiming(2.5, edited, 4.5).fade, 1);
+});
+
+import { lab2OutroFrameTiming } from '../src/studio/lab2-timing.js';
+test('outro plays the intro backwards through the same timeline', () => {
+  const outro = { drawDuration: 2.5, emergeDuration: 0, holdDuration: 6.6, fadeDuration: 4.5, restDuration: 0 };
+  for (const t of [0, 1, 2.5, 7, 9.1, 12, 13.6]) {
+    const forward = lab2FrameTiming(13.6 - t, timeline, 4.5);
+    const reverse = lab2OutroFrameTiming(t, outro, 4.5);
+    assert.ok(Math.abs(forward.filmTime - reverse.filmTime) < 1e-9, `time ${t}`);
+  }
+  assert.ok(lab2OutroFrameTiming(13.6, outro, 4.5).filmTime < 1e-9);
 });

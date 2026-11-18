@@ -3,7 +3,7 @@ import { BRAND_DEFAULTS } from "./brand.js";
 import { PHOTO_PAUSE_DEFAULTS } from "./photo-pause.js";
 import { PARTNERS_DEFAULTS, SPONSOR_PROMRUKAV_DEFAULTS, SPONSOR_KEAZ_DEFAULTS } from "./partners.js";
 import { FINALE_DEFAULTS } from "./finale.js";
-import { LAB2_DEFAULTS, LAB2_BRAND_DEFAULTS, LAB5_DEFAULTS, LAB2_ID, LAB2_BRAND_ID, LAB5_ID } from "./labs.js";
+import { LAB2_DEFAULTS, LAB2_BRAND_DEFAULTS, LAB2_OUTRO_DEFAULTS, LAB5_DEFAULTS, LAB2_ID, LAB2_BRAND_ID, LAB2_OUTRO_ID, LAB5_ID } from "./labs.js";
 
 // Базовый формат кадра. Это единственный источник числа 1920×1080: остальные
 // модули (битрейт, масштаб макета, профили мастера) считают от него, чтобы
@@ -41,7 +41,8 @@ export const SCENES = Object.freeze([
   { id: "trick-brief", title: "ТЗ с подвохом", status: "needs-host" },
   { id: "architect", title: "Проектировщик объясняет", status: "needs-host" },
   { id: "photo-pause", title: "Фотопауза", code: "08", label: "Фотопауза", status: "ready", defaults: PHOTO_PAUSE_DEFAULTS },
-  { id: "finale", title: "Янтарный циркуль / История продолжается", code: "09", label: "Финал", status: "ready", defaults: FINALE_DEFAULTS },
+  { id: "finale", title: "Архив — прежнее аутро: История продолжается", code: "A9", label: "Аутро (архив)", status: "ready", archived: true, defaults: FINALE_DEFAULTS },
+  { id: LAB2_OUTRO_ID, title: "Аутро — интро в обратном направлении", code: "09", label: "Аутро", status: "ready", defaults: LAB2_OUTRO_DEFAULTS },
   // Кинематографичные лаборатории (cinematic-lab-proto-2 и proto-5).
   // Первая анимация программы. Внутри — 3D-эмблема из роя частиц; в интерфейсе
   // она называется просто «Интро», потому что открывает показ.
@@ -66,7 +67,7 @@ export const PLAYABLE_SCENES = Object.freeze(
       code: scene.code,
       label: scene.label,
       archived: scene.archived === true,
-      chain: scene.id !== "sponsor-promrukav" && scene.id !== "sponsor-keaz",
+      chain: scene.archived !== true && scene.id !== "sponsor-promrukav" && scene.id !== "sponsor-keaz",
     }))
 );
 

@@ -25,7 +25,8 @@ export const LAB5_ID = "lab-monoliths";
  * своя запись, и он должен жить в списке рядом с остальными.
  */
 export const LAB2_BRAND_ID = "lab-swarm-brand";
-export const LAB_IDS = Object.freeze([LAB2_ID, LAB5_ID, LAB2_BRAND_ID]);
+export const LAB2_OUTRO_ID = "lab-swarm-outro";
+export const LAB_IDS = Object.freeze([LAB2_ID, LAB5_ID, LAB2_BRAND_ID, LAB2_OUTRO_ID]);
 export const isLabScene = (id) => LAB_IDS.includes(id);
 
 /**
@@ -56,7 +57,7 @@ function labTimeline(duration, bounds) {
 const plain = (o) => JSON.parse(JSON.stringify(o));
 
 /**
- * Фон из интро: одна минута, композиция по центру кадра.
+ * Фон из интро: минута удержания собранной композиции по центру кадра.
  *
  * Остальное — ровно как в «Интро»: та же эмблема, то же название, тот же свет.
  * Убраны только «ВЕЧЕР РЕТРОСПЕКТИВА» и дата внизу. Без них блок «эмблема +
@@ -139,10 +140,9 @@ export const LAB2_BRAND_DEFAULTS = (() => {
   // только мешают. Всё остальное — из «Интро», без правок.
   src.layers.subtitle.enabled = false;
   src.layers.date.enabled = false;
-  // Подчёркивания под текстом: в «Интро» их два — над названием и под ним, у
-  // подзаголовка и даты. Второго блока в фоне нет, и нижняя пара линий
-  // осталась бы висеть в пустоте, как лишнее подчёркивание. Верхняя — часть
-  // композиции, она остаётся.
+  // В фоне нет разделителей и ромбов: остаются только эмблема и название.
+  src.layers.dividers.enabled = false;
+  src.layers.dividers.first = false;
   src.layers.dividers.second = false;
   src.layers.dividers.diamonds = false;
   // Композиция по центру: блок «эмблема + название» занимает y от −1.61 до
@@ -153,9 +153,8 @@ export const LAB2_BRAND_DEFAULTS = (() => {
   // Эмблема не поднимается: в фоне нет текста, к которому надо подвинуться —
   // композиция уже стоит по центру и должна оставаться на месте всю минуту.
   src.general.logoRise = 0;
-  // Минута: длина фильма — «удар + базовый хвост + финальная пауза», поэтому
-  // минута задаётся паузой. Всё остальное в ритме остаётся как в «Интро».
-  src.general.hold = 60 - lab2Duration(src);
+  // Минута удержания добавляется к фазам появления и ухода.
+  src.general.hold = 60;
   // Фон почти стоит в кадре всю минуту, поэтому всё, что в «Интро» можно
   // позволить на тринадцати секундах, здесь превращается в дрожание: ударная
   // дрожь камеры, толчок и «замах» перед ним. Убираем их у фона; удара в кадре
@@ -166,13 +165,28 @@ export const LAB2_BRAND_DEFAULTS = (() => {
   // Медленное покачивание камеры оставляем, но чуть мягче: оно и держит фон
   // живым, а не резким.
   src.camera.sway = Math.min(src.camera.sway, 0.6);
-  // Границы фаз — из того же «минутного» general: появление до удара, уход —
-  // последнее движение композиции. Метки на пульте должны совпадать с кадром.
-  cfg.timeline = labTimeline(60, phaseBounds(src.general));
+  // Удержание начинается после сборки названия, а не в момент удара эмблемы.
+  cfg.timeline = labTimeline(73.6, phaseBounds(src.general));
+  cfg.timeline.drawDuration = phaseBounds(src.general).exitAt;
+  cfg.timeline.holdDuration = 60;
   for (const [scope] of LAB2_SCOPES) {
     const part = ["general", "camera", "post"].includes(scope) ? src[scope] : src.layers[scope];
     cfg[LAB2_PREFIX + scope] = part;
   }
+  return cfg;
+})();
+
+/** Аутро — та же композиция, что интро, с обратным ходом времени. */
+export const LAB2_OUTRO_DEFAULTS = (() => {
+  const cfg = plain(LAB2_DEFAULTS);
+  const tl = cfg.timeline;
+  // В обратном ролике вход и уход меняются местами.
+  const entry = tl.drawDuration + tl.emergeDuration;
+  const exit = tl.fadeDuration + tl.restDuration;
+  tl.drawDuration = exit;
+  tl.emergeDuration = 0;
+  tl.fadeDuration = entry;
+  tl.restDuration = 0;
   return cfg;
 })();
 

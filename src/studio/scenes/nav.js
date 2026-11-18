@@ -33,7 +33,8 @@ export const BRAND_SCENE_ID = "lab-swarm-brand";
 const HEAD = [INTRO_SCENE_ID, BRAND_SCENE_ID];
 const ORDERED = [
   ...HEAD.flatMap((id) => PLAYABLE_SCENES.filter((scene) => scene.id === id)),
-  ...PLAYABLE_SCENES.filter((scene) => !HEAD.includes(scene.id)),
+  ...PLAYABLE_SCENES.filter((scene) => !HEAD.includes(scene.id) && !scene.archived),
+  ...PLAYABLE_SCENES.filter((scene) => scene.archived),
 ];
 
 /** @type {readonly SceneNav[]} */

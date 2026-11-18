@@ -1,3 +1,4 @@
+import { migrateIntroBackground } from "./background-migration.js";
 import { DECOR_SLOTS } from "./brand-decor-config.js";
 import { PARTICLE_CLOUD_IDS } from "./particle-cloud-config.js";
 import { BACKGROUND_GLOW_IDS } from "./background-glow-config.js";
@@ -460,10 +461,12 @@ export function mergeConfig(defaults, patch) {
 export function loadSceneConfig(sceneId, defaults, onReadError) {
   const cfg = cloneDefaults(defaults);
   let raw = null;
+  let migrateIntroBackgroundNeeded = false;
   let migratePhotoCenter = false, migratePhotoSize = false, migrateBrandCenter = false, migrateGuides = false, migrateFinaleGuides = false, migrateBrandLift = false;
   try {
     raw = localStorage.getItem(sceneStorageKey(sceneId));
     if (!raw && sceneId === "waiting") raw = localStorage.getItem(LEGACY_KEY);
+    if (sceneId === "lab-swarm-brand") migrateIntroBackgroundNeeded = !localStorage.getItem("lab-swarm-brand-minute-hold-v1");
     if (sceneId === "photo-pause") {
       migratePhotoCenter = !localStorage.getItem(PHOTO_CENTER_MIGRATION);
       migratePhotoSize = !localStorage.getItem(PHOTO_SIZE_MIGRATION);
@@ -480,6 +483,9 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     return cfg;
   }
   if (!raw) {
+    if (migrateIntroBackgroundNeeded) {
+      try { localStorage.setItem("lab-swarm-brand-minute-hold-v1", "1"); } catch (e) { /* noop */ }
+    }
     if (migrateBrandLift) {
       try { localStorage.setItem(BRAND_LIFT_MIGRATION, "1"); } catch (e) { /* noop */ }
     }
@@ -501,7 +507,14 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     return cfg;
   }
   try {
-    const saved = JSON.parse(raw);
+    let saved = JSON.parse(raw);
+    if (migrateIntroBackgroundNeeded) {
+      saved = migrateIntroBackground(saved, defaults);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("lab-swarm-brand-minute-hold-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
     // Старое стандартное положение фона было 0.86. Оно ошибочно переносилось
     // в новую центрированную фотопаузу. Иные значения пользовательских правок
     // не трогаем; после первого переноса произвольное положение снова сохраняется.

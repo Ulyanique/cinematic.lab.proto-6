@@ -1,7 +1,7 @@
 import { masterSize } from "./output-profile.js";
 import { DEFAULT_QUALITY, isQualityPreset } from "./quality-presets.js";
 import { Intro } from "./lab2/Intro.ts";
-import { sanitizeConfig, totalDuration } from "./lab2/config.ts";
+import { sanitizeConfig, totalDuration, phaseBounds } from "./lab2/config.ts";
 import { loadFontFace } from "./lab2/fonts.ts";
 import { IntroEngine } from "./lab5/Engine.ts";
 import { DEFAULT_SETTINGS, normalizeSettings } from "./lab5/settings.ts";
@@ -13,7 +13,7 @@ import { depthOrder, depthOrderEnabled, introDepthOrder } from "./depth-order.js
 import { localCycleTime, repeatTime } from "./playback.js";
 import { cycleDuration } from "./runtime.js";
 import { holdForDuration } from "./operator-timeline.js";
-import { lab2FrameTiming } from "./lab2-timing.js";
+import { lab2FrameTiming, lab2OutroFrameTiming } from "./lab2-timing.js";
 
 /**
  * Адаптеры лабораторий к общему циклу студии: сцена получает время `update(t)` и
@@ -146,7 +146,8 @@ export class Lab2Scene extends LabScene {
     const timeline = this.cfg.timeline;
     const cycle = cycleDuration(timeline);
     const local = localCycleTime(this.time, cycle, timeline.startDelay || 0);
-    const { filmTime, fade } = lab2FrameTiming(local, timeline, this.lab.general.impact);
+    const entryEnd = this.brand ? phaseBounds(this.lab.general).exitAt : this.lab.general.impact;
+    const { filmTime, fade } = (this.reverse ? lab2OutroFrameTiming : lab2FrameTiming)(local, timeline, this.lab.general.impact, entryEnd);
     intro.t = filmTime;
     intro.update(filmTime, 1 / 30);
     intro.composer.render();
@@ -163,6 +164,22 @@ export class Lab2Scene extends LabScene {
   dispose() {
     super.dispose();
     try { this.intro.dispose(); } catch (error) { console.warn("Лаборатория 10: ошибка освобождения", error); }
+  }
+}
+
+/** Фон: отсчёт минуты удержания начинается после сборки всей композиции. */
+export class Lab2BrandScene extends Lab2Scene {
+  constructor(canvas, cfg) {
+    super(canvas, cfg);
+    this.brand = true;
+  }
+}
+
+/** Обратное воспроизведение интро, с отдельным конфигом и возможностью записи. */
+export class Lab2OutroScene extends Lab2Scene {
+  constructor(canvas, cfg) {
+    super(canvas, cfg);
+    this.reverse = true;
   }
 }
 
