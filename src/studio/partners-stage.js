@@ -152,3 +152,19 @@ export function migratePartnersReferenceLayout(saved) {
   }
   return next;
 }
+
+/** Убираем стандартное множественное число и пододвигаем неизменённые подписи внутрь. */
+export function migratePartnerLabelLines(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  const positions = {
+    stageOrganizerLabel: [430, 175, 510], stageCoorganizerLabel: [1380, 175, 1300],
+    stagePartnerLabel: [410, 365, 490], stagePartnerLabel2: [1490, 365, 1410],
+  };
+  for (const [id, [x, y, newX]] of Object.entries(positions)) {
+    const layer = next[id];
+    if (layer?.x === x && layer?.y === y) layer.x = newX;
+  }
+  if (next.partners?.partnerLabel === 'СПОНСОРЫ') next.partners.partnerLabel = 'СПОНСОР';
+  if (next.partners?.partner2Label === 'СПОНСОРЫ') next.partners.partner2Label = 'СПОНСОР';
+  return next;
+}

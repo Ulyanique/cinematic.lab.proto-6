@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PARTNERS_ELEMENT_SCHEMA, partnerElementDefaults, elementVisibility } from '../src/studio/partners-elements.js';
-import { migrateCurtainEdge, migrateCurtainEdgeV3, migrateSponsorLabels, migratePartnersReferenceLayout, partnersStageCues } from '../src/studio/partners-stage.js';
+import { PARTNERS_ELEMENT_SCHEMA, partnerElementDefaults, elementVisibility, labelLineLayout } from '../src/studio/partners-elements.js';
+import { migrateCurtainEdge, migrateCurtainEdgeV3, migrateSponsorLabels, migratePartnersReferenceLayout, migratePartnerLabelLines, partnersStageCues } from '../src/studio/partners-stage.js';
 import { sectionAllowed, eyeKey } from '../src/studio/ui/field-rules.js';
 import { PARTNERS_DEFAULTS, SPONSOR_KEAZ_DEFAULTS } from '../src/studio/scenes/partners.js';
 
@@ -43,8 +43,8 @@ test('curtain width migration changes only the old default', () => {
 
 
 test('sponsor labels are separate, align over logos and preserve old custom text and style', () => {
-  assert.equal(PARTNERS_DEFAULTS.stagePartnerLabel.x, PARTNERS_DEFAULTS.stagePartner1.x);
-  assert.equal(PARTNERS_DEFAULTS.stagePartnerLabel2.x, PARTNERS_DEFAULTS.stagePartner2.x);
+  assert.ok(PARTNERS_DEFAULTS.stagePartnerLabel.x > PARTNERS_DEFAULTS.stagePartner1.x);
+  assert.ok(PARTNERS_DEFAULTS.stagePartnerLabel2.x < PARTNERS_DEFAULTS.stagePartner2.x);
   assert.equal(PARTNERS_DEFAULTS.partners.partnerLabel, 'СПОНСОР');
   assert.equal(PARTNERS_DEFAULTS.partners.partner2Label, 'СПОНСОР');
   const old = { partners: { partnerLabel: 'СПОНСОРЫ' }, stagePartnerLabel: { x: 960, opacity: .7, color: '#ffffff' } };
@@ -77,4 +77,27 @@ test('reference layout migration changes only untouched positions', () => {
   assert.equal(saved.stageOrganizer1.x, 500);
   assert.ok(PARTNERS_DEFAULTS.stageTitleDivider);
   assert.ok(SPONSOR_KEAZ_DEFAULTS.stageTitleDivider);
+});
+
+
+test('label lines are editable and old standard labels migrate without replacing custom values', () => {
+  for (const id of ['stageOrganizerLabel','stageCoorganizerLabel','stagePartnerLabel','stagePartnerLabel2']) {
+    assert.equal(PARTNERS_DEFAULTS[id].lineEnabled, true);
+    const schema = PARTNERS_ELEMENT_SCHEMA.find(s => s.id === id);
+    assert.ok(['lineEnabled', 'lineLength', 'lineGap', 'lineOpacity'].every(k => schema.fields.some(f => f.key === k)));
+  }
+  const saved = { partners: { partnerLabel:'СПОНСОРЫ', partner2Label:'ПАРТНЁР' }, stagePartnerLabel:{x:410,y:365}, stagePartnerLabel2:{x:1500,y:365} };
+  const next = migratePartnerLabelLines(saved);
+  assert.equal(next.partners.partnerLabel, 'СПОНСОР');
+  assert.equal(next.partners.partner2Label, 'ПАРТНЁР');
+  assert.equal(next.stagePartnerLabel.x, 490);
+  assert.equal(next.stagePartnerLabel2.x, 1500);
+  assert.equal(saved.partners.partnerLabel, 'СПОНСОРЫ');
+});
+
+
+test('label decoration extends outward without crossing the text', () => {
+  assert.deepEqual(labelLineLayout(500, 200, -1, 20, 300), { near: 380, far: 80 });
+  assert.deepEqual(labelLineLayout(1400, 200, 1, 20, 300), { near: 1520, far: 1820 });
+  assert.deepEqual(labelLineLayout(0, 800, -1, 0, 0), { near: -230, far: -230 });
 });

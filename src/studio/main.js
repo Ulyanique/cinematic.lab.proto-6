@@ -148,7 +148,7 @@ function resetSceneConfig(id, scope = {}) {
       target[scope.key] = cloneDefaults(source[scope.key]);
       return;
     }
-    for (const key of Object.keys(source)) target[key] = cloneDefaults(source[key]);
+    config[scope.section] = cloneDefaults(source);
   });
   panels?.rebuild?.();
   return true;

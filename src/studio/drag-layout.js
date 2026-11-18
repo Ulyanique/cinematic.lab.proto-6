@@ -11,7 +11,7 @@ export function clampPosition(value, min, max) {
 }
 export function sponsorDragElements(cfg) {
   const items = [
-    ['stageCompass', 360, 370], ['stageDividerLeft', 500, 30], ['stageDividerRight', 500, 30],
+    ['stageCompass', 360, 370],
     ['stageOrganizer1', 590, 170], ['stageOrganizer2', 590, 170],
     ['stagePartner1', 590, 170], ['stagePartner2', 590, 170], ['stageSingleMark', 700, 230],
     ['stageOrganizerLabel', 460, 50], ['stageCoorganizerLabel', 460, 50],

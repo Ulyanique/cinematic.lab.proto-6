@@ -433,8 +433,8 @@ export function createStudioPanels({
 
       // Сброс слоя целиком: кадр возвращается к стандартному виду, остальные
       // слои не затрагиваются.
-      const changedCount = section.fields.filter((field) => defaults[field.key] !== undefined
-        && !same(holder[field.key], defaults[field.key])).length;
+      const changedCount = [...new Set([...Object.keys(defaults), ...Object.keys(holder)])]
+        .filter((key) => !same(holder[key], defaults[key])).length;
       const bar = document.createElement('div');
       bar.className = 'ins-actions ins-actions-tight ins-layer-actions';
       const resetLayer = document.createElement('button');
@@ -447,6 +447,18 @@ export function createStudioPanels({
       resetLayer.disabled = changedCount === 0;
       resetLayer.addEventListener('click', () => resetSection(section));
       bar.appendChild(resetLayer);
+      const resetComposition = document.createElement('button');
+      resetComposition.type = 'button';
+      resetComposition.className = 'ins-layer-reset';
+      resetComposition.innerHTML = `${ico('reset', 13)}<span>Сброс всей композиции</span>`;
+      resetComposition.title = 'Вернуть все настройки текущего ролика, включая изображения и длительности';
+      resetComposition.addEventListener('click', () => {
+        const current = getState();
+        if (!confirm(`Сбросить всю композицию «${current.sceneLabel}»? Будут сброшены все слои, изображения, длительности и настройки этого ролика. Другие ролики не изменятся.`)) return;
+        onReset?.({});
+        onToast?.(`Композиция «${current.sceneLabel}» сброшена`);
+      });
+      bar.appendChild(resetComposition);
       frag.appendChild(bar);
     }
 

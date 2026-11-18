@@ -6,12 +6,10 @@ export const PARTNERS_ELEMENTS = Object.freeze([
   spec('stagePartner1', 'Спонсор 1 · логотип', 410, 500, { start: 77, end: 85 }),
   spec('stagePartner2', 'Спонсор 2 · логотип', 1490, 500, { scale: .8, start: 87, end: 98 }),
   spec('stageSingleMark', 'Логотип спонсора', 960, 220, { start: 57, end: 65 }),
-  spec('stageOrganizerLabel', 'Подпись организатора', 430, 175, { color: '#d2ac70' }),
-  spec('stageCoorganizerLabel', 'Подпись соорганизатора', 1380, 175, { color: '#d2ac70' }),
-  spec('stagePartnerLabel', 'Подпись спонсора 1', 410, 365, { color: '#d2ac70' }),
-  spec('stagePartnerLabel2', 'Подпись спонсора 2', 1490, 365, { color: '#d2ac70' }),
-  spec('stageDividerLeft', 'Левый разделитель', 410, 405),
-  spec('stageDividerRight', 'Правый разделитель', 1490, 405),
+  spec('stageOrganizerLabel', 'Подпись организатора', 510, 175, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
+  spec('stageCoorganizerLabel', 'Подпись соорганизатора', 1300, 175, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
+  spec('stagePartnerLabel', 'Подпись спонсора 1', 490, 365, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
+  spec('stagePartnerLabel2', 'Подпись спонсора 2', 1410, 365, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
   spec('stageBackground', 'Фоновая картинка', 960, 540, { backgroundImage: '' }),
   spec('stageCurtains', 'Шторы', 960, 540, { leftVisible: true, rightVisible: true, leftOffset: 0, rightOffset: 0 }),
   spec('stageFrame', 'Рамка и блик', 960, 540, { glint: 1 }),
@@ -22,7 +20,7 @@ export const PARTNERS_ELEMENTS = Object.freeze([
   spec('stageTitleDivider', 'Разделитель названия и подзаголовка', 960, 818, { color: '#e5bd7c' }),
 ]);
 const singleOnly = new Set(['stageSingleMark']);
-const groupOnly = new Set(['stageOrganizer1', 'stageOrganizer2', 'stagePartner1', 'stagePartner2', 'stageOrganizerLabel', 'stageCoorganizerLabel', 'stagePartnerLabel', 'stagePartnerLabel2', 'stageDividerLeft', 'stageDividerRight']);
+const groupOnly = new Set(['stageOrganizer1', 'stageOrganizer2', 'stagePartner1', 'stagePartner2', 'stageOrganizerLabel', 'stageCoorganizerLabel', 'stagePartnerLabel', 'stagePartnerLabel2']);
 export function partnerElementDefaults(single = false) {
   const out = {};
   for (const s of PARTNERS_ELEMENTS) {
@@ -47,6 +45,12 @@ export const PARTNERS_ELEMENT_SCHEMA = PARTNERS_ELEMENTS.map(s => ({
       { key: 'rightOffset', label: 'Правая: дополнительно в кадр, px', type: 'range', min: -100, max: 100, step: 1 },
     ] : []),
     ...('glint' in s.defaults ? [{ key: 'glint', label: 'Яркость блика', type: 'range', min: 0, max: 2, step: .01 }] : []),
+    ...('lineEnabled' in s.defaults ? [
+      { key: 'lineEnabled', label: 'Полоска рядом с подписью', type: 'bool' },
+      { key: 'lineLength', label: 'Длина полоски, px', type: 'range', min: 0, max: 600, step: 1 },
+      { key: 'lineGap', label: 'Отступ от подписи, px', type: 'range', min: 0, max: 150, step: 1 },
+      { key: 'lineOpacity', label: 'Непрозрачность полоски', type: 'range', min: 0, max: 1, step: .01 },
+    ] : []),
     ...('color' in s.defaults ? [{ key: 'color', label: 'Цвет', type: 'color' }] : []),
     ...('start' in s.defaults ? [
       { key: 'start', label: 'Начало появления, % входа', type: 'range', min: 0, max: 99, step: 1 },
@@ -59,4 +63,11 @@ export function elementVisibility(progress, element) {
   const end = Math.max(start + .001, Math.min(1, (Number(element?.end) || 100) / 100));
   const p = Math.max(0, Math.min(1, (progress - start) / (end - start)));
   return p * p * (3 - 2 * p);
+}
+
+/** Линия остаётся снаружи подписи при изменении текста и масштаба. */
+export function labelLineLayout(center, textWidth, side, gap = 20, length = 320) {
+  const direction = side < 0 ? -1 : 1;
+  const near = center + direction * (Math.min(460, Math.max(0, textWidth)) / 2 + Math.max(0, gap));
+  return { near, far: near + direction * Math.max(0, length) };
 }

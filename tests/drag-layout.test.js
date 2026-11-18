@@ -10,7 +10,7 @@ test('pointer conversion respects preview size and offset', () => {
 test('hit testing chooses the topmost target and excludes disabled elements', () => {
   const elements = sponsorDragElements(PARTNERS_DEFAULTS);
   assert.equal(hitElement({x: 430, y: 260}, elements).id, 'stageOrganizer1');
-  assert.equal(hitElement({x: 1490, y: 365}, elements).id, 'stagePartnerLabel2');
+  assert.equal(hitElement({x: 1410, y: 365}, elements).id, 'stagePartnerLabel2');
   const cfg = structuredClone(PARTNERS_DEFAULTS);
   cfg.stageOrganizer1.enabled = false;
   assert.equal(sponsorDragElements(cfg).some(e => e.id === 'stageOrganizer1'), false);

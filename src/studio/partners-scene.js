@@ -6,7 +6,7 @@ import proelectroschitUrl from './assets/partners/proelectroschit.svg';
 import promrukavUrl from './assets/partners/promrukav.svg';
 import keazUrl from './assets/partners/keaz.svg';
 import { drawPartnersDecor, drawAmberAtmosphere, drawBreathingBackground } from './partners-graphics.js';
-import { elementVisibility } from './partners-elements.js';
+import { elementVisibility, labelLineLayout } from './partners-elements.js';
 import { createPartnersCurtains } from './partners-curtains.js';
 import { createPartnersLight } from './partners-light.js';
 import { createPartnersGlitter } from './partners-glitter.js';
@@ -636,7 +636,7 @@ export class PartnersScene {
       ctx.restore();
     }
 
-    const trackedLabel = (value, x, y, alpha, entry, color = warm) => {
+    const trackedLabel = (value, x, y, alpha, entry, color = warm, line = null) => {
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -648,14 +648,26 @@ export class PartnersScene {
       // Компенсация: разрядка добавляет хвостовой пробел справа, поэтому
       // центрированный текст уезжает — сдвигаем на половину разрядки.
       const shift = supportsTracking ? 2.5 : 0;
-      ctx.fillText(String(value ?? ''), x + shift, y + 22 * (1 - entry), 460);
+      const labelText = String(value ?? '');
+      const textY = y + 22 * (1 - entry);
+      ctx.fillText(labelText, x + shift, textY, 460);
+      if (line?.enabled !== false && line && labelText) {
+        const { near, far } = labelLineLayout(x, ctx.measureText(labelText).width, line.side, line.gap, line.length);
+        if (near !== far) {
+          ctx.save(); ctx.globalAlpha *= line.opacity ?? .65; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+          const gradient = ctx.createLinearGradient(near, 0, far, 0);
+          gradient.addColorStop(0, color); gradient.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.strokeStyle = gradient; ctx.lineWidth = 1.25;
+          ctx.beginPath(); ctx.moveTo(near, textY); ctx.lineTo(far, textY); ctx.stroke(); ctx.restore();
+        }
+      }
       if (supportsTracking) ctx.letterSpacing = '0px';
       ctx.restore();
     };
-    const label = (element, value, alpha, entry) => {
+    const label = (element, value, alpha, entry, side) => {
       if (!element || element.enabled === false) return;
       ctx.save(); ctx.translate(element.x, element.y); ctx.scale(element.scale, element.scale);
-      trackedLabel(value, 0, 0, alpha * element.opacity, entry, element.color);
+      trackedLabel(value, 0, 0, alpha * element.opacity, entry, element.color, { side, enabled: element.lineEnabled, length: element.lineLength, gap: element.lineGap, opacity: element.lineOpacity });
       ctx.restore();
     };
     const defaults = { organizer1: 'ПРОэлектро', organizer2: 'ПРОэлектрощит', partner1: 'Промрукав', partner2: 'КЭАЗ' };
@@ -773,26 +785,10 @@ export class PartnersScene {
     } else {
       glowFor(cfg.stageOrganizer1); glowFor(cfg.stageOrganizer2);
       glowFor(cfg.stagePartner1); glowFor(cfg.stagePartner2);
-      const divider = (element, opacity) => {
-        if (!element || element.enabled === false || opacity <= .001) return;
-        const { x, y, scale } = element;
-        const half = 250 * scale;
-        ctx.save(); ctx.globalAlpha = visible * opacity * .65 * element.opacity;
-        const gradient = ctx.createLinearGradient(x - half, 0, x + half, 0);
-        gradient.addColorStop(0, 'rgba(232,196,132,0)');
-        gradient.addColorStop(.22, 'rgba(232,196,132,.75)');
-        gradient.addColorStop(.78, 'rgba(232,196,132,.75)');
-        gradient.addColorStop(1, 'rgba(232,196,132,0)');
-        ctx.strokeStyle = gradient; ctx.lineWidth = 1.5 * scale;
-        ctx.beginPath(); ctx.moveTo(x - half, y); ctx.lineTo(x + half, y); ctx.stroke();
-        ctx.restore();
-      };
-      divider(cfg.stageDividerLeft, Math.min(cue.organizer, cue.partner));
-      divider(cfg.stageDividerRight, Math.min(cue.organizerSecond, cue.partnerSecond));
-      label(cfg.stageOrganizerLabel, data.organizerLabel, visible * cue.organizerLabel, cue.organizerLabel);
-      label(cfg.stageCoorganizerLabel, data.coorganizerLabel, visible * cue.organizerSecond, cue.organizerSecond);
-      label(cfg.stagePartnerLabel, data.partnerLabel, visible * cue.partner, cue.partner);
-      label(cfg.stagePartnerLabel2, data.partner2Label, visible * cue.partnerSecond, cue.partnerSecond);
+      label(cfg.stageOrganizerLabel, data.organizerLabel, visible * cue.organizerLabel, cue.organizerLabel, -1);
+      label(cfg.stageCoorganizerLabel, data.coorganizerLabel, visible * cue.organizerSecond, cue.organizerSecond, 1);
+      label(cfg.stagePartnerLabel, data.partnerLabel, visible * cue.partner, cue.partner, -1);
+      label(cfg.stagePartnerLabel2, data.partner2Label, visible * cue.partnerSecond, cue.partnerSecond, 1);
       company('organizer1', cfg.stageOrganizer1, cue.organizer, 2.75, 0);
       company('organizer2', cfg.stageOrganizer2, cue.organizerSecond, 3.25, 1);
       company('partner1', cfg.stagePartner1, cue.partner, 4.45, 2);
