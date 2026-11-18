@@ -18,7 +18,7 @@ test('editable layers are scene-specific, independently configured, and have eye
   }
   assert.equal(PARTNERS_DEFAULTS.stagePartner2.scale, 1);
   assert.equal(SPONSOR_KEAZ_DEFAULTS.stageSingleMark.x, 960);
-  assert.equal(PARTNERS_DEFAULTS.partners.curtainWidth, 168);
+  assert.equal(PARTNERS_DEFAULTS.partners.curtainWidth, 196);
 });
 
 test('custom mark entry follows edited time and reverses with scene progress', () => {

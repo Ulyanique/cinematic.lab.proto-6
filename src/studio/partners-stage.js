@@ -1,7 +1,7 @@
 /** Сценические сигналы спонсорской заставки: открытие и зеркальное закрытие. */
 const clamp = x => Math.max(0, Math.min(1, x));
 const smooth = (a, b, x) => { const p = clamp((x - a) / Math.max(1e-6, b - a)); return p * p * (3 - 2 * p); };
-export function partnersStageCues(phase, timeline, motion = 1, curtainFadePercent = 8) {
+export function partnersStageCues(phase, timeline, motion = 1, curtainFadePercent = 8, twoStageCurtains = false) {
   const entry = Math.max(.01, timeline.drawDuration + timeline.emergeDuration);
   const exitStart = entry + Math.max(0, timeline.holdDuration);
   const exitDuration = Math.max(.01, timeline.fadeDuration);
@@ -16,10 +16,15 @@ export function partnersStageCues(phase, timeline, motion = 1, curtainFadePercen
   const partnerSecond = smooth(.87, .98, p);
   const idle = smooth(.92, 1, p) * clamp(motion);
   const fadeEnd = Math.max(.01, Math.min(.23, (Number.isFinite(curtainFadePercent) ? curtainFadePercent : 8) / 100));
+  // Для общей композиции: небольшой первый проход, пауза на эмблему,
+  // затем полный проход до начала появления логотипов. На уходе порядок обратный.
+  const curtainOpen = twoStageCurtains
+    ? .55 * smooth(.02, .19, p) + .45 * smooth(.34, .55, p)
+    : smooth(0, .23, p);
   return {
     progress: p, visible, background: smooth(.04, .30, p),
     // Шторы проявляются из чёрного и гаснут при обратном движении.
-    curtainOpacity: smooth(0, fadeEnd, p), curtainOpen: smooth(0, .23, p),
+    curtainOpacity: smooth(0, fadeEnd, p), curtainOpen,
     compass: smooth(.25, .39, p), compassShrink: smooth(.42, .57, p),
     title: smooth(.55, .66, p),
     organizerLabel: organizer, organizer, organizerSecond,
@@ -213,5 +218,13 @@ export function migratePartnersTitleAndKeaz(saved) {
     const organizerScale = next.stageOrganizer1?.scale;
     next.stagePartner2.scale = Number.isFinite(organizerScale) && organizerScale > 0 ? organizerScale : 1;
   }
+  return next;
+}
+
+/** Обновляем лишь прежние стандартные значения общей сцены. */
+export function migratePartnersCurtainChoreography(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  if (next.partners?.curtainWidth === 168) next.partners.curtainWidth = 196;
+  if (next.timeline?.fadeDuration === 2.3 || next.timeline?.fadeDuration === 3.5) next.timeline.fadeDuration = 6.5;
   return next;
 }

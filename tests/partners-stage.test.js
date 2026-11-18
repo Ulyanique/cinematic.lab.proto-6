@@ -142,3 +142,34 @@ test('curtains fade smoothly from black and back, including before start and zer
   const zero = { drawDuration: 0, emergeDuration: 0, holdDuration: 1, fadeDuration: 0 };
   assert.equal(partnersStageCues({ local: 0 }, zero).curtainOpacity, 0);
 });
+
+test('group curtains pause for emblem, fully open before marks and reverse smoothly', async () => {
+  const { migratePartnersCurtainChoreography, stageCurtainLayout } = await import('../src/studio/partners-stage.js');
+  const { PARTNERS_DEFAULTS } = await import('../src/studio/scenes/partners.js');
+  const timeline = PARTNERS_DEFAULTS.timeline;
+  assert.equal(timeline.fadeDuration, 6.5);
+  const entry = timeline.drawDuration + timeline.emergeDuration;
+  const exit = entry + timeline.holdDuration;
+  const cue = t => partnersStageCues({local:t}, timeline, 1, 8, true);
+  assert.ok(Math.abs(cue(.2 * entry).curtainOpen - .55) < 1e-10);
+  assert.equal(cue(.2 * entry).compass, 0);
+  assert.ok(cue(.32 * entry).compass > 0);
+  assert.ok(Math.abs(cue(.32 * entry).curtainOpen - .55) < 1e-10);
+  assert.ok(cue(.45 * entry).curtainOpen > .55 && cue(.45 * entry).curtainOpen < 1);
+  assert.equal(cue(.56 * entry).curtainOpen, 1);
+  assert.equal(cue(.56 * entry).organizer, 0);
+  assert.equal(stageCurtainLayout({width:476,height:1080}, 1, 1080, 196).x + 476, 196);
+  assert.ok(196 < PARTNERS_DEFAULTS.stageOrganizer1.x - 220 * PARTNERS_DEFAULTS.stageOrganizer1.scale);
+  for (const u of [0, .1, .25, .5, .75, .9, 1]) {
+    const eased = u * u * (3 - 2 * u);
+    const a = cue((1 - eased) * entry), b = cue(exit + timeline.fadeDuration * u);
+    for (const key of ['curtainOpen', 'curtainOpacity', 'compass', 'compassShrink', 'title', 'organizer', 'partnerSecond']) {
+      assert.ok(Math.abs(a[key] - b[key]) < 1e-9, key);
+    }
+  }
+  const old = {partners:{curtainWidth:168},timeline:{fadeDuration:3.5,holdDuration:30}};
+  assert.deepEqual(migratePartnersCurtainChoreography(old), {partners:{curtainWidth:196},timeline:{fadeDuration:6.5,holdDuration:30}});
+  assert.equal(old.partners.curtainWidth,168);
+  assert.equal(migratePartnersCurtainChoreography({timeline:{fadeDuration:2.3}}).timeline.fadeDuration, 6.5);
+  assert.deepEqual(migratePartnersCurtainChoreography({partners:{curtainWidth:180},timeline:{fadeDuration:4}}), {partners:{curtainWidth:180},timeline:{fadeDuration:4}});
+});

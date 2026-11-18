@@ -9,6 +9,7 @@ import { createSceneTimeline } from './scene-timeline.js';
 export const PARTNERS_DEFAULTS = createSharedSceneConfig(createSceneTimeline(42.5));
 PARTNERS_DEFAULTS.timeline.drawDuration += 4;
 PARTNERS_DEFAULTS.timeline.holdDuration -= 4;
+PARTNERS_DEFAULTS.timeline.fadeDuration = 6.5;
 Object.assign(PARTNERS_DEFAULTS, partnerElementDefaults(false));
 PARTNERS_DEFAULTS.transition = {duration:.9};
 PARTNERS_DEFAULTS.partnersIntroBackground = { enabled: false, strength: 1, speed: 1 };
@@ -20,7 +21,7 @@ PARTNERS_DEFAULTS.partners = {
   logoStyle: 'gold',
   organizer1Logo: '', organizer2Logo: '', partner1Logo: '', partner2Logo: '',
   // Оставшаяся у края ширина раскрытых занавесов.
-  curtainWidth: 168,
+  curtainWidth: 196,
   frameVisible: true, curtainVisible: true, foliageVisible: true, compassVisible: true, motion: 1,
 };
 

@@ -556,7 +556,7 @@ export class PartnersScene {
     const phase = computePhase(t, this.cfg.timeline);
     const data = this.single ? this.cfg.sponsor : this.cfg.partners;
     const holding = phase.name === 'hold' && !phase.beforeStart;
-    const cue = partnersStageCues(phase, this.cfg.timeline, data.motion ?? 1, this.cfg.stageCurtains?.fadePercent);
+    const cue = partnersStageCues(phase, this.cfg.timeline, data.motion ?? 1, this.cfg.stageCurtains?.fadePercent, !this.single);
     const config = this.cfg;
     if (this.single && config.stageSingleMark) cue.organizer = elementVisibility(cue.progress, config.stageSingleMark);
     if (!this.single) {
@@ -585,8 +585,8 @@ export class PartnersScene {
     this.light.uniforms.strength.value = lightStrength * cue.visible * cue.background * (config.stageBackground?.enabled === false ? 0 : (config.stageBackground?.opacity ?? 1));
     this.light.mesh.visible = this.light.uniforms.strength.value > .001;
     const frame = config.stageFrame;
-    const glintOpacity = data.frameVisible !== false && frame?.enabled !== false && cue.curtainOpen >= .999
-      ? cue.visible * cue.frame * (frame?.opacity ?? 1) * (frame?.glint ?? 1) * Math.max(0, Math.min(1, data.motion ?? 1)) : 0;
+    const glintOpacity = data.frameVisible !== false && frame?.enabled !== false
+      ? cue.visible * cue.frame * cue.idle * (frame?.opacity ?? 1) * (frame?.glint ?? 1) : 0;
     this.frameGlint.mesh.visible = glintOpacity > .001;
     this.frameGlint.uniforms.time.value = phase.local;
     this.frameGlint.uniforms.opacity.value = glintOpacity;
