@@ -1,13 +1,15 @@
 import * as THREE from 'three'
 import { ConvexGeometry } from 'three/examples/jsm/geometries/ConvexGeometry.js'
-import { buildLogoParts } from '../lab2/logo'
-import { makeGold } from '../lab2/gold'
+import { buildEmblem } from '../lab2/emblem'
+import { FIN_Y } from './config'
+import { mulberry32 } from '../lab5/math'
 
-const rand = (a: number, b: number) => a + Math.random() * (b - a)
+const buildRng = mulberry32(0x5eed)
+const rand = (a: number, b: number) => a + buildRng() * (b - a)
 
 function randDir() {
-  const u = Math.random() * 2 - 1
-  const a = Math.random() * Math.PI * 2
+  const u = buildRng() * 2 - 1
+  const a = buildRng() * Math.PI * 2
   const s = Math.sqrt(1 - u * u)
   return new THREE.Vector3(s * Math.cos(a), s * Math.sin(a), u)
 }
@@ -35,16 +37,12 @@ export class Finale {
   constructor(goldMat: THREE.Material, _pixelRatio: number) {
     this.group.visible = false
 
-    // ── лого интро: 3D-эмблема из того же SVG, что и в интро ──
-    const parts = buildLogoParts({ svg: '', size: 3.2, depth: 140, bevel: 22 })
-    const bb = new THREE.Box3()
-    for (const p of parts) {
-      p.geometry.computeBoundingBox()
-      bb.union(p.geometry.boundingBox!)
-    }
-    const C = bb.getCenter(new THREE.Vector3())
-    const size = bb.getSize(new THREE.Vector3())
-    // Ширина эмблемы ~9.5 world units: в финале камера в 42 единицах, fov 50.
+    // ── лого интро: та же 3D-эмблема, что и в интро (общий buildEmblem) ──
+    const { meshes, materials, center: C, size } = buildEmblem({
+      svg: '', size: 3.2, depth: 140, bevel: 22,
+      gold: { env: 2.1, roughness: 0.27 },
+    })
+    // Ширина эмблемы ~9.5 world units: в финале камера в ~33 единицах, fov 50.
     this.logoScale = 9.5 / Math.max(size.x, 0.001)
     const h = size.y * this.logoScale
     this.logoRoot = new THREE.Group()
@@ -52,27 +50,17 @@ export class Finale {
     inner.position.set(-C.x, -C.y, 0)
     this.logoRoot.add(inner)
     // vWorldP.y у золота приходит в мировых координатах: группа финала стоит на
-    // FIN_Y, поэтому градиент задаём относительно этой высоты, иначе эмблема
-    // всегда получает «верхний» цвет.
-    const FIN_Y = 1000 // engine.ts: const FIN_Y = 1000
-    this.goldMats = []
-    for (const p of parts) {
-      const mat = makeGold({ gradBot: FIN_Y - h * 0.55, gradTop: FIN_Y + h * 0.55, env: 2.1, roughness: 0.27 })
+    // FIN_Y (config.ts), поэтому градиент задаём относительно этой высоты,
+    // иначе эмблема всегда получает «верхний» цвет.
+    for (const mat of materials) {
       const u = mat.userData.u
       if (u) {
-        u.uCenter.value.set(0, 0, 0)
-        u.uDir.value.copy(p.dir)
-        u.uExtent.value = Math.abs(p.dir.x) > 0.5 ? p.size.x : p.size.y
-        u.uReveal.value = 0
+        u.uGradY.value.set(FIN_Y - h * 0.55, FIN_Y + h * 0.55)
+        u.uReveal.value = 1
       }
-      this.goldMats.push(mat)
-      const geo = p.geometry.clone()
-      geo.translate(-p.center.x, -p.center.y, -p.center.z)
-      const m = new THREE.Mesh(geo, mat)
-      m.position.copy(p.center)
-      m.position.z += p.z
-      inner.add(m)
     }
+    this.goldMats = materials
+    for (const m of meshes) inner.add(m)
     this.logoRoot.scale.setScalar(0.001)
     this.logoRoot.position.z = -6
     this.group.add(this.logoRoot)
@@ -111,8 +99,7 @@ export class Finale {
     // логотип интро: быстрый сбор с перелётом и мягкий «выход» к камере
     const assemble = clamp01(t / 1.35)
     const e = easeOutBack(assemble)
-    // uReveal: 0 → лого «прорезается» из черноты, 1 — полностью вырезано;
-    // без этого золото с uReveal=0 отбрасывает все фрагменты и невидимо.
+    // Золото полностью вырезано (uReveal=1): анимации reveal в финале нет.
     for (const m of this.goldMats) {
       const u = (m as THREE.MeshPhysicalMaterial).userData.u
       if (u) {

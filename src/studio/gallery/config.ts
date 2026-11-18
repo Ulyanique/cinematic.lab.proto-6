@@ -36,3 +36,6 @@ export const END_T = FLASH_T + 9.5
 // Общее окно видимости для живой сцены и покадрового экспорта.
 export const PANEL_BEFORE = 2.4
 export const PANEL_AFTER = 2.2
+
+/** Вертикальный сдвиг мира финала: корридор рисуется выше, эмблема — в своём мире. */
+export const FIN_Y = 1000

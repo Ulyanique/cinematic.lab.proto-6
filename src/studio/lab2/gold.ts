@@ -32,7 +32,10 @@ export function makeGold(params = {}) {
     envMapIntensity: params.env ?? 1.5,
   });
   const u = {
-    uReveal: { value: 0 },
+    // По умолчанию эмблема полностью вырезана: uReveal=0 отбрасывает ВСЕ фрагменты
+    // золота (if(dm>drv) discard), то есть «забыл включить reveal» = невидимая деталь.
+    // Интро всё равно перезаписывает uReveal каждый кадр анимации.
+    uReveal: { value: 1 },
     uCenter: { value: new THREE.Vector3() },
     uDir: { value: new THREE.Vector3(0, -1, 0) },
     uExtent: { value: 1 },

@@ -7,14 +7,18 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js'
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
-import { MEDIA, FLASH_T, END_T, CLIP_T0, CLIP_DT, PANEL_BEFORE, PANEL_AFTER, clipCenter } from './config'
+import { MEDIA, FLASH_T, END_T, CLIP_T0, CLIP_DT, PANEL_BEFORE, PANEL_AFTER, clipCenter, FIN_Y } from './config'
 import { MediaSlot } from './media'
 import { clipMediaTime, continuousCameraTime, finaleDim, lightOrbit, lightPanelIndex, lightVisibility, panelMote } from './timeline'
+import { mulberry32 } from '../lab5/math'
 import { Finale } from './finale'
 import { dotTexture, glowTexture, starTexture } from './textures'
 import { bgVert, bgFrag } from '../lab2/shaders'
 
-const rand = (a: number, b: number) => a + Math.random() * (b - a)
+// Детерминированная сборка коридора: превью и покадровый экспорт получают
+// один и тот же рисунок (иначе каждая загрузка даёт новые плиты и пылинки).
+const buildRng = mulberry32(0x9e3779b9)
+const rand = (a: number, b: number) => a + buildRng() * (b - a)
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
 const smooth = (a: number, b: number, x: number) => {
   const t = clamp01((x - a) / (b - a))
@@ -33,7 +37,6 @@ const FLOOR_Y = -4
 const PANEL_W = 11.6
 const PANEL_H = 6.525
 const PANEL_DIST = 11.5
-const FIN_Y = 1000
 
 type Pose = { p: THREE.Vector3; r: THREE.Vector3; u: THREE.Vector3 }
 
@@ -159,7 +162,7 @@ export class GalleryEngine {
     particleGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(particleCount * 3), 3))
     particleGeometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(particleCount * 3), 3))
     for (let i = 0; i < particleCount; i++) {
-      this.particleSeeds.push({ phase: Math.random(), spread: Math.random(), tangent: rand(-1, 1), strand: i % 3, twinkle: Math.random() * Math.PI * 2 })
+      this.particleSeeds.push({ phase: buildRng(), spread: buildRng(), tangent: rand(-1, 1), strand: i % 3, twinkle: buildRng() * Math.PI * 2 })
     }
     this.trailParticles = new THREE.Points(particleGeometry, new THREE.PointsMaterial({
       map: dotTexture(), size: 0.14, vertexColors: true, blending: THREE.AdditiveBlending,
@@ -434,7 +437,7 @@ export class GalleryEngine {
 
     const addMonolith = (w: number, h: number, d: number, pos: THREE.Vector3, yaw: number, bright: number) => {
       const geo = new THREE.BoxGeometry(w, h, d)
-      const m = new THREE.Mesh(geo, mats[(Math.random() * mats.length) | 0])
+      const m = new THREE.Mesh(geo, mats[(buildRng() * mats.length) | 0])
       m.position.copy(pos)
       m.rotation.y = yaw
       m.updateMatrix()
@@ -446,7 +449,7 @@ export class GalleryEngine {
         v2.fromBufferAttribute(p, i + 1)
         v.applyMatrix4(m.matrix)
         v2.applyMatrix4(m.matrix)
-        const k = bright * (0.55 + Math.pow(Math.random(), 2) * 0.75)
+        const k = bright * (0.55 + Math.pow(buildRng(), 2) * 0.75)
         linePos.push(v.x, v.y, v.z, v2.x, v2.y, v2.z)
         lineCol.push(base.r * k, base.g * k, base.b * k, base.r * k, base.g * k, base.b * k)
       }

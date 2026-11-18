@@ -19,6 +19,14 @@ export class GalleryScene extends LabScene {
     this.loadedNames = Array(GALLERY_SLOT_COUNT).fill(null);
     this.errors = Array(GALLERY_SLOT_COUNT).fill('');
     this.prepared = -1;
+    // Идущие загрузки: i -> Promise. Нужны, чтобы покадровый экспорт мог
+    // дождаться слотов, запрошенных «фоном» из предпросмотра.
+    this._loading = new Map();
+    // Все синхронизации идут через одну цепочку: медиа грузятся строго по
+    // очереди. Параллельно запросившиеся в один кадр ролики подвисали на
+    // фазе metadata в headless-Chromium, а последовательная загрузка (как
+    // было до ленивого режима) всегда срабатывала.
+    this._syncChain = Promise.resolve();
     this._readyPromise = (async () => {
       await loadGalleryFiles();
       if (this.disposed) return;
@@ -37,30 +45,58 @@ export class GalleryScene extends LabScene {
     return Array.from({ length: GALLERY_SLOT_COUNT }, (_, i) => String(section[`slot${i}`] || ''));
   }
 
-  /** Синхронизировать слоты движка с конфигом: загрузить новые, убрать пустые. */
-  async syncSlots() {
+  /** Синхронизация слотов: выход через одну последовательную очередь. */
+  syncSlots() {
+    const run = this._syncChain.then(() => this._syncSlotsInner());
+    this._syncChain = run.catch(() => {});
+    return run;
+  }  async _assignSlot(i, desired) {
+    const file = galleryFileFor(i);
+    if (file) {
+      const ok = await this.engine.assignSlotFile(i, file);
+      if (!ok) this.errors[i] = `Не удалось открыть «${desired}» — проверьте формат видео`;
+      return ok;
+    }
+    if (isBuiltinGalleryName(desired)) {
+      // Встроенный клиент из сборки: свой файл всегда в приоритете выше.
+      const ok = await this.engine.assignSlotUrl(i, builtinGalleryUrl(desired));
+      if (!ok) this.errors[i] = `Не удалось открыть встроенный «${desired}»`;
+      return ok;
+    }
+    this.errors[i] = `Файл «${desired}» не найден в этом браузере — загрузите его снова`;
+    return false;
+  }
+
+  /** Синхронизация слотов: выход через одну последовательную очередь. */
+  syncSlots() {
+    const run = this._syncChain.then(() => this._syncSlotsInner());
+    this._syncChain = run.catch(() => {});
+    return run;
+  }
+
+  /**
+   * Синхронизировать слоты движка с конфигом: грузим всё назначенное.
+   * Ленивый режим пробовали и отменили: у клипа-петли все панели нужны в
+   * течение первой минуты, а перемотка/экспорт обязаны видеть каждый слот;
+   * на слабом GPU параллельные медиа-запросы к тому же подвисали.
+   */
+  async _syncSlotsInner() {
     const names = this.slotNames();
     for (let i = 0; i < GALLERY_SLOT_COUNT; i++) {
       const desired = names[i];
       if (desired === this.loadedNames[i]) continue;
-      this.loadedNames[i] = desired;
-      this.errors[i] = '';
       if (!desired) {
+        this.loadedNames[i] = desired;
+        this.errors[i] = '';
         this.engine.clearSlot(i);
         clearGalleryFile(i);
         continue;
       }
-      const file = galleryFileFor(i);
-      if (file) {
-        const ok = await this.engine.assignSlotFile(i, file);
-        if (!ok) this.errors[i] = `Не удалось открыть «${desired}» — проверьте формат видео`;
-      } else if (isBuiltinGalleryName(desired)) {
-        // Встроенный клиент из сборки: свой файл всегда в приоритете выше.
-        const ok = await this.engine.assignSlotUrl(i, builtinGalleryUrl(desired));
-        if (!ok) this.errors[i] = `Не удалось открыть встроенный «${desired}»`;
-      } else {
-        this.errors[i] = `Файл «${desired}» не найден в этом браузере — загрузите его снова`;
-      }
+      this.loadedNames[i] = desired;
+      this.errors[i] = '';
+      const p = this._assignSlot(i, desired).finally(() => this._loading.delete(i));
+      this._loading.set(i, p);
+      await p;
       if (this.disposed) return;
     }
   }
@@ -75,6 +111,9 @@ export class GalleryScene extends LabScene {
   async prepareFrame(t) {
     await this.whenReady();
     if (!this.engine || this.disposed) return;
+    // syncSlots дожидается всю очередь последовательных загрузок сама.
+    await this.syncSlots();
+    await Promise.allSettled([...this._loading.values()]);
     const time = Math.min(this.filmTime(t, END_T), END_T - 1e-4);
     await this.engine.prepareExportFrame(time);
     this.engine.renderAt(time);

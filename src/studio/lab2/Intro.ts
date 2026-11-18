@@ -18,6 +18,7 @@ import {
 } from './shaders';
 import { makeGold, makeEnvironment, sharedGold } from './gold';
 import { buildLogoParts, P } from './logo';
+import { buildEmblem } from './emblem';
 import { buildTitle } from './title';
 import { StreakPass } from './streak';
 import { elementFlash, elementLightPulse } from '../element-effects.js';
@@ -500,21 +501,17 @@ export class Intro {
   setupLogo() {
     const LG = this.cfg.layers.logo;
     // сначала строим геометрию: при ошибке SVG состояние сцены не затрагивается
-    const parts = buildLogoParts({ svg: LG.svg, size: LG.size, depth: LG.depth, bevel: LG.bevel });
+    const built = buildEmblem({ svg: LG.svg, size: LG.size, depth: LG.depth, bevel: LG.bevel,
+      gold: { gradBot: -0.1, gradTop: 3.15, env: 1.6 }, visible: false });
+    const { parts, meshes, center: C, size } = built;
+    this.logoParts = parts;
     this.logoRoot = new THREE.Group();
     const inner = (this.logoInner = new THREE.Group());
     this.logoRoot.add(inner);
-    this.logoParts = parts;
-
-    const bb = new THREE.Box3();
-    this.logoParts.forEach((p) => {
-      p.geometry.computeBoundingBox();
-      bb.union(p.geometry.boundingBox);
-    });
-    const C = bb.getCenter(new THREE.Vector3());
     this.logoCenter = C;
     this.logoRoot.position.set(C.x, C.y, 0);
     inner.position.set(-C.x, -C.y, 0);
+    for (const m of meshes) inner.add(m);
     const pr = rng(33);
     this.logoRand = this.logoParts.map(() => pr());
 
@@ -525,20 +522,8 @@ export class Intro {
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     });
     // каждая деталь вращается вокруг собственного центра — это нужно пресетам анимации
-    this.logoMeshes = this.logoParts.map((p, pi) => {
-      const mat = makeGold({ gradBot: -0.1, gradTop: 3.15, env: 1.6 });
-      const u = mat.userData.u;
-      u.uCenter.value.set(0, 0, 0);
-      u.uDir.value.copy(p.dir);
-      u.uExtent.value = Math.abs(p.dir.x) > 0.5 ? p.size.x : p.size.y;
-      const geo = p.geometry.clone();
-      geo.translate(-p.center.x, -p.center.y, -p.center.z);
-      const m = new THREE.Mesh(geo, mat);
-      m.position.copy(p.center);
-      m.position.z += p.z;
-      m.visible = false;
-      inner.add(m);
-      const tr = this.makeTrace(p, traceMat, pi);
+    this.logoMeshes = meshes.map((m, pi) => {
+      const tr = this.makeTrace(this.logoParts[pi], traceMat, pi);
       if (tr) m.add(tr);
       return m;
     });
