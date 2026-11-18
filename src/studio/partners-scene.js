@@ -625,10 +625,16 @@ export class PartnersScene {
     // Эмблема проявляется крупно и уменьшается к выбранному положению.
     const compass = cfg.stageCompass;
     if (introOutlineImage && cue.compass > .001 && compass?.enabled !== false) {
-      const size = (600 - 260 * cue.compassShrink) * (compass?.scale ?? 1);
+      const shrink = cue.compassShrink;
+      const size = (600 - 260 * shrink) * (compass?.scale ?? 1);
       const height = size * 4133.76 / 3937.77;
+      // Эмблема материализуется именно в центре кадра и уже оттуда, сжимаясь,
+      // спускается в своё место (для общей композиции разница всего 65 px).
+      const fx = compass?.x ?? 960, fy = compass?.y ?? 540;
+      const cx = fx + (960 - fx) * (1 - shrink);
+      const cy = fy + (540 - fy) * (1 - shrink);
       ctx.save(); ctx.globalAlpha = visible * cue.compass * (compass?.opacity ?? .42);
-      ctx.drawImage(coloredCompass(compass?.color), (compass?.x ?? 960) - size / 2, (compass?.y ?? 540) - height / 2, size, height);
+      ctx.drawImage(coloredCompass(compass?.color), cx - size / 2, cy - height / 2, size, height);
       ctx.restore();
     }
     const text = (value, x, y, font, color, alpha, maxWidth, entry = 1) => {

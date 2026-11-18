@@ -26,7 +26,11 @@ export function sponsorDragElements(cfg) {
   return items.flatMap(([id, w, h]) => {
     const layer = cfg[id];
     if (!layer || layer.enabled === false) return [];
-    const scale = Number.isFinite(layer.scale) ? layer.scale : 1;
+    const rawScale = Number.isFinite(layer.scale) ? layer.scale : 1;
+    // Подписи вымышленно широкие (460 px при тексте ~150): при большом scale
+    // область захвата уезжала бы на соседние слои, поэтому для подписей
+    // ограничиваем масштаб области захвата.
+    const scale = id.endsWith('Label') ? Math.min(rawScale, 1.2) : rawScale;
     const width = id === 'stageTitleDivider' ? (layer.width ?? w) : w;
     return [{ id, x: layer.x, y: layer.y, w: width * scale, h: h * scale, kind: 'frame', borderOnly: id === 'stageFrame', scaleKey: 'scale' }];
   });

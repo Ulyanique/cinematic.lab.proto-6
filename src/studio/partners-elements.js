@@ -36,6 +36,11 @@ export function partnerElementDefaults(single = false) {
     for (const [id, [x, y]] of Object.entries(reference)) Object.assign(out[id], { x, y });
     out.stageTitleDivider.width = 520;
     out.stageSubtitle.color = '#c8a873';
+    // Подпись спонсора читается с последнего ряда: примерно в 2.5 раза крупнее
+    // базовых 24 px, на одной горизонтали со знаком; сдвинута влево,
+    // чтобы не наезжать на знак КЭАЗ.
+    out.stageSponsorLabel.scale = 2.5;
+    out.stageSponsorLabel.x = 550;
   } else {
     const reference = {
       stageTitle: [960, 150], stageTitleDivider: [960, 195], stageSubtitle: [960, 235],

@@ -293,3 +293,12 @@ export function migrateSponsorTitleBlock(saved) {
   if (mark?.x === 1140 && mark?.y === 385) mark.x = 1130;
   return next;
 }
+
+/** Подпись спонсора на заставке одного спонсора: намного крупнее базовых 24 px. */
+export function migrateSponsorLabelScale(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  const layer = next.stageSponsorLabel;
+  if (layer && (layer.scale === 1 || layer.scale == null)) layer.scale = 2.5;
+  if (layer?.x === 620) layer.x = 550; // иначе крупная подпись наезжает на знак
+  return next;
+}
