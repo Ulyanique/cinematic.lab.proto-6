@@ -1,3 +1,4 @@
+import { createDragEditor } from "./drag-editor.js";
 import "./styles.css";
 import "./font-assets.js";
 import { loadFabricTexture } from "./fabric-texture.js";
@@ -367,6 +368,15 @@ panels = createStudioPanels({
   },
 });
 
+// Редактор не рисуется в видео: правки идут через тот же конфиг, что панель.
+const dragEditor = createDragEditor({
+  getState: () => ({ id: sceneId, cfg, canvas, scene, recording: Boolean(recording), sections: sectionsFor(sceneId) }),
+  onMessage: (message) => toast(message),
+  commit: (id, section, xKey, yKey, x, y, live) => commitSceneConfig(id, config => {
+    if (config[section]) { config[section][xKey] = x; config[section][yKey] = y; }
+  }, { live }),
+});
+
 /**
  * Верхняя строка студии: ролик по центру. Список — часть хрома, а не плеера,
  * поэтому переключение блокируется только записью и переходом.
@@ -586,6 +596,7 @@ function switchScene(id) {
   oldScene.dispose();
   // Панели остаются открытыми и переключаются на слои новой сцены.
   panels.syncScene();
+  dragEditor.sync();
   clipSwitcher.sync(id);
   const url = new URL(location.href);
   // Пишем настоящий id: ?scene=intro открывает новое интро (лабораторию 10),
@@ -704,6 +715,7 @@ function startOfflineRecording(download) {
   } catch (error) { toast(`Ошибка экспорта: ${error.message}`, true); return false; }
   if (download && estimatedMiB >= 256 && !confirm(`Ориентировочный размер MP4 — ${estimatedMiB} МиБ. Видео собирается в памяти браузера; потребуется больше памяти, а итоговый размер может отличаться. Продолжить?`)) return false;
   const job = { cancelled: false, outgoing: null };
+  dragEditor.cancel();
   recording = job;
   const overlay = exportOverlay(job, estimatedMiB);
   // Кнопка в верхней строке показывает, что запись идёт: пульт больше не

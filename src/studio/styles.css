@@ -1287,3 +1287,10 @@ body.panels-on .clip-switch { opacity: 1; }
 }
 /* Круглая кнопка пульта: иконка по центру, размер задаёт общее правило. */
 .operator-panel button.operator-icon { padding: 0; }
+
+/* Режим раскладки существует только поверх предпросмотра, в видео не записывается. */
+.studio-btn-drag { left: 58px; }
+.drag-editor { position: fixed; z-index: 20; touch-action: none; }
+.drag-editor[hidden], .drag-editor-outline[hidden] { display: none; }
+.drag-editor-outline { position: absolute; border: 1px solid rgba(255, 218, 150, .85); box-shadow: 0 0 0 1px rgba(0,0,0,.4); pointer-events: none; }
+.drag-editor.is-dragging { cursor: grabbing !important; }
