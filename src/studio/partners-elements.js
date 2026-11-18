@@ -11,7 +11,7 @@ export const PARTNERS_ELEMENTS = Object.freeze([
   spec('stagePartnerLabel', 'Подпись спонсора 1', 490, 365, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
   spec('stagePartnerLabel2', 'Подпись спонсора 2', 1410, 365, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
   spec('stageBackground', 'Фоновая картинка', 960, 540, { backgroundImage: '' }),
-  spec('stageCurtains', 'Шторы', 960, 540, { leftVisible: true, rightVisible: true, leftOffset: 0, rightOffset: 0 }),
+  spec('stageCurtains', 'Шторы', 960, 540, { leftVisible: true, rightVisible: true, leftOffset: 0, rightOffset: 0, fadePercent: 8 }),
   spec('stageFrame', 'Рамка и блик', 960, 540, { glint: 1 }),
   spec('stageParticles', 'Искры', 960, 540),
   spec('stageCompass', 'Циркуль', 960, 540, { opacity: .42 }),
@@ -41,6 +41,7 @@ export const PARTNERS_ELEMENT_SCHEMA = PARTNERS_ELEMENTS.map(s => ({
     ...('leftVisible' in s.defaults ? [
       { key: 'leftVisible', label: 'Левая штора', type: 'bool' },
       { key: 'rightVisible', label: 'Правая штора', type: 'bool' },
+      { key: 'fadePercent', label: 'Проявление из чёрного, % входа', type: 'range', min: 1, max: 23, step: 1 },
       { key: 'leftOffset', label: 'Левая: дополнительно в кадр, px', type: 'range', min: -100, max: 100, step: 1 },
       { key: 'rightOffset', label: 'Правая: дополнительно в кадр, px', type: 'range', min: -100, max: 100, step: 1 },
     ] : []),

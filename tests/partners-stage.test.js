@@ -28,7 +28,7 @@ test('curtains, large emblem, shrinking and logos appear in order and reverse on
     const eased = u * u * (3 - 2 * u);
     const opened = at((1 - eased) * 5);
     const closed = at(35 + 2.3 * u);
-    for (const key of ['background', 'curtainOpen', 'compass', 'compassShrink', 'title', 'organizer', 'partner', 'organizerSecond', 'partnerSecond']) {
+    for (const key of ['background', 'curtainOpacity', 'curtainOpen', 'compass', 'compassShrink', 'title', 'organizer', 'partner', 'organizerSecond', 'partnerSecond']) {
       assert.ok(Math.abs(opened[key] - closed[key]) < 1e-9, key);
     }
   }
@@ -126,4 +126,19 @@ test('organizers share the top row, sponsors share the lower row, KEAZ is smalle
   assert.ok(l.organizerBottom < l.sponsorTop);
   assert.equal(l.organizerLabel, l.coorganizerLabel);
   assert.ok(l.keazScale > 0 && l.keazScale < 1);
+});
+
+
+test('curtains fade smoothly from black and back, including before start and zero duration', () => {
+  const defaultTl = { drawDuration: 6.6, emergeDuration: 2.4, holdDuration: 30, fadeDuration: 3.5, restDuration: 0 };
+  const cue = t => partnersStageCues({ local: t, beforeStart: false }, defaultTl);
+  assert.equal(cue(0).curtainOpacity, 0);
+  assert.ok(cue(.18).curtainOpacity > 0 && cue(.18).curtainOpacity < 1);
+  assert.equal(cue(.72).curtainOpacity, 1);
+  assert.equal(cue(9).curtainOpacity, 1);
+  assert.equal(cue(42.5).curtainOpacity, 0);
+  assert.equal(partnersStageCues({ local: 5, beforeStart: true }, defaultTl).curtainOpacity, 0);
+  assert.ok(partnersStageCues({ local: .36 }, defaultTl, 1, 16).curtainOpacity < cue(.36).curtainOpacity);
+  const zero = { drawDuration: 0, emergeDuration: 0, holdDuration: 1, fadeDuration: 0 };
+  assert.equal(partnersStageCues({ local: 0 }, zero).curtainOpacity, 0);
 });

@@ -527,7 +527,7 @@ export class PartnersScene {
     const phase = computePhase(t, this.cfg.timeline);
     const data = this.single ? this.cfg.sponsor : this.cfg.partners;
     const holding = phase.name === 'hold' && !phase.beforeStart;
-    const cue = partnersStageCues(phase, this.cfg.timeline, data.motion ?? 1);
+    const cue = partnersStageCues(phase, this.cfg.timeline, data.motion ?? 1, this.cfg.stageCurtains?.fadePercent);
     const config = this.cfg;
     if (this.single && config.stageSingleMark) cue.organizer = elementVisibility(cue.progress, config.stageSingleMark);
     if (!this.single) {
@@ -539,7 +539,7 @@ export class PartnersScene {
     }
     this.glitter.points.visible = cue.visible > 0 && cue.background > .001 && config.stageParticles?.enabled !== false;
     const curtainLayer = config.stageCurtains;
-    this.curtains.update(curtainImage, cue.curtainOpen, data.curtainWidth, cue.visible * (curtainLayer?.opacity ?? 1),
+    this.curtains.update(curtainImage, cue.curtainOpen, data.curtainWidth, cue.visible * cue.curtainOpacity * (curtainLayer?.opacity ?? 1),
       data.curtainVisible !== false && curtainLayer?.enabled !== false, curtainLayer);
     this._blackFrame = cue.visible <= 0;
     this._updateBackground(master, phase, cue, data);

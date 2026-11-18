@@ -1,7 +1,7 @@
 /** Сценические сигналы спонсорской заставки: открытие и зеркальное закрытие. */
 const clamp = x => Math.max(0, Math.min(1, x));
 const smooth = (a, b, x) => { const p = clamp((x - a) / Math.max(1e-6, b - a)); return p * p * (3 - 2 * p); };
-export function partnersStageCues(phase, timeline, motion = 1) {
+export function partnersStageCues(phase, timeline, motion = 1, curtainFadePercent = 8) {
   const entry = Math.max(.01, timeline.drawDuration + timeline.emergeDuration);
   const exitStart = entry + Math.max(0, timeline.holdDuration);
   const exitDuration = Math.max(.01, timeline.fadeDuration);
@@ -15,9 +15,11 @@ export function partnersStageCues(phase, timeline, motion = 1) {
   const partner = smooth(.77, .85, p);
   const partnerSecond = smooth(.87, .98, p);
   const idle = smooth(.92, 1, p) * clamp(motion);
+  const fadeEnd = Math.max(.01, Math.min(.23, (Number.isFinite(curtainFadePercent) ? curtainFadePercent : 8) / 100));
   return {
     progress: p, visible, background: smooth(.04, .30, p),
-    curtainOpen: smooth(0, .23, p),
+    // Шторы проявляются из чёрного и гаснут при обратном движении.
+    curtainOpacity: smooth(0, fadeEnd, p), curtainOpen: smooth(0, .23, p),
     compass: smooth(.25, .39, p), compassShrink: smooth(.42, .57, p),
     title: smooth(.55, .66, p),
     organizerLabel: organizer, organizer, organizerSecond,
