@@ -291,7 +291,7 @@ while (GLITTER.length < 1150) {
  * @param {Array<{x:number,y:number,w:number,h:number}>} [protect] зоны, где
  *   глиттер гасится: текст и знак должны оставаться читаемыми
  */
-export function drawAmberAtmosphere(ctx, time, motion = 1, period = 20, protect = []) {
+export function drawAmberAtmosphere(ctx, time, motion = 1, period = 20, protect = [], { veils = true, particles = true } = {}) {
   const power = clamp(Number.isFinite(motion) ? motion : 1);
   if (power <= 0) return;
   const W = BASE_FRAME.width, H = BASE_FRAME.height;
@@ -301,6 +301,7 @@ export function drawAmberAtmosphere(ctx, time, motion = 1, period = 20, protect 
   const breathe = 0.85 + 0.15 * Math.sin(angle);
 
   ctx.save();
+  if (veils) {
   // 1. Покров сверху-справа: широкий и очень мягкий. Он не «ездит» по кадру,
   //    а дышит — свет должен лежать на фоне, а не бегать по нему.
   const wash = ctx.createRadialGradient(1140, 150, 40, 1140, 150, 900);
@@ -334,6 +335,9 @@ export function drawAmberAtmosphere(ctx, time, motion = 1, period = 20, protect 
   ctx.fillStyle = veil;
   ctx.fillRect(-700, -700, 1400, 1400);
   ctx.restore();
+
+  }
+  if (!particles) { ctx.restore(); return; }
 
   // 4. Глиттер: много мелких крупинок с короткими вспышками.
   ctx.save();

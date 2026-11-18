@@ -328,6 +328,8 @@ export class PartnersScene {
       // Статический слой привязан к разрешению мастера — пересобрать.
       this._staticLayer = null;
       this._staticLayerKey = "";
+      this._frameLayer = null;
+      this._veilLayer = null;
     }
   }
 
@@ -357,6 +359,24 @@ export class PartnersScene {
     this._staticLayer = layer;
     this._staticLayerKey = key;
     return layer;
+  }
+
+  _cachedDecoration(master, kind) {
+    const field = kind === 'frame' ? '_frameLayer' : '_veilLayer';
+    if (this[field]) return this[field];
+    const canvas = document.createElement('canvas');
+    canvas.width = master.width; canvas.height = master.height;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(master.width / 1920, 0, 0, master.height / 1080, 0, 0);
+    if (kind === 'frame') {
+      // Рамка чуть меньше и тише; сложная позолота готовится только один раз.
+      ctx.translate(960, 540); ctx.scale(.94, .94); ctx.translate(-960, -540);
+      drawPartnersDecor(ctx, { visible: 1, frame: 1, curtain: 0, motion: 0, local: 0 }, { frameVisible: true, curtainVisible: false }, null);
+    } else {
+      drawAmberAtmosphere(ctx, 0, 1, 1, [], { particles: false });
+    }
+    this[field] = canvas;
+    return canvas;
   }
 
   get quality() { return this._quality; }
@@ -402,12 +422,20 @@ export class PartnersScene {
     ctx.drawImage(staticLayer, 0, 0, w, h);
     ctx.restore();
     // Защищаем от частиц области знаков в верхних боковых колонках.
-    drawAmberAtmosphere(ctx, phase.local, (data.motion ?? 1) * visible, phase.cycle, [
-      { x: 190, y: 70, w: 470, h: 450 },
-      { x: 1260, y: 70, w: 470, h: 450 },
-    ]);
-    // Здесь рисуем рамку; занавес окажется поверх всех элементов ниже.
-    drawPartnersDecor(ctx, cue, data, curtainImage);
+    // Свет и сложную позолоту кэшируем, а искры оставляем живыми.
+    const motion = Math.max(0, Math.min(1, data.motion ?? 1));
+    ctx.save(); ctx.globalAlpha = visible * motion;
+    ctx.drawImage(this._cachedDecoration(master, 'veil'), 0, 0, w, h);
+    ctx.restore();
+    drawAmberAtmosphere(ctx, phase.local, motion * visible, phase.cycle, [
+      { x: 150, y: 70, w: 550, h: 450 },
+      { x: 1220, y: 70, w: 550, h: 450 },
+    ], { veils: false });
+    if (data.frameVisible !== false) {
+      ctx.save(); ctx.globalAlpha = visible * cue.frame * .65;
+      ctx.drawImage(this._cachedDecoration(master, 'frame'), 0, 0, w, h);
+      ctx.restore();
+    }
     const text = (value, x, y, font, color, alpha, maxWidth, entry = 1) => {
       ctx.save(); ctx.globalAlpha = alpha; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = font; ctx.fillStyle = color;
       ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 9; ctx.shadowOffsetY = 3;
@@ -535,10 +563,10 @@ export class PartnersScene {
     label(data.organizerLabel, left, 105, visible * cue.organizerLabel, cue.organizerLabel);
     label(data.coorganizerLabel, left, 330, visible * cue.organizerSecond, cue.organizerSecond);
     label(data.partnerLabel, right, 105, visible * cue.partnerLabel, cue.partnerLabel);
-    company('organizer1', left, topY, cue.organizer, 2.75, 0, .82);
-    company('organizer2', left, secondY, cue.organizerSecond, 3.25, 1, .82);
-    company('partner1', right, topY, cue.partner, 4.45, 2, .82);
-    company('partner2', right, secondY, cue.partnerSecond, 4.95, 3, .82);
+    company('organizer1', left, topY, cue.organizer, 2.75, 0, 1);
+    company('organizer2', left, secondY, cue.organizerSecond, 3.25, 1, 1);
+    company('partner1', right, topY, cue.partner, 4.45, 2, 1);
+    company('partner2', right, secondY, cue.partnerSecond, 4.95, 3, 1);
     // Циркуль рисуется на GPU после подложки, без дорогостоящего чтения
     // пикселей из второго WebGL-контекста в Canvas2D на каждом кадре.
     this._logoOpacity = visible * cue.compass;
