@@ -18,6 +18,11 @@ export const DEFAULTS = WAITING_DEFAULTS;
 
 // Схема UI: группы → поля. type: range | color | bool
 export const SCHEMA = [
+  { id: "partnersLight", title: "Играющий свет на фоне", fields: [
+    {key:"enabled",label:"Показывать свет",type:"bool"},
+    {key:"strength",label:"Яркость света",type:"range",min:0,max:1.5,step:.01},
+    {key:"speed",label:"Скорость изменения",type:"range",min:0,max:2,step:.01},
+  ] },
   { id: "partners", title: "Спонсоры и организаторы", fields: [
     {key:"title",label:"Название вечера",type:"text",maxLength:120},
     {key:"subtitle",label:"Подзаголовок",type:"text",maxLength:120},

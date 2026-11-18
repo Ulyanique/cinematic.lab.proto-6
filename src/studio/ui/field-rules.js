@@ -23,7 +23,7 @@ export const SECTION_NOTES = {
 export function sectionAllowed(sceneId, sectionId, labSectionAllowed) {
   if (labSectionAllowed && labSectionAllowed(sceneId, sectionId) === false) return false;
   if (sceneId === 'partners') {
-    return ['partners', 'typography', 'timeline', 'playback', 'transition'].includes(sectionId);
+    return ['partners', 'partnersLight', 'typography', 'timeline', 'playback', 'transition'].includes(sectionId);
   }
   return true;
 }

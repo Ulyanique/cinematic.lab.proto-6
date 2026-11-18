@@ -9,6 +9,7 @@ export const PARTNERS_DEFAULTS = createSharedSceneConfig(createSceneTimeline(42.
 PARTNERS_DEFAULTS.timeline.drawDuration += 4;
 PARTNERS_DEFAULTS.timeline.holdDuration -= 4;
 PARTNERS_DEFAULTS.transition = {duration:.9};
+PARTNERS_DEFAULTS.partnersLight = { enabled: true, strength: .7, speed: 1 };
 PARTNERS_DEFAULTS.partners = {
   title: 'Янтарный циркуль', subtitle: 'Вечер ретроспектива',
   organizerLabel: 'ОРГАНИЗАТОР', coorganizerLabel: 'СООРГАНИЗАТОР', organizer1: 'ПРОэлектро', organizer2: 'ПРОэлектрощит',
