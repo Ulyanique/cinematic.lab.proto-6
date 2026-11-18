@@ -5,8 +5,10 @@ import { GLITTER } from './partners-graphics.js';
 export function createPartnersGlitter() {
   const grains = GLITTER.filter(g => {
     if (g.y <= 60 || g.y >= 1050) return false;
-    const inColumn = (g.x > 126 && g.x < 724) || (g.x > 1196 && g.x < 1794);
-    return !(inColumn && g.y > 52 && g.y < 538);
+    const organizer = g.x > 190 && g.x < 810 && g.y > 85 && g.y < 470;
+    const sponsor = g.x > 1110 && g.x < 1730 && g.y > 350 && g.y < 700;
+    const single = g.x > 650 && g.x < 1270 && g.y > 110 && g.y < 320;
+    return !(organizer || sponsor || single);
   });
   const positions = [], params = [], offsets = [];
   for (const g of grains) {

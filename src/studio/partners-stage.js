@@ -93,3 +93,13 @@ export function migrateSponsorStage(saved) {
   }
   return next;
 }
+
+/** Координаты колонок в кадре 1920×1080 и относительный размер КЭАЗ. */
+export const PARTNERS_MARK_LAYOUT = Object.freeze({
+  left: 500, right: 1420,
+  organizerTop: 205, organizerBottom: 395,
+  sponsorTop: 475, sponsorBottom: 630,
+  organizerLabel: 130, coorganizerLabel: 320, sponsorLabel: 390,
+  organizerDivider: 290, sponsorDivider: 555,
+  keazScale: .8,
+});

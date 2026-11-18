@@ -10,7 +10,7 @@ import { createPartnersCurtains } from './partners-curtains.js';
 import { createPartnersLight } from './partners-light.js';
 import { createPartnersGlitter } from './partners-glitter.js';
 import { createPartnersFrameGlint } from './partners-frame-glint.js';
-import { partnersStageCues, partnersHoldCacheKey } from './partners-stage.js';
+import { partnersStageCues, partnersHoldCacheKey, PARTNERS_MARK_LAYOUT } from './partners-stage.js';
 import introLogoSvg from './lab2/logo.svg?raw';
 import { introOutlineSvg } from './partners-stage.js';
 import { glintSpan, easeOutBack } from './partners-motion.js';
@@ -669,39 +669,39 @@ export class PartnersScene {
       ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     };
-    // Все четыре знака в верхней половине и на внешних сторонах кадра.
-    const left = 425, right = 1495, topY = 245, secondY = 465;
+    // Организаторы выше; обе колонки ближе к центральной оси.
+    const L = PARTNERS_MARK_LAYOUT;
     if (this.single) {
-      const scale = 1.45 * Math.max(.5, Math.min(1.8, Number(data.markScale) || 1));
+      const scale = 1.45 * Math.max(.5, Math.min(1.8, Number(data.markScale) || 1)) *
+        (data.mark === 'keaz' ? L.keazScale : 1);
       tierGlow(960, 220, 400, 130, visible * cue.shadow * .5);
       company('single', 960, 220, cue.organizer, 2.75, 0, scale);
     } else {
-    tierGlow(left, topY, 260, 115, visible * cue.shadow * .5);
-    tierGlow(right, topY, 260, 115, visible * cue.shadow * .5);
-    tierGlow(left, secondY, 260, 115, visible * cue.shadow * .5);
-    tierGlow(right, secondY, 260, 115, visible * cue.shadow * .5);
-    // Тонкие золотые разделители между верхним и нижним знаками.
-    const divider = (x, opacity) => {
-      if (opacity <= .001) return;
-      ctx.save(); ctx.globalAlpha = visible * opacity * .65;
-      const gradient = ctx.createLinearGradient(x - 250, 0, x + 250, 0);
-      gradient.addColorStop(0, 'rgba(232,196,132,0)');
-      gradient.addColorStop(.22, 'rgba(232,196,132,.75)');
-      gradient.addColorStop(.78, 'rgba(232,196,132,.75)');
-      gradient.addColorStop(1, 'rgba(232,196,132,0)');
-      ctx.strokeStyle = gradient; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(x - 250, 325); ctx.lineTo(x + 250, 325); ctx.stroke();
-      ctx.restore();
-    };
-    divider(left, Math.min(cue.organizer, cue.organizerSecond));
-    divider(right, Math.min(cue.partner, cue.partnerSecond));
-    label(data.organizerLabel, left, 150, visible * cue.organizerLabel, cue.organizerLabel);
-    label(data.coorganizerLabel, left, 370, visible * cue.organizerSecond, cue.organizerSecond);
-    label(data.partnerLabel, right, 150, visible * cue.partnerLabel, cue.partnerLabel);
-    company('organizer1', left, topY, cue.organizer, 2.75, 0, 1);
-    company('organizer2', left, secondY, cue.organizerSecond, 3.25, 1, 1);
-    company('partner1', right, topY, cue.partner, 4.45, 2, 1);
-    company('partner2', right, secondY, cue.partnerSecond, 4.95, 3, 1);
+      tierGlow(L.left, L.organizerTop, 260, 115, visible * cue.shadow * .5);
+      tierGlow(L.left, L.organizerBottom, 260, 115, visible * cue.shadow * .5);
+      tierGlow(L.right, L.sponsorTop, 260, 115, visible * cue.shadow * .5);
+      tierGlow(L.right, L.sponsorBottom, 260, 115, visible * cue.shadow * .5);
+      const divider = (x, y, opacity) => {
+        if (opacity <= .001) return;
+        ctx.save(); ctx.globalAlpha = visible * opacity * .65;
+        const gradient = ctx.createLinearGradient(x - 250, 0, x + 250, 0);
+        gradient.addColorStop(0, 'rgba(232,196,132,0)');
+        gradient.addColorStop(.22, 'rgba(232,196,132,.75)');
+        gradient.addColorStop(.78, 'rgba(232,196,132,.75)');
+        gradient.addColorStop(1, 'rgba(232,196,132,0)');
+        ctx.strokeStyle = gradient; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x - 250, y); ctx.lineTo(x + 250, y); ctx.stroke();
+        ctx.restore();
+      };
+      divider(L.left, L.organizerDivider, Math.min(cue.organizer, cue.organizerSecond));
+      divider(L.right, L.sponsorDivider, Math.min(cue.partner, cue.partnerSecond));
+      label(data.organizerLabel, L.left, L.organizerLabel, visible * cue.organizerLabel, cue.organizerLabel);
+      label(data.coorganizerLabel, L.left, L.coorganizerLabel, visible * cue.organizerSecond, cue.organizerSecond);
+      label(data.partnerLabel, L.right, L.sponsorLabel, visible * cue.partnerLabel, cue.partnerLabel);
+      company('organizer1', L.left, L.organizerTop, cue.organizer, 2.75, 0, 1);
+      company('organizer2', L.left, L.organizerBottom, cue.organizerSecond, 3.25, 1, 1);
+      company('partner1', L.right, L.sponsorTop, cue.partner, 4.45, 2, 1);
+      company('partner2', L.right, L.sponsorBottom, cue.partnerSecond, 4.95, 3, L.keazScale);
     }
     this.cardTexture.needsUpdate = true;
     if (holding) { this._holdTexture = this.cardTexture; this._holdRevision = assetsRevision; this._holdKey = holdKey; }

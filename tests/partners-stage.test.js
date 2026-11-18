@@ -116,3 +116,12 @@ test('default sequence has a nine-second entrance and thirty-second hold', async
   assert.equal(t.drawDuration + t.emergeDuration, 9);
   assert.equal(t.holdDuration, 30);
 });
+
+test('organizers are above sponsors, columns move inward and KEAZ is smaller', async () => {
+  const { PARTNERS_MARK_LAYOUT: l } = await import('../src/studio/partners-stage.js');
+  assert.ok(l.left > 425 && l.right < 1495);
+  assert.equal(l.left + l.right, 1920);
+  assert.ok(l.organizerTop < l.organizerBottom);
+  assert.ok(l.organizerBottom < l.sponsorTop && l.sponsorTop < l.sponsorBottom);
+  assert.ok(l.keazScale > 0 && l.keazScale < 1);
+});
