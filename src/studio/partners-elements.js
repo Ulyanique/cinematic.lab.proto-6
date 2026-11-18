@@ -5,6 +5,7 @@ export const PARTNERS_ELEMENTS = Object.freeze([
   spec('stageOrganizer2', 'Соорганизатор · логотип', 1380, 260, { start: 70, end: 78 }),
   spec('stagePartner1', 'Спонсор 1 · логотип', 410, 500, { start: 80, end: 88 }),
   spec('stagePartner2', 'Спонсор 2 · логотип', 1490, 500, { start: 90, end: 99 }),
+  spec('stageSponsorLabel', 'Подпись спонсора', 620, 385, { color: '#d2ac70', lineEnabled: false, lineLength: 150, lineGap: 20, lineOpacity: .65 }),
   spec('stageSingleMark', 'Логотип спонсора', 960, 220, { start: 57, end: 65 }),
   spec('stageOrganizerLabel', 'Подпись организатора', 510, 175, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
   spec('stageCoorganizerLabel', 'Подпись соорганизатора', 1300, 175, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
@@ -20,7 +21,7 @@ export const PARTNERS_ELEMENTS = Object.freeze([
   spec('stageTitleDivider', 'Разделитель названия и подзаголовка', 960, 818, { color: '#e5bd7c', width: 360 }),
   spec('stageOrnament', 'Нижний золотой орнамент', 960, 823, { color: '#e5bd7c', edgeFade: .75, start: 68, end: 98, glint: .65, glintSpeed: 1 }),
 ]);
-const singleOnly = new Set(['stageSingleMark']);
+const singleOnly = new Set(['stageSingleMark', 'stageSponsorLabel']);
 const groupOnly = new Set(['stageOrganizer1', 'stageOrganizer2', 'stagePartner1', 'stagePartner2', 'stageOrganizerLabel', 'stageCoorganizerLabel', 'stagePartnerLabel', 'stagePartnerLabel2', 'stageOrnament']);
 export function partnerElementDefaults(single = false) {
   const out = {};
@@ -29,10 +30,10 @@ export function partnerElementDefaults(single = false) {
     out[s.id] = { ...s.defaults };
   }
   if (single) {
-    const reference = { stageTitle: [960, 150], stageTitleDivider: [960, 215], stageSubtitle: [960, 265], stageSingleMark: [960, 385], stageCompass: [960, 715] };
+    const reference = { stageTitle: [960, 150], stageTitleDivider: [960, 215], stageSubtitle: [960, 265], stageSingleMark: [1140, 385], stageCompass: [960, 715] };
     for (const [id, [x, y]] of Object.entries(reference)) Object.assign(out[id], { x, y });
     out.stageTitleDivider.width = 520;
-    out.stageSubtitle.color = '#d2ac70';
+    out.stageSubtitle.color = '#c8a873';
   } else {
     const reference = {
       stageTitle: [960, 150], stageTitleDivider: [960, 195], stageSubtitle: [960, 235],

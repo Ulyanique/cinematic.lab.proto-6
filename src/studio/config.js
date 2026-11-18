@@ -1,6 +1,6 @@
 import { migrateIntroBackgroundEffect } from "./intro-background-effect.js";
 import { PARTNERS_ELEMENT_SCHEMA } from "./partners-elements.js";
-import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge, migrateSponsorLabels, migrateCurtainEdgeV3, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, migratePartnersCompassContrast, migrateEqualPartnerLogoWidths, migratePartnersTitleAndKeaz, migratePartnersCurtainChoreography, migratePartnersCenterFirst, migrateSingleSponsorLayout, migratePartnerTextCase } from "./partners-stage.js";
+import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge, migrateSponsorLabels, migrateCurtainEdgeV3, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, migratePartnersCompassContrast, migrateEqualPartnerLogoWidths, migratePartnersTitleAndKeaz, migratePartnersCurtainChoreography, migratePartnersCenterFirst, migrateSingleSponsorLayout, migratePartnerTextCase, migrateSponsorSideLabel } from "./partners-stage.js";
 import { migrateIntroBackground } from "./background-migration.js";
 import { DECOR_SLOTS } from "./brand-decor-config.js";
 import { PARTICLE_CLOUD_IDS } from "./particle-cloud-config.js";
@@ -66,6 +66,7 @@ export const SCHEMA = [
     { key: "markScale", label: "Размер знака", type: "range", min: 0.5, max: 1.8, step: 0.01 },
     { key: "title", label: "Название под эмблемой", type: "text", maxLength: 60 },
     { key: "subtitle", label: "Подзаголовок", type: "text", maxLength: 80 },
+    { key: "sponsorLabel", label: "Подпись рядом с логотипом", type: "text", maxLength: 80 },
     { key: "logoStyle", label: "Оформление знака", type: "select", options: [
       { value: "gold", label: "Золотое тиснение" },
       { value: "original", label: "Исходные цвета файла" },
@@ -477,7 +478,7 @@ export function mergeConfig(defaults, patch) {
 export function loadSceneConfig(sceneId, defaults, onReadError) {
   const cfg = cloneDefaults(defaults);
   let raw = null;
-  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false, migrateCurtainEdgeNeeded = false, migrateCurtainEdgeV3Needed = false, migrateSponsorLabelsNeeded = false, migrateReferenceLayoutNeeded = false, migratePartnerLabelLinesNeeded = false, migratePartnersTopTitleNeeded = false, migratePartnersCompassContrastNeeded = false, migrateEqualPartnerLogoWidthsNeeded = false, migratePartnersTitleAndKeazNeeded = false, migratePartnersCurtainChoreographyNeeded = false, migratePartnersCenterFirstNeeded = false, migrateSingleSponsorLayoutNeeded = false, migratePartnerTextCaseNeeded = false;
+  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false, migrateCurtainEdgeNeeded = false, migrateCurtainEdgeV3Needed = false, migrateSponsorLabelsNeeded = false, migrateReferenceLayoutNeeded = false, migratePartnerLabelLinesNeeded = false, migratePartnersTopTitleNeeded = false, migratePartnersCompassContrastNeeded = false, migrateEqualPartnerLogoWidthsNeeded = false, migratePartnersTitleAndKeazNeeded = false, migratePartnersCurtainChoreographyNeeded = false, migratePartnersCenterFirstNeeded = false, migrateSingleSponsorLayoutNeeded = false, migratePartnerTextCaseNeeded = false, migrateSponsorSideLabelNeeded = false;
   let migratePhotoCenter = false, migratePhotoSize = false, migrateBrandCenter = false, migrateGuides = false, migrateFinaleGuides = false, migrateBrandLift = false;
   try {
     raw = localStorage.getItem(sceneStorageKey(sceneId));
@@ -498,6 +499,7 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     if (sceneId === "partners") migratePartnerLabelLinesNeeded = !localStorage.getItem("partners-label-lines-v1");
     if (sceneId === "partners") migrateReferenceLayoutNeeded = !localStorage.getItem("partners-reference-layout-v1");
     if (sceneId === "partners") migrateSponsorLabelsNeeded = !localStorage.getItem("partners-labels-v2");
+    if (sceneId.startsWith("sponsor-")) migrateSponsorSideLabelNeeded = !localStorage.getItem(`sponsor-side-label-v1:${sceneId}`);
     if (sceneId.startsWith("sponsor-")) migrateSingleSponsorLayoutNeeded = !localStorage.getItem(`single-sponsor-layout-v1:${sceneId}`);
     if (sceneId.startsWith("sponsor-")) migrateSponsorStageNeeded = !localStorage.getItem(`sponsor-stage-v1:${sceneId}`);
     if (sceneId === "lab-swarm-brand") migrateIntroBackgroundNeeded = !localStorage.getItem("lab-swarm-brand-minute-hold-v1");
@@ -517,6 +519,7 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     return cfg;
   }
   if (!raw) {
+    if (migrateSponsorSideLabelNeeded) { try { localStorage.setItem(`sponsor-side-label-v1:${sceneId}`, "1"); } catch (e) { /* noop */ } }
     if (migratePartnerTextCaseNeeded) { try { localStorage.setItem("partners-text-case-v1", "1"); } catch (e) { /* noop */ } }
     if (migrateSingleSponsorLayoutNeeded) { try { localStorage.setItem(`single-sponsor-layout-v1:${sceneId}`, "1"); } catch (e) { /* noop */ } }
     if (migratePartnersCenterFirstNeeded) { try { localStorage.setItem("partners-center-first-v1", "1"); } catch (e) { /* noop */ } }
@@ -592,6 +595,13 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
       try {
         localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
         localStorage.setItem(`single-sponsor-layout-v1:${sceneId}`, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateSponsorSideLabelNeeded) {
+      saved = migrateSponsorSideLabel(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(`sponsor-side-label-v1:${sceneId}`, "1");
       } catch (e) { onReadError?.(sceneId, e); }
     }
     if (migrateCurtainEdgeNeeded) {

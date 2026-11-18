@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { extraTextSections } from './extra-text.js';
 import { framePoint, hitElement, sponsorDragElements, snapBox, resizeScale, selectionBounds, boundedGroupMoves } from './drag-layout.js';
 
 /** Preview-only hit overlay. Its coordinates never become part of the video. */
@@ -51,6 +52,16 @@ export function createDragEditor({ getState, commitGroup, commitScale, onMessage
     return out;
   }
   function elements() {
+    const { cfg } = getState();
+    const extra = extraTextSections(cfg).flatMap(({id}) => {
+      const e = cfg[id]; if (e.enabled === false) return [];
+      const scale = Number.isFinite(e.scale) ? e.scale : 1;
+      return [{ id, kind:'frame', scaleKey:'scale', x:e.x, y:e.y,
+        w:Math.min(1800, Math.max(100, String(e.text || '').length * 22 * scale)), h:55 * scale }];
+    });
+    return [...sceneElements(), ...extra];
+  }
+  function sceneElements() {
     const { id, cfg, scene } = getState();
     if (id === 'partners' || id.startsWith('sponsor-')) return sponsorDragElements(cfg);
     if (id.startsWith('lab-swarm')) return introElements(scene, cfg);

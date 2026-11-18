@@ -20,7 +20,7 @@ export function sponsorDragElements(cfg) {
     ['stageOrganizer1', 440, 160], ['stageOrganizer2', 440, 160],
     ['stagePartner1', 440, 160], ['stagePartner2', 440, 160], ['stageSingleMark', 700, 230],
     ['stageOrganizerLabel', 460, 50], ['stageCoorganizerLabel', 460, 50],
-    ['stagePartnerLabel', 460, 50], ['stagePartnerLabel2', 460, 50],
+    ['stagePartnerLabel', 460, 50], ['stagePartnerLabel2', 460, 50], ['stageSponsorLabel', 460, 50],
     ['stageTitle', 1000, 75], ['stageSubtitle', 800, 60], ['stageTitleDivider', 360, 18],
   ];
   return items.flatMap(([id, w, h]) => {

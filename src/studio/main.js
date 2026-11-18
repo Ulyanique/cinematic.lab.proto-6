@@ -1,3 +1,4 @@
+import { EXTRA_TEXT_PREFIX, extraTextDefaults, extraTextSections, drawExtraTexts } from "./extra-text.js";
 import { partnerTextFields } from "./partner-text-fields.js";
 import { CircleFinalScene } from "./circle-final-scene.js";
 import { CIRCLE_FINAL_ID } from "./scenes/circle-final.js";
@@ -144,7 +145,7 @@ function resetSceneConfig(id, scope = {}) {
   }
   commitSceneConfig(id, (config) => {
     const target = config[scope.section];
-    const source = defaults[scope.section];
+    const source = defaults[scope.section] || (scope.section.startsWith(EXTRA_TEXT_PREFIX) ? extraTextDefaults() : null);
     if (!target || !source) return;
     if (scope.key) {
       if (!(scope.key in source)) return;
@@ -282,7 +283,7 @@ applyTypography(true); // теперь известны реальные раз�
  * глаз в списке слоёв и быстрые команды раздела не могут разойтись: они
  * меняют одну и ту же запись конфига и пересобирают кадр одинаково.
  */
-const sectionsFor = (id) => SCHEMA.filter((section) => {
+const sectionsFor = (id) => [...SCHEMA.filter((section) => {
   if (!sectionAllowed(id, section.id, labSectionAllowed)) return false;
   const holder = configFor(id)[section.id];
   if (!holder) return false;
@@ -298,7 +299,7 @@ const sectionsFor = (id) => SCHEMA.filter((section) => {
     ...field,
     label: fieldLabel(id, section.id, field),
   }))],
-}));
+})), ...extraTextSections(configFor(id))];
 
 panels = createStudioPanels({
   getState: () => ({
@@ -310,6 +311,16 @@ panels = createStudioPanels({
     defaults: sceneById(sceneId).defaults,
   }),
   onSwitchScene: (id) => switchScene(id),
+  onAddText: () => {
+    let id;
+    do { id = `${EXTRA_TEXT_PREFIX}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`; } while (configFor(sceneId)[id]);
+    commitSceneConfig(sceneId, config => { config[id] = extraTextDefaults(); });
+    return id;
+  },
+  onRemoveText: (id) => {
+    if (!id.startsWith(EXTRA_TEXT_PREFIX)) return;
+    commitSceneConfig(sceneId, config => { delete config[id]; });
+  },
   onToast: (message, isError) => toast(message, isError),
   onSelect: () => {},
   onClosed: () => {},
@@ -556,6 +567,7 @@ function compositeFrameAt(time, dt = 1 / OUTPUT.fps, includeCaption = true) {
     const frameCtx = frame.getContext("2d");
     drawCompositeFrame(frameCtx);
     fxApplyToContext(frameCtx, time, cfg);
+    if (includeCaption) drawExtraTexts(frameCtx, time, cfg, frame.width, frame.height);
     return frame;
   } finally {
     scene.setCaptionVisible(true);
@@ -801,6 +813,7 @@ async function runOfflineRecording(job, overlay, download) {
           runtime.renderAt(frameTime, 1 / OUTPUT.fps);
           drawCompositeFrame(ctx);
           fxApplyToContext(ctx, frameTime, configFor(segment.id));
+          drawExtraTexts(ctx, frameTime, configFor(segment.id), REC_W, REC_H);
         } else {
           const times = shutterTimes(frameTime, segment.speed / OUTPUT.fps, shutter);
           if (!blurCanvas || blurCanvas.width !== REC_W || blurCanvas.height !== REC_H) {
@@ -821,6 +834,7 @@ async function runOfflineRecording(job, overlay, download) {
           runtime.renderAt(frameTime, 1 / OUTPUT.fps);
           ctx.globalAlpha = 1;
           fxApplyToContext(ctx, frameTime, configFor(segment.id));
+          drawExtraTexts(ctx, frameTime, configFor(segment.id), REC_W, REC_H);
         }
         if (job.outgoing) {
           if (!drawOutgoingFrame(ctx, job.outgoing, localIndex, OUTPUT.fps, segment.transition, REC_W, REC_H)) job.outgoing = null;
@@ -923,7 +937,29 @@ function fxApplyToContext(ctx, time, config) {
   ctx.globalAlpha = 1;
   ctx.drawImage(out, 0, 0, ctx.canvas.width, ctx.canvas.height);
 }
-setRenderHook(fxPreview);
+let extraTextOverlay = null;
+function previewExtraTexts(rt, time) {
+  if (recording || !extraTextSections(rt.config).length) {
+    if (extraTextOverlay) extraTextOverlay.style.display = 'none';
+    return;
+  }
+  if (!extraTextOverlay) {
+    extraTextOverlay = document.createElement('canvas');
+    extraTextOverlay.className = 'transition-overlay extra-text-overlay';
+    extraTextOverlay.style.zIndex = '12'; extraTextOverlay.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(extraTextOverlay);
+  }
+  if (extraTextOverlay.width !== canvas.width || extraTextOverlay.height !== canvas.height) {
+    extraTextOverlay.width = canvas.width; extraTextOverlay.height = canvas.height;
+  }
+  const ctx = extraTextOverlay.getContext('2d');
+  ctx.clearRect(0, 0, extraTextOverlay.width, extraTextOverlay.height);
+  drawExtraTexts(ctx, time, rt.config, extraTextOverlay.width, extraTextOverlay.height);
+  const to = extraTextOverlay.style, from = canvas.style;
+  to.left = from.left; to.top = from.top; to.width = from.width; to.height = from.height; to.clipPath = from.clipPath;
+  extraTextOverlay.style.display = transition ? 'none' : 'block';
+}
+setRenderHook((rt, time) => { fxPreview(rt, time); previewExtraTexts(rt, time); });
 
 let firstFrameRendered = false;
 let lastOperatorRefresh = 0;

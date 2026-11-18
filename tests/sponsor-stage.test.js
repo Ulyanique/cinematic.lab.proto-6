@@ -34,14 +34,16 @@ test('migration preserves custom marks and manually edited timing', () => {
 test('single-sponsor cards use reference composition and editable sponsor subtitle', async () => {
   const { migrateSingleSponsorLayout } = await import('../src/studio/partners-stage.js');
   for (const c of [a, b]) {
-    assert.equal(c.sponsor.subtitle, 'СПОНСОР');
+    assert.equal(c.sponsor.subtitle, 'вечер ретроспектива');
+    assert.equal(c.sponsor.sponsorLabel, 'СПОНСОР');
+    assert.ok(c.stageSponsorLabel.x < c.stageSingleMark.x);
     assert.equal(c.stageTitle.y, 150);
     assert.equal(c.stageTitleDivider.y, 215);
     assert.equal(c.stageSubtitle.y, 265);
     assert.equal(c.stageSingleMark.y, 385);
     assert.equal(c.stageCompass.y, 715);
     assert.equal(c.stageTitleDivider.width, 520);
-    assert.equal(c.stageSubtitle.color, '#d2ac70');
+    assert.equal(c.stageSubtitle.color, '#c8a873');
   }
   const old = {sponsor:{subtitle:'Вечер ретроспектива',markLogo:'custom'}, stageTitle:{x:960,y:780},
     stageSubtitle:{x:960,y:845,color:'#c8a873'},stageSingleMark:{x:900,y:220},stageTitleDivider:{x:960,y:818,width:360}};
@@ -64,4 +66,13 @@ test('partner text keeps user-entered capitalization, while untouched defaults k
   const { PARTNERS_DEFAULTS } = await import('../src/studio/scenes/partners.js');
   assert.equal(PARTNERS_DEFAULTS.partners.title,'ЯНТАРНЫЙ ЦИРКУЛЬ');
   assert.equal(PARTNERS_DEFAULTS.partners.subtitle,'вечер ретроспектива');
+});
+
+
+test('side sponsor label migration preserves customized text and positions', async () => {
+  const { migrateSponsorSideLabel } = await import('../src/studio/partners-stage.js');
+  assert.deepEqual(migrateSponsorSideLabel({sponsor:{subtitle:'СПОНСОР'},stageSingleMark:{x:960,y:385},stageSubtitle:{color:'#d2ac70'}}),
+    {sponsor:{subtitle:'вечер ретроспектива'},stageSingleMark:{x:1140,y:385},stageSubtitle:{color:'#c8a873'}});
+  const custom = {sponsor:{subtitle:'Партнёр'},stageSingleMark:{x:800,y:385},stageSubtitle:{color:'#123456'}};
+  assert.deepEqual(migrateSponsorSideLabel(custom), {...custom, sponsor:{subtitle:'вечер ретроспектива',sponsorLabel:'Партнёр'}});
 });

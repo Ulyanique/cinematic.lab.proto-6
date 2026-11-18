@@ -646,7 +646,7 @@ export class PartnersScene {
     };
     drawTextLayer(cfg.stageTitle, String(data.title ?? 'ЯНТАРНЫЙ ЦИРКУЛЬ'),
       '400 58px Prata, Georgia, serif', '#ecd4a1', visible * cue.title, 1200, cue.title);
-    if (!this.single) drawTextLayer(cfg.stageSubtitle, String(data.subtitle ?? 'вечер ретроспектива'),
+    drawTextLayer(cfg.stageSubtitle, String(data.subtitle ?? 'вечер ретроспектива'),
       '400 36px Forum, Georgia, serif', '#c8a873', visible * cue.title, 1000, cue.title);
 
     // Тонкий золотой разделитель в духе интро, отдельный настраиваемый слой.
@@ -691,13 +691,6 @@ export class PartnersScene {
       if (supportsTracking) ctx.letterSpacing = '0px';
       ctx.restore();
     };
-    // Тот же шрифт и разрядка, что у подписи «СПОНСОР» в общей сцене.
-    if (this.single && cfg.stageSubtitle?.enabled !== false && cfg.stageSubtitle) {
-      const element = cfg.stageSubtitle;
-      ctx.save(); ctx.translate(element.x, element.y); ctx.scale(element.scale ?? 1, element.scale ?? 1);
-      trackedLabel(data.subtitle ?? 'СПОНСОР', 0, 0, visible * cue.title * (element.opacity ?? 1), cue.title, element.color ?? warm);
-      ctx.restore();
-    }
     const label = (element, value, alpha, entry, side) => {
       if (!element || element.enabled === false) return;
       ctx.save(); ctx.translate(element.x, element.y); ctx.scale(element.scale, element.scale);
@@ -816,6 +809,7 @@ export class PartnersScene {
       const scale = 1.45 * Math.max(.5, Math.min(1.8, Number(data.markScale) || 1)) *
         (data.mark === 'keaz' ? PARTNERS_MARK_LAYOUT.keazScale : 1);
       glowFor(e, 400, 130);
+      label(cfg.stageSponsorLabel, data.sponsorLabel ?? 'СПОНСОР', visible * cue.organizer, cue.organizer, -1);
       company('single', e, cue.organizer, 2.75, 0, scale);
     } else {
       glowFor(cfg.stageOrganizer1); glowFor(cfg.stageOrganizer2);

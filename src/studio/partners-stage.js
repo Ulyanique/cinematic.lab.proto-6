@@ -269,3 +269,15 @@ export function migratePartnerTextCase(saved) {
   if (next.partners?.subtitle === 'Вечер ретроспектива') next.partners.subtitle = 'вечер ретроспектива';
   return next;
 }
+
+/** 05А/05Б: подстрочник снова под заголовком, подпись — слева от знака. */
+export function migrateSponsorSideLabel(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  if (typeof next.sponsor?.subtitle === 'string') {
+    if (next.sponsor.subtitle !== 'СПОНСОР' && next.sponsor.sponsorLabel == null) next.sponsor.sponsorLabel = next.sponsor.subtitle;
+    next.sponsor.subtitle = 'вечер ретроспектива';
+  }
+  if (next.stageSubtitle?.color === '#d2ac70') next.stageSubtitle.color = '#c8a873';
+  if (next.stageSingleMark?.x === 960 && next.stageSingleMark?.y === 385) next.stageSingleMark.x = 1140;
+  return next;
+}

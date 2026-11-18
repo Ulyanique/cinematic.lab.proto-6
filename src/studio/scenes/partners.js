@@ -44,7 +44,7 @@ function sponsorCard(mark) {
     mark,
     markLogo: "",
     markScale: 1,
-    title: 'ЯНТАРНЫЙ ЦИРКУЛЬ', subtitle: 'СПОНСОР',
+    title: 'ЯНТАРНЫЙ ЦИРКУЛЬ', subtitle: 'вечер ретроспектива', sponsorLabel: 'СПОНСОР',
     logoStyle: 'gold',
     frameVisible: true, curtainVisible: true, curtainWidth: 168, motion: 1,
   };

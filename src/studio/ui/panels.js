@@ -1,3 +1,4 @@
+import { EXTRA_TEXT_PREFIX, extraTextDefaults } from '../extra-text.js';
 import { createFloatPanel, ICON_LAYERS, ICON_GEAR, ICON_EXPORT } from './float-panel.js';
 import { icon as ico } from './icons.js';
 import { groupLayers, layerMeta } from './layer-registry.js';
@@ -30,7 +31,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
  * @param {() => void} [options.onClosed]   панель закрыта — снять подсветку кнопки
  */
 export function createStudioPanels({
-  getState, onSelect, onSwitchScene, onClosed, onCommand, onToast,
+  getState, onSelect, onSwitchScene, onClosed, onCommand, onToast, onAddText, onRemoveText,
   // Кадр и запись, JSON и снимки вариантов приходят снаружи: панель не знает,
   // как рендерится кадр, и не дублирует правила сохранения проекта.
   getFrameSettings, onFrameSetting,
@@ -350,9 +351,13 @@ export function createStudioPanels({
       list.appendChild(groupEl);
     }
     const search = ensureSearch();
+    const addText = document.createElement('button');
+    addText.type = 'button'; addText.className = 'lyr-depth-reset';
+    addText.innerHTML = withIcon('plus', 'Добавить надпись', 12);
+    addText.addEventListener('click', () => { const id = onAddText?.(); if (id) openSection(id); });
     const depthBlock = document.createDocumentFragment();
     renderDepth(depthBlock);
-    layers.body.replaceChildren(search, depthBlock, list);
+    layers.body.replaceChildren(search, addText, depthBlock, list);
     applyFilter(search.value);
   }
 
@@ -394,7 +399,7 @@ export function createStudioPanels({
     if (tab === 'json') { renderJson(); return; }
 
     const holder = state.config[section.id] || {};
-    const defaults = state.defaults?.[section.id] || {};
+    const defaults = state.defaults?.[section.id] || (section.id.startsWith(EXTRA_TEXT_PREFIX) ? extraTextDefaults() : {});
     const frag = document.createDocumentFragment();
     frag.appendChild(buildTabs());
 
@@ -448,6 +453,12 @@ export function createStudioPanels({
       resetLayer.disabled = changedCount === 0;
       resetLayer.addEventListener('click', () => resetSection(section));
       bar.appendChild(resetLayer);
+      if (section.id.startsWith(EXTRA_TEXT_PREFIX)) {
+        const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'ins-layer-reset';
+        remove.innerHTML = withIcon('trash', 'Удалить надпись', 13);
+        remove.addEventListener('click', () => { onRemoveText?.(section.id); selected = null; renderLayers(); renderInspector(); });
+        bar.appendChild(remove);
+      }
       const resetComposition = document.createElement('button');
       resetComposition.type = 'button';
       resetComposition.className = 'ins-layer-reset';
