@@ -32,3 +32,21 @@ test('existing settings retain assets and get 30 seconds of hold', () => {
   assert.equal(saved.timeline.holdDuration, 17.5);
   assert.equal(migratePartnersStage({ timeline: { holdDuration: 45 } }).timeline.holdDuration, 45);
 });
+
+test('open curtains have no solid burgundy backing', async () => {
+  const { drawStageCurtains } = await import('../src/studio/partners-stage.js');
+  const calls = [];
+  const ctx = {
+    globalAlpha: 1,
+    save() {}, restore() {}, beginPath() {}, rect() {}, clip() {}, translate() {}, scale() {},
+    fillRect(...args) { calls.push(['backing', ...args]); },
+    drawImage(...args) { calls.push(['image', ...args]); },
+  };
+  const image = {};
+  drawStageCurtains(ctx, image, 1);
+  assert.equal(calls.filter(c => c[0] === 'backing').length, 0);
+  assert.equal(calls.filter(c => c[0] === 'image').length, 2);
+  calls.length = 0;
+  drawStageCurtains(ctx, image, 0);
+  assert.equal(calls.filter(c => c[0] === 'backing').length, 2);
+});

@@ -277,7 +277,7 @@ export class PartnersScene {
     setPartnersLogoStyle(cfg.partners?.logoStyle);
     this._quality = suggestedQuality(masterId());
     this.renderer = new THREE.WebGLRenderer({
-      canvas, antialias: false, alpha: false, powerPreference: 'high-performance', stencil: false, depth: false,
+      canvas, antialias: false, alpha: false, powerPreference: 'high-performance', stencil: false, depth: true,
     });
     this.renderer.setClearColor(0x000000, 1);
     this.renderer.toneMapping = THREE.NoToneMapping;
@@ -539,12 +539,10 @@ export class PartnersScene {
     company('organizer2', left, secondY, cue.organizerSecond, 3.25, 1, .82);
     company('partner1', right, topY, cue.partner, 4.45, 2, .82);
     company('partner2', right, secondY, cue.partnerSecond, 4.95, 3, .82);
-    if (cue.compass > .001) {
-      ctx.save();
-      ctx.globalAlpha = visible * cue.compass;
-      ctx.drawImage(this.centerLogo.render(phase.local, phase.cycle), 730, 255, 460, 460);
-      ctx.restore();
-    }
+    // Циркуль рисуется на GPU после подложки, без дорогостоящего чтения
+    // пикселей из второго WebGL-контекста в Canvas2D на каждом кадре.
+    this._logoOpacity = visible * cue.compass;
+    if (this._logoOpacity > .001) this.centerLogo.update(phase.local, phase.cycle, this._logoOpacity);
     // Занавес расположен поверх всех элементов и в конце закрывается обратно.
     if (data.curtainVisible !== false) {
       ctx.save(); ctx.globalAlpha = visible;
@@ -557,7 +555,22 @@ export class PartnersScene {
   render() {
     this.renderer.setRenderTarget(null);
     if (this._blackFrame) this.renderer.clear(true, true, true);
-    else this.renderer.render(this.cardScene, this.cardCamera);
+    else {
+      this.renderer.setScissorTest(false);
+      this.renderer.setViewport(0, 0, this._w, this._h);
+      this.renderer.autoClear = true;
+      this.renderer.render(this.cardScene, this.cardCamera);
+      if (this._logoOpacity > .001) {
+        // Знак появляется только после полного раскрытия штор и исчезает до
+        // их закрытия, поэтому может идти отдельным проходом поверх кадра.
+        this.renderer.autoClear = false;
+        this.renderer.clearDepth();
+        this.renderer.setViewport(this._w * 730 / 1920, this._h * 365 / 1080, this._w * 460 / 1920, this._h * 460 / 1080);
+        this.renderer.render(this.centerLogo.scene, this.centerLogo.camera);
+        this.renderer.setViewport(0, 0, this._w, this._h);
+        this.renderer.autoClear = true;
+      }
+    }
   }
 
   dispose() {

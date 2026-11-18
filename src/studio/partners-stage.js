@@ -29,10 +29,17 @@ export function drawStageCurtains(ctx, image, open, width = 1920, height = 1080,
   const drawHalf = () => {
     ctx.save();
     ctx.beginPath(); ctx.rect(0, 0, covered, height); ctx.clip();
-    const backing = ctx.createLinearGradient(0, 0, covered, 0);
-    backing.addColorStop(0, '#210409'); backing.addColorStop(.7, '#4b0b18'); backing.addColorStop(1, '#220309');
-    ctx.fillStyle = backing; ctx.fillRect(0, 0, covered, height);
-    if (image) ctx.drawImage(image, covered - half, 0, half, height);
+    // Плотная подложка нужна лишь пока сцена закрыта. По мере раскрытия
+    // она исчезает, оставляя у края только прозрачный PNG с тканью.
+    if (p < 1) {
+      ctx.save(); ctx.globalAlpha *= (1 - p);
+      ctx.fillStyle = '#26040b'; ctx.fillRect(0, 0, covered, height);
+      ctx.restore();
+    }
+    if (image) {
+      const imageWidth = Math.max(edge * 3, half * (1 - p) + edge * 3 * p);
+      ctx.drawImage(image, covered - imageWidth, 0, imageWidth, height);
+    }
     ctx.restore();
   };
   ctx.save(); drawHalf(); ctx.translate(width, 0); ctx.scale(-1, 1); drawHalf(); ctx.restore();
