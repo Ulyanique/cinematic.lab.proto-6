@@ -135,3 +135,20 @@ export function migrateSponsorLabels(saved) {
   }
   return next;
 }
+
+/** Новую расстановку применяем только к оставленным стандартным координатам. */
+export function migratePartnersReferenceLayout(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  const positions = {
+    stageOrganizer1: [500, 205, 430, 260], stageOrganizer2: [1420, 205, 1380, 260],
+    stagePartner1: [500, 475, 410, 500], stagePartner2: [1420, 475, 1490, 500],
+    stageOrganizerLabel: [500, 130, 430, 175], stageCoorganizerLabel: [1420, 130, 1380, 175],
+    stagePartnerLabel: [500, 330, 410, 365], stagePartnerLabel2: [1420, 330, 1490, 365],
+    stageDividerLeft: [500, 290, 410, 405], stageDividerRight: [1420, 290, 1490, 405],
+  };
+  for (const [id, [oldX, oldY, x, y]] of Object.entries(positions)) {
+    const layer = next[id];
+    if (layer?.x === oldX && layer?.y === oldY) { layer.x = x; layer.y = y; }
+  }
+  return next;
+}

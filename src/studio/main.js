@@ -372,6 +372,7 @@ panels = createStudioPanels({
 const dragEditor = createDragEditor({
   getState: () => ({ id: sceneId, cfg, canvas, scene, recording: Boolean(recording), sections: sectionsFor(sceneId) }),
   onMessage: (message) => toast(message),
+  onSelect: (id) => panels.selectFromCanvas(id),
   commit: (id, section, xKey, yKey, x, y, live) => commitSceneConfig(id, config => {
     if (config[section]) { config[section][xKey] = x; config[section][yKey] = y; }
   }, { live }),
@@ -746,6 +747,8 @@ async function runOfflineRecording(job, overlay, download) {
       partnersReady,
       (sceneId === "partners" || sceneId.startsWith("sponsor-")) ? preloadPartnersCustomBackground(cfg.stageBackground) : null,
       ensureContourFont(exportFonts),
+      (sceneId === "partners" || sceneId.startsWith("sponsor-")) && document.fonts
+        ? Promise.all([document.fonts.load('400 58px "Prata"', 'ЯНТАРНЫЙ ЦИРКУЛЬ'), document.fonts.load('400 36px "Forum"', 'вечер ретроспектива')]) : null,
       sceneId === "partners" ? preloadPartnerCustomLogos(cfg.partners)
         : sceneId.startsWith("sponsor-") ? preloadPartnerCustomLogos({ partner1Logo: cfg.sponsor.markLogo, logoStyle: cfg.sponsor.logoStyle }) : null,
     ]); // ассеты не меняются в середине записи

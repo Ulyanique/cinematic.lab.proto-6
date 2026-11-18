@@ -12,6 +12,6 @@ export function fontName(id) {
 export function loadFonts() {
   if (!document.fonts) return Promise.resolve();
   const sample = "Янтарный циркуль Фотопауза Вечер ретроспектива История продолжается 2026 ABC abc";
-  return Promise.all(FONTS.flatMap(({ name }) => [400, 600].map((weight) =>
-    document.fonts.load(`${weight} 72px "${name}"`, sample))));
+  return Promise.all([...FONTS.flatMap(({ name }) => [400, 600].map((weight) =>
+    document.fonts.load(`${weight} 72px "${name}"`, sample))), document.fonts.load(`400 72px "Forum"`, sample)]);
 }

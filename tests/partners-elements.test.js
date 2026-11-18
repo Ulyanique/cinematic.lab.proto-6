@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PARTNERS_ELEMENT_SCHEMA, partnerElementDefaults, elementVisibility } from '../src/studio/partners-elements.js';
-import { migrateCurtainEdge, migrateCurtainEdgeV3, migrateSponsorLabels, partnersStageCues } from '../src/studio/partners-stage.js';
+import { migrateCurtainEdge, migrateCurtainEdgeV3, migrateSponsorLabels, migratePartnersReferenceLayout, partnersStageCues } from '../src/studio/partners-stage.js';
 import { sectionAllowed, eyeKey } from '../src/studio/ui/field-rules.js';
 import { PARTNERS_DEFAULTS, SPONSOR_KEAZ_DEFAULTS } from '../src/studio/scenes/partners.js';
 
@@ -65,4 +65,16 @@ test('new curtain migration preserves custom widths and affects all sponsor scen
     assert.equal(migrateCurtainEdgeV3({ [section]: { curtainWidth: 144 } }, section)[section].curtainWidth, 168);
     assert.equal(migrateCurtainEdgeV3({ [section]: { curtainWidth: 128 } }, section)[section].curtainWidth, 128);
   }
+});
+
+
+test('reference layout migration changes only untouched positions', () => {
+  const saved = { stageOrganizer1: {x:500,y:205,opacity:.6}, stagePartner1: {x:490,y:475}, stagePartnerLabel2: {x:1420,y:330} };
+  const next = migratePartnersReferenceLayout(saved);
+  assert.deepEqual(next.stageOrganizer1, {x:430,y:260,opacity:.6});
+  assert.deepEqual(next.stagePartner1, {x:490,y:475});
+  assert.deepEqual(next.stagePartnerLabel2, {x:1490,y:365});
+  assert.equal(saved.stageOrganizer1.x, 500);
+  assert.ok(PARTNERS_DEFAULTS.stageTitleDivider);
+  assert.ok(SPONSOR_KEAZ_DEFAULTS.stageTitleDivider);
 });

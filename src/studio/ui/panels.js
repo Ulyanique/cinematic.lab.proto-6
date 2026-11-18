@@ -1009,6 +1009,14 @@ export function createStudioPanels({
 
   return {
     openLayers,
+    selectFromCanvas(id) {
+      if (!getState().sections.some(s => s.id === id)) return;
+      const input = ensureSearch().querySelector('input');
+      if (input) input.value = '';
+      select(id, { openInspector: false });
+      const row = layers.body.querySelector(`.lyr-row[data-section="${id}"]`);
+      if (row && panelOpenLayers) row.scrollIntoView({ block: 'nearest' });
+    },
     openSection,
     syncScene,
     /** Состояние кнопки записи: пульт больше не показывает экспорт. */

@@ -1,17 +1,17 @@
 /** Редактируемые слои трёх спонсорских сцен; координаты в кадре 1920×1080. */
 const spec = (id, title, x, y, extra = {}) => ({ id, title, defaults: { enabled: true, x, y, scale: 1, opacity: 1, ...extra } });
 export const PARTNERS_ELEMENTS = Object.freeze([
-  spec('stageOrganizer1', 'Организатор · логотип', 500, 205, { start: 57, end: 65 }),
-  spec('stageOrganizer2', 'Соорганизатор · логотип', 1420, 205, { start: 67, end: 75 }),
-  spec('stagePartner1', 'Спонсор 1 · логотип', 500, 475, { start: 77, end: 85 }),
-  spec('stagePartner2', 'Спонсор 2 · логотип', 1420, 475, { scale: .8, start: 87, end: 98 }),
+  spec('stageOrganizer1', 'Организатор · логотип', 430, 260, { start: 57, end: 65 }),
+  spec('stageOrganizer2', 'Соорганизатор · логотип', 1380, 260, { start: 67, end: 75 }),
+  spec('stagePartner1', 'Спонсор 1 · логотип', 410, 500, { start: 77, end: 85 }),
+  spec('stagePartner2', 'Спонсор 2 · логотип', 1490, 500, { scale: .8, start: 87, end: 98 }),
   spec('stageSingleMark', 'Логотип спонсора', 960, 220, { start: 57, end: 65 }),
-  spec('stageOrganizerLabel', 'Подпись организатора', 500, 130, { color: '#d2ac70' }),
-  spec('stageCoorganizerLabel', 'Подпись соорганизатора', 1420, 130, { color: '#d2ac70' }),
-  spec('stagePartnerLabel', 'Подпись спонсора 1', 500, 330, { color: '#d2ac70' }),
-  spec('stagePartnerLabel2', 'Подпись спонсора 2', 1420, 330, { color: '#d2ac70' }),
-  spec('stageDividerLeft', 'Левый разделитель', 500, 290),
-  spec('stageDividerRight', 'Правый разделитель', 1420, 290),
+  spec('stageOrganizerLabel', 'Подпись организатора', 430, 175, { color: '#d2ac70' }),
+  spec('stageCoorganizerLabel', 'Подпись соорганизатора', 1380, 175, { color: '#d2ac70' }),
+  spec('stagePartnerLabel', 'Подпись спонсора 1', 410, 365, { color: '#d2ac70' }),
+  spec('stagePartnerLabel2', 'Подпись спонсора 2', 1490, 365, { color: '#d2ac70' }),
+  spec('stageDividerLeft', 'Левый разделитель', 410, 405),
+  spec('stageDividerRight', 'Правый разделитель', 1490, 405),
   spec('stageBackground', 'Фоновая картинка', 960, 540, { backgroundImage: '' }),
   spec('stageCurtains', 'Шторы', 960, 540, { leftVisible: true, rightVisible: true, leftOffset: 0, rightOffset: 0 }),
   spec('stageFrame', 'Рамка и блик', 960, 540, { glint: 1 }),
@@ -19,6 +19,7 @@ export const PARTNERS_ELEMENTS = Object.freeze([
   spec('stageCompass', 'Циркуль', 960, 540, { opacity: .42 }),
   spec('stageTitle', 'Название вечера', 960, 780, { color: '#ecd4a1' }),
   spec('stageSubtitle', 'Подзаголовок', 960, 845, { color: '#c8a873' }),
+  spec('stageTitleDivider', 'Разделитель названия и подзаголовка', 960, 818, { color: '#e5bd7c' }),
 ]);
 const singleOnly = new Set(['stageSingleMark']);
 const groupOnly = new Set(['stageOrganizer1', 'stageOrganizer2', 'stagePartner1', 'stagePartner2', 'stageOrganizerLabel', 'stageCoorganizerLabel', 'stagePartnerLabel', 'stagePartnerLabel2', 'stageDividerLeft', 'stageDividerRight']);

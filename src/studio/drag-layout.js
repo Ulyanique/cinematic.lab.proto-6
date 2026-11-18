@@ -16,7 +16,7 @@ export function sponsorDragElements(cfg) {
     ['stagePartner1', 590, 170], ['stagePartner2', 590, 170], ['stageSingleMark', 700, 230],
     ['stageOrganizerLabel', 460, 50], ['stageCoorganizerLabel', 460, 50],
     ['stagePartnerLabel', 460, 50], ['stagePartnerLabel2', 460, 50],
-    ['stageTitle', 1000, 75], ['stageSubtitle', 800, 60],
+    ['stageTitle', 1000, 75], ['stageSubtitle', 800, 60], ['stageTitleDivider', 360, 18],
   ];
   return items.flatMap(([id, w, h]) => {
     const layer = cfg[id];
@@ -24,4 +24,28 @@ export function sponsorDragElements(cfg) {
     const scale = Number.isFinite(layer.scale) ? layer.scale : 1;
     return [{ id, x: layer.x, y: layer.y, w: w * scale, h: h * scale, kind: 'frame' }];
   });
+}
+
+/** Snap box centre and edges to the canvas and visible neighbouring boxes. */
+export function snapBox(box, others, thresholdX, thresholdY) {
+  const axes = [
+    { axis: 'x', size: 'w', canvas: 1920, threshold: thresholdX },
+    { axis: 'y', size: 'h', canvas: 1080, threshold: thresholdY },
+  ];
+  const result = { x: box.x, y: box.y, guides: [] };
+  for (const { axis, size, canvas, threshold } of axes) {
+    const moving = [box[axis] - box[size] / 2, box[axis], box[axis] + box[size] / 2];
+    const targets = [0, canvas / 2, canvas];
+    for (const other of others) {
+      if (other.id === box.id) continue;
+      targets.push(other[axis] - other[size] / 2, other[axis], other[axis] + other[size] / 2);
+    }
+    let best = null;
+    for (const target of targets) for (const anchor of moving) {
+      const delta = target - anchor;
+      if (Math.abs(delta) <= threshold && (best === null || Math.abs(delta) < Math.abs(best.delta))) best = { target, delta };
+    }
+    if (best) { result[axis] += best.delta; result.guides.push({ axis, value: best.target }); }
+  }
+  return result;
 }

@@ -618,9 +618,23 @@ export class PartnersScene {
       ctx.restore();
     };
     drawTextLayer(cfg.stageTitle, String(data.title ?? 'Янтарный циркуль').toLocaleUpperCase('ru'),
-      '600 58px "Cormorant Garamond", Georgia, serif', '#ecd4a1', visible * cue.title, 1200, cue.title);
+      '400 58px Prata, Georgia, serif', '#ecd4a1', visible * cue.title, 1200, cue.title);
     drawTextLayer(cfg.stageSubtitle, String(data.subtitle ?? 'вечер ретроспектива').toLocaleLowerCase('ru'),
-      '400 36px "Cormorant Garamond", Georgia, serif', '#c8a873', visible * cue.title, 1000, cue.title);
+      '400 36px Forum, Georgia, serif', '#c8a873', visible * cue.title, 1000, cue.title);
+
+    // Тонкий золотой разделитель в духе интро, отдельный настраиваемый слой.
+    const titleDivider = cfg.stageTitleDivider;
+    if (titleDivider && titleDivider.enabled !== false && cue.title > .001) {
+      const { x, y, scale = 1, opacity = 1, color = '#e5bd7c' } = titleDivider;
+      const half = 180 * scale;
+      ctx.save(); ctx.globalAlpha = visible * cue.title * opacity;
+      const gradient = ctx.createLinearGradient(x - half, 0, x + half, 0);
+      gradient.addColorStop(0, 'rgba(0,0,0,0)'); gradient.addColorStop(.25, color);
+      gradient.addColorStop(.75, color); gradient.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.strokeStyle = gradient; ctx.lineWidth = 1.25 * scale;
+      ctx.beginPath(); ctx.moveTo(x - half, y); ctx.lineTo(x + half, y); ctx.stroke();
+      ctx.restore();
+    }
 
     const trackedLabel = (value, x, y, alpha, entry, color = warm) => {
       ctx.save();
