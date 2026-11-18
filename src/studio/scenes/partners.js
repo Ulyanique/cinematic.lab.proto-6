@@ -1,3 +1,4 @@
+import { partnerElementDefaults } from '../partners-elements.js';
 import { createSharedSceneConfig } from './shared-visuals.js';
 import { createSceneTimeline } from './scene-timeline.js';
 
@@ -8,6 +9,7 @@ import { createSceneTimeline } from './scene-timeline.js';
 export const PARTNERS_DEFAULTS = createSharedSceneConfig(createSceneTimeline(42.5));
 PARTNERS_DEFAULTS.timeline.drawDuration += 4;
 PARTNERS_DEFAULTS.timeline.holdDuration -= 4;
+Object.assign(PARTNERS_DEFAULTS, partnerElementDefaults(false));
 PARTNERS_DEFAULTS.transition = {duration:.9};
 PARTNERS_DEFAULTS.partnersLight = { enabled: true, strength: .7, speed: 1 };
 PARTNERS_DEFAULTS.partners = {
@@ -17,7 +19,7 @@ PARTNERS_DEFAULTS.partners = {
   logoStyle: 'gold',
   organizer1Logo: '', organizer2Logo: '', partner1Logo: '', partner2Logo: '',
   // Оставшаяся у края ширина раскрытых занавесов.
-  curtainWidth: 96,
+  curtainWidth: 144,
   frameVisible: true, curtainVisible: true, foliageVisible: true, compassVisible: true, motion: 1,
 };
 
@@ -32,6 +34,7 @@ function sponsorCard(mark) {
   defaults.timeline.drawDuration += 4;
   defaults.timeline.holdDuration -= 4;
   defaults.partnersLight = { enabled: true, strength: .7, speed: 1 };
+  Object.assign(defaults, partnerElementDefaults(true));
   defaults.transition = { duration: .9 };
   defaults.sponsor = {
     // Знак: встроенный (keaz | promrukav) или свой файл в markLogo.
@@ -40,7 +43,7 @@ function sponsorCard(mark) {
     markScale: 1,
     title: 'Янтарный циркуль', subtitle: 'Вечер ретроспектива',
     logoStyle: 'gold',
-    frameVisible: true, curtainVisible: true, curtainWidth: 96, motion: 1,
+    frameVisible: true, curtainVisible: true, curtainWidth: 144, motion: 1,
   };
   // Текст у заставки целиком в кадре (заголовок, подзаголовок, разделитель),
   // поэтому штатный DOM-титр выключен и ничего не дублирует.

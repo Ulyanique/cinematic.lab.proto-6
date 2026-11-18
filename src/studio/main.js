@@ -14,7 +14,7 @@ import {
 import { LogoScene } from "./scene.js";
 import { BrandScene } from "./brand-scene.js";
 import { PhotoPauseScene } from "./photo-pause-scene.js";
-import { PartnersScene, loadPartnersBackground, preloadPartnerCustomLogos } from "./partners-scene.js";
+import { PartnersScene, loadPartnersBackground, preloadPartnerCustomLogos, preloadPartnersCustomBackground } from "./partners-scene.js";
 import { SponsorScene } from "./sponsor-scene.js";
 import { FinaleScene } from "./finale-scene.js";
 import { createStudioPanels } from "./ui/panels.js";
@@ -732,6 +732,7 @@ async function runOfflineRecording(job, overlay, download) {
     await Promise.all([
       fabricReady,
       partnersReady,
+      (sceneId === "partners" || sceneId.startsWith("sponsor-")) ? preloadPartnersCustomBackground(cfg.stageBackground) : null,
       ensureContourFont(exportFonts),
       sceneId === "partners" ? preloadPartnerCustomLogos(cfg.partners)
         : sceneId.startsWith("sponsor-") ? preloadPartnerCustomLogos({ partner1Logo: cfg.sponsor.markLogo, logoStyle: cfg.sponsor.logoStyle }) : null,

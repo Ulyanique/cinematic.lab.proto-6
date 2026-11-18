@@ -13,14 +13,17 @@ export function createPartnersCurtains() {
   let currentImage = null;
   return {
     left, right,
-    update(image, open, edgeWidth, visible, enabled) {
-      left.visible = right.visible = Boolean(image && enabled && visible > .001);
-      if (!left.visible) return;
+    update(image, open, edgeWidth, visible, enabled, options = {}) {
+      const active = Boolean(image && enabled && visible > .001);
+      left.visible = active && options.leftVisible !== false;
+      right.visible = active && options.rightVisible !== false;
+      if (!left.visible && !right.visible) return;
       if (image !== currentImage) { currentImage = image; texture.image = image; texture.needsUpdate = true; }
-      const { x, imageWidth } = stageCurtainLayout(image, open, 1080, edgeWidth);
-      const center = -1 + (x + imageWidth / 2) / 960;
-      left.position.x = center; right.position.x = -center;
-      left.scale.x = imageWidth / 960; right.scale.x = -imageWidth / 960;
+      const l = stageCurtainLayout(image, open, 1080, edgeWidth + (Number(options.leftOffset) || 0));
+      const r = stageCurtainLayout(image, open, 1080, edgeWidth + (Number(options.rightOffset) || 0));
+      left.position.x = -1 + (l.x + l.imageWidth / 2) / 960;
+      right.position.x = 1 - (r.x + r.imageWidth / 2) / 960;
+      left.scale.x = l.imageWidth / 960; right.scale.x = -r.imageWidth / 960;
       material.opacity = visible;
     },
     dispose() { geometry.dispose(); material.dispose(); texture.dispose(); },

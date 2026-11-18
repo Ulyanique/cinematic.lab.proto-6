@@ -22,16 +22,18 @@ export function createPartnersFrameGlint() {
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('along', new THREE.Float32BufferAttribute(along, 1));
   geometry.setAttribute('across', new THREE.Float32BufferAttribute(across, 1));
-  const uniforms = { time: { value: 0 }, opacity: { value: 0 } };
+  const uniforms = { time: { value: 0 }, opacity: { value: 0 }, frameScale: { value: 1 }, frameOffset: { value: new THREE.Vector2(0, 0) } };
   const material = new THREE.ShaderMaterial({
     uniforms, transparent: true, depthTest: false, depthWrite: false,
     blending: THREE.AdditiveBlending, toneMapped: false,
     vertexShader: `
       attribute float along, across;
+      uniform float frameScale;
+      uniform vec2 frameOffset;
       varying float vAlong, vAcross;
       void main() {
         vAlong = along; vAcross = across;
-        gl_Position = vec4(position, 1.0);
+        gl_Position = vec4(position.xy * frameScale + frameOffset, position.z, 1.0);
       }`,
     fragmentShader: `
       uniform float time, opacity;

@@ -1,4 +1,5 @@
-import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage } from "./partners-stage.js";
+import { PARTNERS_ELEMENT_SCHEMA } from "./partners-elements.js";
+import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge } from "./partners-stage.js";
 import { migrateIntroBackground } from "./background-migration.js";
 import { DECOR_SLOTS } from "./brand-decor-config.js";
 import { PARTICLE_CLOUD_IDS } from "./particle-cloud-config.js";
@@ -18,6 +19,7 @@ export const DEFAULTS = WAITING_DEFAULTS;
 
 // Схема UI: группы → поля. type: range | color | bool
 export const SCHEMA = [
+  ...PARTNERS_ELEMENT_SCHEMA,
   { id: "partnersLight", title: "Играющий свет на фоне", fields: [
     {key:"enabled",label:"Показывать свет",type:"bool"},
     {key:"strength",label:"Яркость света",type:"range",min:0,max:1.5,step:.01},
@@ -43,7 +45,7 @@ export const SCHEMA = [
     ]},
     {key:"frameVisible",label:"Показывать рамку",type:"bool"},
     {key:"curtainVisible",label:"Показывать занавес",type:"bool"},
-    {key:"curtainWidth",label:"Занавес у края: ширина, px",type:"range",min:20,max:180,step:4},
+    {key:"curtainWidth",label:"Занавес у края: ширина, px",type:"range",min:20,max:240,step:4},
     {key:"motion",label:"Движение декора при удержании",type:"range",min:0,max:1,step:.01},
   ] },
   // Заставка одного спонсора: тот же кадр, что у «Спонсоров», но знак крупно
@@ -63,7 +65,7 @@ export const SCHEMA = [
     ] },
     { key: "frameVisible", label: "Показывать рамку", type: "bool" },
     { key: "curtainVisible", label: "Показывать занавес", type: "bool" },
-    { key: "curtainWidth", label: "Занавес у края: ширина, px", type: "range", min: 20, max: 180, step: 4 },
+    { key: "curtainWidth", label: "Занавес у края: ширина, px", type: "range", min: 20, max: 240, step: 4 },
     { key: "motion", label: "Движение декора при удержании", type: "range", min: 0, max: 1, step: 0.01 },
   ] },
   { id: "intro", title: "Последовательность интро", fields: [
@@ -388,7 +390,7 @@ export const PROJECT_VERSION = 2;
 // "Logo" и на текущее значение строки — но в умолчаниях сцен таких ключей нет,
 // поэтому ссылка #cfg=... проносила data:image любого размера (и SVG, который
 // декодируется в гигабайты растра из пары сотен байт).
-export const IMAGE_KEYS = Object.freeze(["organizer1Logo", "organizer2Logo", "partner1Logo", "partner2Logo"]);
+export const IMAGE_KEYS = Object.freeze(["organizer1Logo", "organizer2Logo", "partner1Logo", "partner2Logo", "markLogo", "backgroundImage"]);
 const IMAGE_KEY_SET = new Set(IMAGE_KEYS);
 export const MAX_IMAGE_DATA_URL_LENGTH = 4 * 1024 * 1024;
 
@@ -467,7 +469,7 @@ export function mergeConfig(defaults, patch) {
 export function loadSceneConfig(sceneId, defaults, onReadError) {
   const cfg = cloneDefaults(defaults);
   let raw = null;
-  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false;
+  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false, migrateCurtainEdgeNeeded = false;
   let migratePhotoCenter = false, migratePhotoSize = false, migrateBrandCenter = false, migrateGuides = false, migrateFinaleGuides = false, migrateBrandLift = false;
   try {
     raw = localStorage.getItem(sceneStorageKey(sceneId));
@@ -476,6 +478,7 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
       migratePartnersStageNeeded = !localStorage.getItem("partners-stage-minute-v1");
       migratePartnersSequenceNeeded = !localStorage.getItem("partners-stage-sequence-v1");
     }
+    if (sceneId === "partners" || sceneId.startsWith("sponsor-")) migrateCurtainEdgeNeeded = !localStorage.getItem(`curtain-edge-v2:${sceneId}`);
     if (sceneId.startsWith("sponsor-")) migrateSponsorStageNeeded = !localStorage.getItem(`sponsor-stage-v1:${sceneId}`);
     if (sceneId === "lab-swarm-brand") migrateIntroBackgroundNeeded = !localStorage.getItem("lab-swarm-brand-minute-hold-v1");
     if (sceneId === "photo-pause") {
@@ -494,6 +497,9 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     return cfg;
   }
   if (!raw) {
+    if (migrateCurtainEdgeNeeded) {
+      try { localStorage.setItem(`curtain-edge-v2:${sceneId}`, "1"); } catch (e) { /* noop */ }
+    }
     if (migrateSponsorStageNeeded) {
       try { localStorage.setItem(`sponsor-stage-v1:${sceneId}`, "1"); } catch (e) { /* noop */ }
     }
@@ -547,6 +553,13 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
       try {
         localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
         localStorage.setItem(`sponsor-stage-v1:${sceneId}`, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateCurtainEdgeNeeded) {
+      saved = migrateCurtainEdge(saved, sceneId === "partners" ? "partners" : "sponsor");
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(`curtain-edge-v2:${sceneId}`, "1");
       } catch (e) { onReadError?.(sceneId, e); }
     }
     if (migrateIntroBackgroundNeeded) {

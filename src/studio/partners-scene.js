@@ -6,6 +6,7 @@ import proelectroschitUrl from './assets/partners/proelectroschit.svg';
 import promrukavUrl from './assets/partners/promrukav.svg';
 import keazUrl from './assets/partners/keaz.svg';
 import { drawPartnersDecor, drawAmberAtmosphere, drawBreathingBackground } from './partners-graphics.js';
+import { elementVisibility } from './partners-elements.js';
 import { createPartnersCurtains } from './partners-curtains.js';
 import { createPartnersLight } from './partners-light.js';
 import { createPartnersGlitter } from './partners-glitter.js';
@@ -199,6 +200,46 @@ const imageReady = Promise.all([backgroundUrl, curtainUrl, proelectroUrl, proele
   return images.every(Boolean);
 });
 export const loadPartnersBackground = () => imageReady;
+
+// Пользовательский фон приводим к тем же пропорциям, что встроенное фото.
+const customBackgroundCache = new Map();
+const customBackgroundPending = new Map();
+export function preloadPartnersCustomBackground(section) {
+  const url = section?.backgroundImage;
+  if (typeof url !== 'string' || !url.startsWith('data:image/') || url.length > 4 * 1024 * 1024) return Promise.resolve(null);
+  if (customBackgroundCache.has(url)) return Promise.resolve(customBackgroundCache.get(url));
+  if (customBackgroundPending.has(url)) return customBackgroundPending.get(url);
+  const task = loadImage(url).then(image => {
+    customBackgroundPending.delete(url);
+    if (!image || !image.naturalWidth || !image.naturalHeight) {
+      customBackgroundCache.set(url, null);
+      return null;
+    }
+    const canvas = document.createElement('canvas');
+    const w = BASE_FRAME.width, h = BASE_FRAME.height;
+    canvas.width = w; canvas.height = h;
+    const scale = Math.max(w / image.naturalWidth, h / image.naturalHeight);
+    const dw = image.naturalWidth * scale, dh = image.naturalHeight * scale;
+    canvas.getContext('2d').drawImage(image, (w - dw) / 2, (h - dh) / 2, dw, dh);
+    if (customBackgroundCache.size >= 4) customBackgroundCache.clear();
+    customBackgroundCache.set(url, canvas);
+    assetsRevision++;
+    if ((window.__logo?.activeScene?.id === 'partners' || window.__logo?.activeScene?.id?.startsWith('sponsor-')) && window.__logo?.cfg?.playback?.paused) {
+      window.__logo.renderAt(window.__logo.time);
+    }
+    return canvas;
+  });
+  customBackgroundPending.set(url, task);
+  return task;
+}
+function selectedBackground(section) {
+  const url = section?.backgroundImage;
+  if (!url) return backgroundCanvas;
+  const ready = customBackgroundCache.get(url);
+  if (!customBackgroundCache.has(url)) preloadPartnersCustomBackground(section);
+  return ready || backgroundCanvas;
+}
+
 
 /**
  * Изображения программы: фон, занавес и встроенные знаки. Заставки отдельных
@@ -430,23 +471,29 @@ export class PartnersScene {
   _updateBackground(master, phase, cue, data) {
     const tl = this.cfg.timeline;
     const motion = Math.max(0, Math.min(1, data.motion ?? 1));
+    const source = selectedBackground(this.cfg.stageBackground);
     const key = `${assetsRevision}|${partnersHoldCacheKey(tl)}|${motion}`;
     const texture = this._backgroundTextures[0];
-    if (this._backgroundKey !== key) {
+    if (this._backgroundKey !== key || this._backgroundSource !== source) {
       const ctx = this._backgroundBuffers[0].ctx;
       const w = BASE_FRAME.width, h = BASE_FRAME.height;
       ctx.setTransform(master.width / w, 0, 0, master.height / h, 0, 0);
       ctx.globalAlpha = 1; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
-      drawBreathingBackground(ctx, backgroundCanvas, w, h, tl.drawDuration + tl.emergeDuration, phase.cycle);
-      ctx.drawImage(this._buildStaticLayer(master, backgroundCanvas), 0, 0, w, h);
+      drawBreathingBackground(ctx, source, w, h, tl.drawDuration + tl.emergeDuration, phase.cycle);
+      ctx.drawImage(this._buildStaticLayer(master, source), 0, 0, w, h);
       ctx.save(); ctx.globalAlpha = motion;
       ctx.drawImage(this._cachedDecoration(master, 'veil'), 0, 0, w, h);
       ctx.restore();
       texture.needsUpdate = true;
       this._backgroundKey = key;
+      this._backgroundSource = source;
     }
     this.backgroundMesh.material.map = texture;
-    this.backgroundMesh.material.opacity = cue.visible * cue.background;
+    const bg = this.cfg.stageBackground;
+    this.backgroundMesh.visible = bg?.enabled !== false;
+    this.backgroundMesh.material.opacity = cue.visible * cue.background * (bg?.opacity ?? 1);
+    this.backgroundMesh.scale.setScalar(bg?.scale ?? 1);
+    this.backgroundMesh.position.set(((bg?.x ?? 960) - 960) / 960, (540 - (bg?.y ?? 540)) / 540, 0);
     if (!this._frameTexture) {
       this._frameTexture = new THREE.CanvasTexture(this._cachedDecoration(master, 'frame'));
       this._frameTexture.colorSpace = THREE.SRGBColorSpace;
@@ -455,8 +502,11 @@ export class PartnersScene {
       this.frameMesh.material.map = this._frameTexture;
       this.frameMesh.material.needsUpdate = true;
     }
-    this.frameMesh.material.opacity = cue.visible * cue.frame;
-    this.frameMesh.visible = data.frameVisible !== false && cue.frame > .001;
+    const frame = this.cfg.stageFrame;
+    this.frameMesh.material.opacity = cue.visible * cue.frame * (frame?.opacity ?? 1);
+    this.frameMesh.visible = data.frameVisible !== false && frame?.enabled !== false && cue.frame > .001;
+    this.frameMesh.scale.setScalar(frame?.scale ?? 1);
+    this.frameMesh.position.set(((frame?.x ?? 960) - 960) / 960, (540 - (frame?.y ?? 540)) / 540, 0);
   }
 
   get quality() { return this._quality; }
@@ -478,25 +528,39 @@ export class PartnersScene {
     const data = this.single ? this.cfg.sponsor : this.cfg.partners;
     const holding = phase.name === 'hold' && !phase.beforeStart;
     const cue = partnersStageCues(phase, this.cfg.timeline, data.motion ?? 1);
-    this.glitter.points.visible = cue.visible > 0 && cue.background > .001;
-    this.curtains.update(curtainImage, cue.curtainOpen, data.curtainWidth, cue.visible, data.curtainVisible !== false);
+    const config = this.cfg;
+    if (this.single && config.stageSingleMark) cue.organizer = elementVisibility(cue.progress, config.stageSingleMark);
+    if (!this.single) {
+      if (config.stageOrganizer1) cue.organizer = elementVisibility(cue.progress, config.stageOrganizer1);
+      if (config.stageOrganizer2) cue.organizerSecond = elementVisibility(cue.progress, config.stageOrganizer2);
+      if (config.stagePartner1) cue.partner = elementVisibility(cue.progress, config.stagePartner1);
+      if (config.stagePartner2) cue.partnerSecond = elementVisibility(cue.progress, config.stagePartner2);
+      cue.organizerLabel = cue.organizer; cue.partnerLabel = cue.partner;
+    }
+    this.glitter.points.visible = cue.visible > 0 && cue.background > .001 && config.stageParticles?.enabled !== false;
+    const curtainLayer = config.stageCurtains;
+    this.curtains.update(curtainImage, cue.curtainOpen, data.curtainWidth, cue.visible * (curtainLayer?.opacity ?? 1),
+      data.curtainVisible !== false && curtainLayer?.enabled !== false, curtainLayer);
     this._blackFrame = cue.visible <= 0;
     this._updateBackground(master, phase, cue, data);
     const light = this.cfg.partnersLight || { enabled: true, strength: .7, speed: 1 };
     const lightStrength = light.enabled === false ? 0 : Math.max(0, Math.min(1.5, Number(light.strength) || 0));
     this.light.uniforms.time.value = phase.local;
     this.light.uniforms.speed.value = Math.max(0, Math.min(2, Number(light.speed) || 0));
-    this.light.uniforms.strength.value = lightStrength * cue.visible * cue.background;
+    this.light.uniforms.strength.value = lightStrength * cue.visible * cue.background * (config.stageBackground?.enabled === false ? 0 : (config.stageBackground?.opacity ?? 1));
     this.light.mesh.visible = this.light.uniforms.strength.value > .001;
-    const glintOpacity = data.frameVisible !== false && cue.curtainOpen >= .999
-      ? cue.visible * cue.frame * Math.max(0, Math.min(1, data.motion ?? 1)) : 0;
+    const frame = config.stageFrame;
+    const glintOpacity = data.frameVisible !== false && frame?.enabled !== false && cue.curtainOpen >= .999
+      ? cue.visible * cue.frame * (frame?.opacity ?? 1) * (frame?.glint ?? 1) * Math.max(0, Math.min(1, data.motion ?? 1)) : 0;
     this.frameGlint.mesh.visible = glintOpacity > .001;
     this.frameGlint.uniforms.time.value = phase.local;
     this.frameGlint.uniforms.opacity.value = glintOpacity;
+    this.frameGlint.uniforms.frameScale.value = frame?.scale ?? 1;
+    this.frameGlint.uniforms.frameOffset.value.set(((frame?.x ?? 960) - 960) / 960, (540 - (frame?.y ?? 540)) / 540);
     {
       const u = this.glitter.uniforms;
       u.time.value = phase.local; u.period.value = phase.cycle;
-      u.motion.value = (data.motion ?? 1) * cue.visible * cue.background;
+      u.motion.value = (data.motion ?? 1) * cue.visible * cue.background * (config.stageParticles?.opacity ?? 1);
       u.pixelScale.value = master.height / 1080;
     }
     const holdKey = partnersHoldCacheKey(this.cfg.timeline);
@@ -531,12 +595,13 @@ export class PartnersScene {
 
     ctx.clearRect(0, 0, w, h);
     if (visible <= 0) { this.cardTexture.needsUpdate = true; return; }
-    // Эмблема проявляется крупно и плавно уменьшается к фоновой композиции.
-    if (introOutlineImage && cue.compass > .001) {
-      const size = 600 - 260 * cue.compassShrink;
+    // Эмблема проявляется крупно и уменьшается к выбранному положению.
+    const compass = cfg.stageCompass;
+    if (introOutlineImage && cue.compass > .001 && compass?.enabled !== false) {
+      const size = (600 - 260 * cue.compassShrink) * (compass?.scale ?? 1);
       const height = size * 4133.76 / 3937.77;
-      ctx.save(); ctx.globalAlpha = visible * cue.compass * .42;
-      ctx.drawImage(introOutlineImage, 960 - size / 2, 540 - height / 2, size, height);
+      ctx.save(); ctx.globalAlpha = visible * cue.compass * (compass?.opacity ?? .42);
+      ctx.drawImage(introOutlineImage, (compass?.x ?? 960) - size / 2, (compass?.y ?? 540) - height / 2, size, height);
       ctx.restore();
     }
     const text = (value, x, y, font, color, alpha, maxWidth, entry = 1) => {
@@ -545,18 +610,24 @@ export class PartnersScene {
       ctx.fillText(String(value ?? ''), x, y + 22 * (1 - entry), maxWidth); ctx.restore();
     };
     const warm = '#d2ac70', ivory = '#f6e4be';
-    // Подпись появляется под уменьшившейся эмблемой, а не поверх неё.
-    text(String(data.title ?? 'Янтарный циркуль').toLocaleUpperCase('ru'), 960, 780,
-      '600 58px "Cormorant Garamond", Georgia, serif', '#ecd4a1', visible * cue.title, 650, cue.title);
-    text(String(data.subtitle ?? 'вечер ретроспектива').toLocaleLowerCase('ru'), 960, 845,
-      '400 36px "Cormorant Garamond", Georgia, serif', '#c8a873', visible * cue.title, 580, cue.title);
+    const drawTextLayer = (element, value, font, color, alpha, maxWidth, entry = 1) => {
+      if (!element || element.enabled === false) return;
+      const scale = element.scale ?? 1;
+      ctx.save(); ctx.translate(element.x, element.y); ctx.scale(scale, scale);
+      text(value, 0, 0, font, element.color ?? color, alpha * (element.opacity ?? 1), maxWidth / scale, entry);
+      ctx.restore();
+    };
+    drawTextLayer(cfg.stageTitle, String(data.title ?? 'Янтарный циркуль').toLocaleUpperCase('ru'),
+      '600 58px "Cormorant Garamond", Georgia, serif', '#ecd4a1', visible * cue.title, 1200, cue.title);
+    drawTextLayer(cfg.stageSubtitle, String(data.subtitle ?? 'вечер ретроспектива').toLocaleLowerCase('ru'),
+      '400 36px "Cormorant Garamond", Georgia, serif', '#c8a873', visible * cue.title, 1000, cue.title);
 
-    const trackedLabel = (value, x, y, alpha, entry) => {
+    const trackedLabel = (value, x, y, alpha, entry, color = warm) => {
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.font = '600 24px Manrope, sans-serif';
-      ctx.fillStyle = warm;
+      ctx.fillStyle = color;
       ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 9; ctx.shadowOffsetY = 3;
       const supportsTracking = 'letterSpacing' in ctx;
       if (supportsTracking) ctx.letterSpacing = '5px';
@@ -567,8 +638,11 @@ export class PartnersScene {
       if (supportsTracking) ctx.letterSpacing = '0px';
       ctx.restore();
     };
-    const label = (value, x, y, alpha, entry) => {
-      trackedLabel(value, x, y, alpha, entry);
+    const label = (element, value, alpha, entry) => {
+      if (!element || element.enabled === false) return;
+      ctx.save(); ctx.translate(element.x, element.y); ctx.scale(element.scale, element.scale);
+      trackedLabel(value, 0, 0, alpha * element.opacity, entry, element.color);
+      ctx.restore();
     };
     const defaults = { organizer1: 'ПРОэлектро', organizer2: 'ПРОэлектрощит', partner1: 'Промрукав', partner2: 'КЭАЗ' };
     const style = data.logoStyle === 'original' ? 'original' : 'gold';
@@ -599,14 +673,18 @@ export class PartnersScene {
       organizer1: customLogoFor('organizer1'), organizer2: customLogoFor('organizer2'),
       partner1: customLogoFor('partner1'), partner2: customLogoFor('partner2'),
     };
-    const company = (key, x, y, entry, glintAt, phaseIdx, fit = 1) => {
+    const company = (key, element, entry, glintAt, phaseIdx, fit = 1) => {
+      if (!element || element.enabled === false) return;
+      const x = element.x, y = element.y;
+      fit *= element.scale ?? 1;
+      const layerVisible = visible * (element.opacity ?? 1);
       const value = this.single ? (data.mark === 'keaz' ? 'КЭАЗ' : 'Промрукав') : data[key];
       const logo = marks[key];
       // Мягкий подъём с перелётом: p идёт 0→1, overshoot даёт «доезд».
       const p = entry <= 0 ? 0 : Math.min(1.06, easeOutBack(entry));
       const rise = (1 - Math.min(1, p)) * 26;
       if (!logo) {
-        text(value, x, y, '600 52px Manrope, sans-serif', ivory, visible * Math.max(0, Math.min(1, p)), 440, Math.min(1, p));
+        text(value, x, y, '600 52px Manrope, sans-serif', ivory, layerVisible * Math.max(0, Math.min(1, p)), 440, Math.min(1, p));
         return;
       }
       // Ширина И высота считаются от ОДНОГО коэффициента. Раньше высота
@@ -623,11 +701,11 @@ export class PartnersScene {
       const grow = 0.955 + 0.045 * p + breathe;
       const cx = x, cy = y + rise + floatY;
       ctx.save();
-      ctx.globalAlpha = visible * Math.max(0, Math.min(1, p * 1.15));
+      ctx.globalAlpha = layerVisible * Math.max(0, Math.min(1, p * 1.15));
       // Мягкая тень под знаком отделяет золото от винного фона и даёт глубину.
       if (cue.shadow > 0.01) {
         ctx.save();
-        ctx.globalAlpha = visible * Math.min(1, p) * cue.shadow * 0.5;
+        ctx.globalAlpha = layerVisible * Math.min(1, p) * cue.shadow * 0.5;
         ctx.translate(cx, cy + lh * 0.52);
         ctx.scale(1, 0.22);
         const shadow = ctx.createRadialGradient(0, 0, 0, 0, 0, lw * 0.52);
@@ -646,12 +724,12 @@ export class PartnersScene {
       // Блик проходит уже по проявленному знаку — иначе он светит в пустоту.
       if (!holding) drawMarkGlint(ctx, logo, -lw / 2, -lh / 2, lw, lh,
         glintSpan(phase.local, { start: glintAt, span: 0.62, from: -0.35, to: 1.35 }),
-        visible * Math.min(1, p) * cue.glintStrength);
+        layerVisible * Math.min(1, p) * cue.glintStrength);
       // Второй проход на удержании — медленнее и тише. Разнесён по знакам,
       // чтобы свет «гулял» по группе, а не вспыхивал весь сразу.
       if (!holding) drawMarkGlint(ctx, logo, -lw / 2, -lh / 2, lw, lh,
         glintSpan(phase.local, { start: 7.4 + phaseIdx * 0.35, span: 1.15, from: -0.3, to: 1.3 }),
-        visible * Math.min(1, p) * cue.holdGlint * 0.55);
+        layerVisible * Math.min(1, p) * cue.holdGlint * 0.55);
       ctx.restore();
     };
     // Тёплая «подушка» под каждым ярусом: отделяет группу от фона и добавляет
@@ -669,39 +747,41 @@ export class PartnersScene {
       ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     };
-    // Два организатора сверху, два спонсора ниже, по одному в каждой колонке.
-    const L = PARTNERS_MARK_LAYOUT;
+    const glowFor = (element, rx = 260, ry = 115) => {
+      if (element?.enabled !== false && element) tierGlow(element.x, element.y, rx, ry, visible * cue.shadow * .5 * element.opacity);
+    };
     if (this.single) {
+      const e = cfg.stageSingleMark;
       const scale = 1.45 * Math.max(.5, Math.min(1.8, Number(data.markScale) || 1)) *
-        (data.mark === 'keaz' ? L.keazScale : 1);
-      tierGlow(960, 220, 400, 130, visible * cue.shadow * .5);
-      company('single', 960, 220, cue.organizer, 2.75, 0, scale);
+        (data.mark === 'keaz' ? PARTNERS_MARK_LAYOUT.keazScale : 1);
+      glowFor(e, 400, 130);
+      company('single', e, cue.organizer, 2.75, 0, scale);
     } else {
-      tierGlow(L.left, L.organizerTop, 260, 115, visible * cue.shadow * .5);
-      tierGlow(L.right, L.organizerBottom, 260, 115, visible * cue.shadow * .5);
-      tierGlow(L.left, L.sponsorTop, 260, 115, visible * cue.shadow * .5);
-      tierGlow(L.right, L.sponsorBottom, 260, 115, visible * cue.shadow * .5);
-      const divider = (x, y, opacity) => {
-        if (opacity <= .001) return;
-        ctx.save(); ctx.globalAlpha = visible * opacity * .65;
-        const gradient = ctx.createLinearGradient(x - 250, 0, x + 250, 0);
+      glowFor(cfg.stageOrganizer1); glowFor(cfg.stageOrganizer2);
+      glowFor(cfg.stagePartner1); glowFor(cfg.stagePartner2);
+      const divider = (element, opacity) => {
+        if (!element || element.enabled === false || opacity <= .001) return;
+        const { x, y, scale } = element;
+        const half = 250 * scale;
+        ctx.save(); ctx.globalAlpha = visible * opacity * .65 * element.opacity;
+        const gradient = ctx.createLinearGradient(x - half, 0, x + half, 0);
         gradient.addColorStop(0, 'rgba(232,196,132,0)');
         gradient.addColorStop(.22, 'rgba(232,196,132,.75)');
         gradient.addColorStop(.78, 'rgba(232,196,132,.75)');
         gradient.addColorStop(1, 'rgba(232,196,132,0)');
-        ctx.strokeStyle = gradient; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(x - 250, y); ctx.lineTo(x + 250, y); ctx.stroke();
+        ctx.strokeStyle = gradient; ctx.lineWidth = 1.5 * scale;
+        ctx.beginPath(); ctx.moveTo(x - half, y); ctx.lineTo(x + half, y); ctx.stroke();
         ctx.restore();
       };
-      divider(L.left, L.organizerDivider, Math.min(cue.organizer, cue.partner));
-      divider(L.right, L.sponsorDivider, Math.min(cue.organizerSecond, cue.partnerSecond));
-      label(data.organizerLabel, L.left, L.organizerLabel, visible * cue.organizerLabel, cue.organizerLabel);
-      label(data.coorganizerLabel, L.right, L.coorganizerLabel, visible * cue.organizerSecond, cue.organizerSecond);
-      label(data.partnerLabel, 960, L.sponsorLabel, visible * cue.partnerLabel, cue.partnerLabel);
-      company('organizer1', L.left, L.organizerTop, cue.organizer, 2.75, 0, 1);
-      company('organizer2', L.right, L.organizerBottom, cue.organizerSecond, 3.25, 1, 1);
-      company('partner1', L.left, L.sponsorTop, cue.partner, 4.45, 2, 1);
-      company('partner2', L.right, L.sponsorBottom, cue.partnerSecond, 4.95, 3, L.keazScale);
+      divider(cfg.stageDividerLeft, Math.min(cue.organizer, cue.partner));
+      divider(cfg.stageDividerRight, Math.min(cue.organizerSecond, cue.partnerSecond));
+      label(cfg.stageOrganizerLabel, data.organizerLabel, visible * cue.organizerLabel, cue.organizerLabel);
+      label(cfg.stageCoorganizerLabel, data.coorganizerLabel, visible * cue.organizerSecond, cue.organizerSecond);
+      label(cfg.stagePartnerLabel, data.partnerLabel, visible * cue.partnerLabel, cue.partnerLabel);
+      company('organizer1', cfg.stageOrganizer1, cue.organizer, 2.75, 0);
+      company('organizer2', cfg.stageOrganizer2, cue.organizerSecond, 3.25, 1);
+      company('partner1', cfg.stagePartner1, cue.partner, 4.45, 2);
+      company('partner2', cfg.stagePartner2, cue.partnerSecond, 4.95, 3);
     }
     this.cardTexture.needsUpdate = true;
     if (holding) { this._holdTexture = this.cardTexture; this._holdRevision = assetsRevision; this._holdKey = holdKey; }

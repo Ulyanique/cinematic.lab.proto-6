@@ -16,7 +16,7 @@ export function partnersStageCues(phase, timeline, motion = 1) {
   const partnerSecond = smooth(.87, .98, p);
   const idle = smooth(.92, 1, p) * clamp(motion);
   return {
-    visible, background: smooth(.04, .30, p),
+    progress: p, visible, background: smooth(.04, .30, p),
     curtainOpen: smooth(0, .23, p),
     compass: smooth(.25, .39, p), compassShrink: smooth(.42, .57, p),
     title: smooth(.55, .66, p),
@@ -103,3 +103,10 @@ export const PARTNERS_MARK_LAYOUT = Object.freeze({
   organizerDivider: 290, sponsorDivider: 290,
   keazScale: .8,
 });
+
+/** Обновить только стандартную ширину; ручные настройки не менять. */
+export function migrateCurtainEdge(saved, section) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  if (next[section]?.curtainWidth === 96) next[section].curtainWidth = 144;
+  return next;
+}
