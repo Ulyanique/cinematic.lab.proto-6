@@ -203,6 +203,26 @@ const imageReady = Promise.all([backgroundUrl, curtainUrl, proelectroUrl, proele
 });
 export const loadPartnersBackground = () => imageReady;
 
+// Красим готовый контур один раз на цвет, сохраняя мягкие края PNG/SVG.
+const compassColorCache = new Map();
+function coloredCompass(color) {
+  if (!introOutlineImage) return null;
+  const safeColor = typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color) ? color : '#e5bd7c';
+  if (compassColorCache.has(safeColor)) return compassColorCache.get(safeColor);
+  const canvas = document.createElement('canvas');
+  canvas.width = introOutlineImage.naturalWidth || 800;
+  canvas.height = introOutlineImage.naturalHeight || 840;
+  const context = canvas.getContext('2d');
+  context.drawImage(introOutlineImage, 0, 0, canvas.width, canvas.height);
+  context.globalCompositeOperation = 'source-in';
+  context.fillStyle = safeColor;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  if (compassColorCache.size >= 8) compassColorCache.clear();
+  compassColorCache.set(safeColor, canvas);
+  return canvas;
+}
+
+
 // Пользовательский фон приводим к тем же пропорциям, что встроенное фото.
 const customBackgroundCache = new Map();
 const customBackgroundPending = new Map();
@@ -614,7 +634,7 @@ export class PartnersScene {
       const size = (600 - 260 * cue.compassShrink) * (compass?.scale ?? 1);
       const height = size * 4133.76 / 3937.77;
       ctx.save(); ctx.globalAlpha = visible * cue.compass * (compass?.opacity ?? .42);
-      ctx.drawImage(introOutlineImage, (compass?.x ?? 960) - size / 2, (compass?.y ?? 540) - height / 2, size, height);
+      ctx.drawImage(coloredCompass(compass?.color), (compass?.x ?? 960) - size / 2, (compass?.y ?? 540) - height / 2, size, height);
       ctx.restore();
     }
     const text = (value, x, y, font, color, alpha, maxWidth, entry = 1) => {

@@ -63,7 +63,7 @@ export function migratePartnersStage(saved) {
 export function introOutlineSvg(svg) {
   return svg
     .replace(/width="39\.5198mm" height="41\.4868mm"/, 'width="800" height="840"')
-    .replace('.fil0 {fill:#D7B56D}', '.fil0 {fill:none;stroke:#D7B56D;stroke-width:18;stroke-linejoin:round;stroke-linecap:round}');
+    .replace('.fil0 {fill:#D7B56D}', '.fil0 {fill:none;stroke:#e5bd7c;stroke-width:16;stroke-linejoin:round;stroke-linecap:round}');
 }
 
 /** Параметры таймлайна, влияющие на изображение удержания. */
@@ -184,5 +184,12 @@ export function migratePartnersTopTitle(saved) {
   for (const [id, [x0, y0, x, y]] of Object.entries(positions)) {
     if (next[id]?.x === x0 && next[id]?.y === y0) { next[id].x = x; next[id].y = y; }
   }
+  return next;
+}
+
+/** Усиливаем только прежнюю стандартную прозрачность знака на общей заставке. */
+export function migratePartnersCompassContrast(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  if (next.stageCompass?.opacity === .42) next.stageCompass.opacity = 1;
   return next;
 }

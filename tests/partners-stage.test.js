@@ -97,7 +97,7 @@ test('intro artwork is rendered as an unfilled golden outline', async () => {
   const svg = '<svg><style>.fil0 {fill:#D7B56D}</style><path class="fil0"/></svg>';
   const outline = introOutlineSvg(svg);
   assert.match(outline, /fill:none/);
-  assert.match(outline, /stroke:#D7B56D/);
+  assert.match(outline, /stroke:#e5bd7c;stroke-width:16/);
   assert.match(outline, /<path class="fil0"\/>/);
 });
 

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PARTNERS_ELEMENT_SCHEMA, partnerElementDefaults, elementVisibility, labelLineLayout } from '../src/studio/partners-elements.js';
-import { migrateCurtainEdge, migrateCurtainEdgeV3, migrateSponsorLabels, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, partnersStageCues } from '../src/studio/partners-stage.js';
+import { migrateCurtainEdge, migrateCurtainEdgeV3, migrateSponsorLabels, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, migratePartnersCompassContrast, partnersStageCues } from '../src/studio/partners-stage.js';
 import { sectionAllowed, eyeKey } from '../src/studio/ui/field-rules.js';
 import { PARTNERS_DEFAULTS, SPONSOR_KEAZ_DEFAULTS } from '../src/studio/scenes/partners.js';
 
@@ -114,4 +114,14 @@ test('reference composition places the evening name above the partner rows witho
   assert.equal(next.stageCompass.x, 900);
   assert.equal(next.stageCompass.y, 540);
   assert.equal(old.stageTitle.y, 780);
+});
+
+
+test('compass matches ornament by default without overwriting custom opacity', () => {
+  assert.equal(PARTNERS_DEFAULTS.stageCompass.color, PARTNERS_DEFAULTS.stageOrnament.color);
+  assert.equal(PARTNERS_DEFAULTS.stageCompass.opacity, 1);
+  assert.equal(SPONSOR_KEAZ_DEFAULTS.stageCompass.opacity, .42);
+  assert.equal(migratePartnersCompassContrast({ stageCompass: { opacity: .42 } }).stageCompass.opacity, 1);
+  assert.equal(migratePartnersCompassContrast({ stageCompass: { opacity: .7 } }).stageCompass.opacity, .7);
+  assert.equal(PARTNERS_ELEMENT_SCHEMA.find(s => s.id === 'stageOrnament').fields.some(f => f.key === 'edgeFade'), true);
 });

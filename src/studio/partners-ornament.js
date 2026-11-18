@@ -36,15 +36,22 @@ export function drawPartnersOrnament(ctx, layer, alpha, progress = 1, time = nul
   // Главная линия расходится от центра; боковые и вертикальные рисуются следом.
   const mainEnd = 50 + 570 * state.main;
   const smallEnd = 68 + 227 * state.accents;
-  ctx.beginPath();
-  for (const [x1, y1, x2, y2] of [
-    [-50, 0, -mainEnd, 0], [50, 0, mainEnd, 0],
-    [-68, -52, -smallEnd, -52], [68, -52, smallEnd, -52],
-    [-68, 58, -smallEnd, 58], [68, 58, smallEnd, 58],
-    [0, -64, 0, -64 - 66 * state.accents], [0, 64, 0, 64 + 56 * state.accents],
-  ]) { ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); }
-  ctx.stroke();
+  const edgeFade = clamp(Number.isFinite(layer.edgeFade) ? layer.edgeFade : .75);
+  for (const [x1, y1, x2, y2, fullX, fullY] of [
+    [-50, 0, -mainEnd, 0, -620, 0], [50, 0, mainEnd, 0, 620, 0],
+    [-68, -52, -smallEnd, -52, -295, -52], [68, -52, smallEnd, -52, 295, -52],
+    [-68, 58, -smallEnd, 58, -295, 58], [68, 58, smallEnd, 58, 295, 58],
+    [0, -64, 0, -64 - 66 * state.accents, 0, -130], [0, 64, 0, 64 + 56 * state.accents, 0, 120],
+  ]) {
+    if (edgeFade > 0) {
+      const fade = ctx.createLinearGradient(x1, y1, fullX, fullY);
+      fade.addColorStop(0, color); fade.addColorStop(1 - edgeFade * .8, color);
+      fade.addColorStop(1, 'rgba(0,0,0,0)'); ctx.strokeStyle = fade;
+    } else ctx.strokeStyle = color;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
 
+  ctx.strokeStyle = color;
   ctx.save();
   ctx.globalAlpha = baseAlpha * state.star;
   ctx.scale(.8 + .2 * state.star, .8 + .2 * state.star);
@@ -62,14 +69,16 @@ export function drawPartnersOrnament(ctx, layer, alpha, progress = 1, time = nul
     gradient.addColorStop(0, 'rgba(255,246,220,0)');
     gradient.addColorStop(.5, 'rgba(255,246,220,1)');
     gradient.addColorStop(1, 'rgba(255,246,220,0)');
-    ctx.globalAlpha = clamp(baseAlpha * glint * .7);
     ctx.strokeStyle = gradient; ctx.lineWidth = 2;
-    ctx.beginPath();
     for (const y of [0, -52, 58]) {
       const start = y === 0 ? 50 : 68, end = y === 0 ? mainEnd : smallEnd;
-      ctx.moveTo(-start, y); ctx.lineTo(-end, y); ctx.moveTo(start, y); ctx.lineTo(end, y);
+      const maxEnd = y === 0 ? 620 : 295;
+      const ratio = (Math.abs(head) - start) / (maxEnd - start);
+      const attenuation = edgeFade > 0 ? 1 - smooth(1 - edgeFade * .8, 1, ratio) : 1;
+      ctx.globalAlpha = clamp(baseAlpha * glint * .7 * attenuation);
+      ctx.beginPath(); ctx.moveTo(-start, y); ctx.lineTo(-end, y);
+      ctx.moveTo(start, y); ctx.lineTo(end, y); ctx.stroke();
     }
-    ctx.stroke();
   }
   ctx.restore();
 }

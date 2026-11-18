@@ -21,6 +21,7 @@ test('ornament draws mirrored lines and curved four-point star with chosen trans
   const ctx = {};
   for (const method of ['save','restore','translate','scale','beginPath','moveTo','lineTo','bezierCurveTo','closePath','stroke','fill'])
     ctx[method] = (...args) => calls.push([method, ...args]);
+  ctx.createLinearGradient = (...args) => { const stops = []; calls.push(['gradient', ...args, stops]); return { addColorStop: (offset, color) => stops.push([offset, color]) }; };
   const layer = { x: 100, y: 200, scale: 1.5, opacity: .8, color: '#ffcc88' };
   drawPartnersOrnament(ctx, layer, .5);
   assert.equal(ctx.globalAlpha, .4);
@@ -30,6 +31,11 @@ test('ornament draws mirrored lines and curved four-point star with chosen trans
   assert.equal(calls.filter(c => c[0] === 'bezierCurveTo').length, 8);
   assert.equal(calls.filter(c => c[0] === 'lineTo').length, 8);
   assert.equal(calls.filter(c => c[0] === 'fill').length, 1);
+  assert.equal(calls.filter(c => c[0] === 'gradient').length, 8);
+  assert.ok(calls.filter(c => c[0] === 'gradient').every(c => c.at(-1).at(-1)[1] === 'rgba(0,0,0,0)'));
+  calls.length = 0;
+  drawPartnersOrnament(ctx, { ...layer, edgeFade: 0 }, .5);
+  assert.equal(calls.filter(c => c[0] === 'gradient').length, 0);
   calls.length = 0;
   drawPartnersOrnament(ctx, { ...layer, enabled: false }, 1);
   assert.equal(calls.length, 0);

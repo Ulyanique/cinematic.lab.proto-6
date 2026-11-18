@@ -14,11 +14,11 @@ export const PARTNERS_ELEMENTS = Object.freeze([
   spec('stageCurtains', 'Шторы', 960, 540, { leftVisible: true, rightVisible: true, leftOffset: 0, rightOffset: 0, fadePercent: 8 }),
   spec('stageFrame', 'Рамка и блик', 960, 540, { glint: 1 }),
   spec('stageParticles', 'Искры', 960, 540),
-  spec('stageCompass', 'Циркуль', 960, 540, { opacity: .42 }),
+  spec('stageCompass', 'Циркуль', 960, 540, { opacity: .42, color: '#e5bd7c' }),
   spec('stageTitle', 'Название вечера', 960, 780, { color: '#ecd4a1' }),
   spec('stageSubtitle', 'Подзаголовок', 960, 845, { color: '#c8a873' }),
   spec('stageTitleDivider', 'Разделитель названия и подзаголовка', 960, 818, { color: '#e5bd7c' }),
-  spec('stageOrnament', 'Нижний золотой орнамент', 960, 823, { color: '#e5bd7c', start: 68, end: 98, glint: .65, glintSpeed: 1 }),
+  spec('stageOrnament', 'Нижний золотой орнамент', 960, 823, { color: '#e5bd7c', edgeFade: .75, start: 68, end: 98, glint: .65, glintSpeed: 1 }),
 ]);
 const singleOnly = new Set(['stageSingleMark']);
 const groupOnly = new Set(['stageOrganizer1', 'stageOrganizer2', 'stagePartner1', 'stagePartner2', 'stageOrganizerLabel', 'stageCoorganizerLabel', 'stagePartnerLabel', 'stagePartnerLabel2', 'stageOrnament']);
@@ -37,6 +37,7 @@ export function partnerElementDefaults(single = false) {
       stagePartnerLabel: [600, 450], stagePartnerLabel2: [1320, 450],
     };
     for (const [id, [x, y]] of Object.entries(reference)) Object.assign(out[id], { x, y });
+    out.stageCompass.opacity = 1;
   }
   return out;
 }
@@ -63,6 +64,7 @@ export const PARTNERS_ELEMENT_SCHEMA = PARTNERS_ELEMENTS.map(s => ({
       { key: 'lineGap', label: 'Отступ от подписи, px', type: 'range', min: 0, max: 150, step: 1 },
       { key: 'lineOpacity', label: 'Непрозрачность полоски', type: 'range', min: 0, max: 1, step: .01 },
     ] : []),
+    ...('edgeFade' in s.defaults ? [{ key: 'edgeFade', label: 'Растворение краёв', type: 'range', min: 0, max: 1, step: .01 }] : []),
     ...('glintSpeed' in s.defaults ? [{ key: 'glintSpeed', label: 'Скорость блика', type: 'range', min: 0, max: 2, step: .01 }] : []),
     ...('color' in s.defaults ? [{ key: 'color', label: 'Цвет', type: 'color' }] : []),
     ...('start' in s.defaults ? [
