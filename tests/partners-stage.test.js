@@ -173,3 +173,21 @@ test('group curtains pause for emblem, fully open before marks and reverse smoot
   assert.equal(migratePartnersCurtainChoreography({timeline:{fadeDuration:2.3}}).timeline.fadeDuration, 6.5);
   assert.deepEqual(migratePartnersCurtainChoreography({partners:{curtainWidth:180},timeline:{fadeDuration:4}}), {partners:{curtainWidth:180},timeline:{fadeDuration:4}});
 });
+
+test('central emblem and heading complete before any group mark appears', async () => {
+  const { PARTNERS_DEFAULTS } = await import('../src/studio/scenes/partners.js');
+  const { elementVisibility } = await import('../src/studio/partners-elements.js');
+  const { migratePartnersCenterFirst } = await import('../src/studio/partners-stage.js');
+  const t = PARTNERS_DEFAULTS.timeline;
+  const entry = t.drawDuration + t.emergeDuration;
+  const cue = partnersStageCues({local:entry * .59}, t, 1, 8, true);
+  assert.equal(cue.compass, 1); assert.equal(cue.compassShrink, 1); assert.equal(cue.title, 1);
+  for (const id of ['stageOrganizer1','stageOrganizer2','stagePartner1','stagePartner2']) {
+    assert.equal(elementVisibility(cue.progress, PARTNERS_DEFAULTS[id]), 0);
+  }
+  const old = {stageOrganizer1:{start:57,end:65,x:40},stagePartner2:{start:12,end:80}};
+  const next = migratePartnersCenterFirst(old);
+  assert.deepEqual(next.stageOrganizer1,{start:60,end:68,x:40});
+  assert.deepEqual(next.stagePartner2, old.stagePartner2);
+  assert.equal(old.stageOrganizer1.start, 57);
+});

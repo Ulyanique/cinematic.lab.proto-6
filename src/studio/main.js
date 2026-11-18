@@ -1,3 +1,5 @@
+import { CircleFinalScene } from "./circle-final-scene.js";
+import { CIRCLE_FINAL_ID } from "./scenes/circle-final.js";
 import { createDragEditor } from "./drag-editor.js";
 import "./styles.css";
 import "./font-assets.js";
@@ -70,7 +72,7 @@ let sceneId = activeScene.id;
 // Настройки каждой готовой сцены живут отдельно: в браузере свой ключ на сцену.
 // Заставки отдельных спонсоров — те же страницы программы, поэтому идут в общем
 // списке: у каждой свой конфиг, своя кнопка и своя запись.
-const READY_IDS = ["waiting", "brand", "partners", "sponsor-promrukav", "sponsor-keaz", "photo-pause", "finale", LAB2_ID, LAB2_BRAND_ID, LAB2_OUTRO_ID, LAB5_ID];
+const READY_IDS = ["waiting", "brand", "partners", "sponsor-promrukav", "sponsor-keaz", "photo-pause", "finale", LAB2_ID, LAB2_BRAND_ID, LAB2_OUTRO_ID, LAB5_ID, CIRCLE_FINAL_ID];
 const configs = new Map();
 const storageFailures = new Set();
 for (const id of READY_IDS) {
@@ -258,7 +260,7 @@ const adapters = { waiting: LogoScene, brand: BrandScene,
   // Заставки спонсоров — один класс, знак берётся из своего конфига.
   "sponsor-promrukav": SponsorScene, "sponsor-keaz": SponsorScene,
   // Кинематографичные лаборатории proto-2 и proto-5
-  [LAB2_ID]: Lab2Scene, [LAB2_BRAND_ID]: Lab2BrandScene, [LAB2_OUTRO_ID]: Lab2OutroScene, [LAB5_ID]: Lab5Scene };
+  [LAB2_ID]: Lab2Scene, [LAB2_BRAND_ID]: Lab2BrandScene, [LAB2_OUTRO_ID]: Lab2OutroScene, [LAB5_ID]: Lab5Scene, [CIRCLE_FINAL_ID]: CircleFinalScene };
 let scene = new adapters[sceneId](canvas, cfg);
 // Пресет качества запоминаем между запусками: на площадке важно не искать его
 // заново. Значение по умолчанию — полный кадр превью.
@@ -496,7 +498,7 @@ function syncMasterSize() {
 function captionSourceFor(id) {
   return () => {
     // «Спонсоры» и заставки спонсоров собирают текст в кадре: DOM-титра нет.
-    if (id === "partners" || id.startsWith("sponsor-") || isLabScene(id) || !document.getElementById("caption")) return null;
+    if (id === CIRCLE_FINAL_ID || id === "partners" || id.startsWith("sponsor-") || isLabScene(id) || !document.getElementById("caption")) return null;
     return { sceneId: id, alpha: 1 };
   };
 }

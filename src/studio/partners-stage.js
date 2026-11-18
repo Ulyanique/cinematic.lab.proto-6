@@ -10,10 +10,10 @@ export function partnersStageCues(phase, timeline, motion = 1, curtainFadePercen
   const p = t < entry ? t / entry : t < exitStart ? 1 : 1 - closing;
   const visible = phase.beforeStart ? 0 : 1 - smooth(exitStart + exitDuration * .92, exitStart + exitDuration, t);
   // Сначала организатор и соорганизатор, затем два спонсора.
-  const organizer = smooth(.57, .65, p);
-  const organizerSecond = smooth(.67, .75, p);
-  const partner = smooth(.77, .85, p);
-  const partnerSecond = smooth(.87, .98, p);
+  const organizer = twoStageCurtains ? smooth(.60, .68, p) : smooth(.57, .65, p);
+  const organizerSecond = twoStageCurtains ? smooth(.70, .78, p) : smooth(.67, .75, p);
+  const partner = twoStageCurtains ? smooth(.80, .88, p) : smooth(.77, .85, p);
+  const partnerSecond = twoStageCurtains ? smooth(.90, .99, p) : smooth(.87, .98, p);
   const idle = smooth(.92, 1, p) * clamp(motion);
   const fadeEnd = Math.max(.01, Math.min(.23, (Number.isFinite(curtainFadePercent) ? curtainFadePercent : 8) / 100));
   // Для общей композиции: небольшой первый проход, пауза на эмблему,
@@ -26,7 +26,7 @@ export function partnersStageCues(phase, timeline, motion = 1, curtainFadePercen
     // Шторы проявляются из чёрного и гаснут при обратном движении.
     curtainOpacity: smooth(0, fadeEnd, p), curtainOpen,
     compass: smooth(.25, .39, p), compassShrink: smooth(.42, .57, p),
-    title: smooth(.55, .66, p),
+    title: twoStageCurtains ? smooth(.35, .55, p) : smooth(.55, .66, p),
     organizerLabel: organizer, organizer, organizerSecond,
     partnerLabel: partner, partner, partnerSecond,
     frame: smooth(.12, .36, p), curtain: 0, shadow: idle, idle,
@@ -226,5 +226,18 @@ export function migratePartnersCurtainChoreography(saved) {
   const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
   if (next.partners?.curtainWidth === 168) next.partners.curtainWidth = 196;
   if (next.timeline?.fadeDuration === 2.3 || next.timeline?.fadeDuration === 3.5) next.timeline.fadeDuration = 6.5;
+  return next;
+}
+
+/** Новый порядок: центр завершается до появления знаков, ручной тайминг не трогаем. */
+export function migratePartnersCenterFirst(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  for (const [id, oldStart, oldEnd, start, end] of [
+    ['stageOrganizer1', 57, 65, 60, 68], ['stageOrganizer2', 67, 75, 70, 78],
+    ['stagePartner1', 77, 85, 80, 88], ['stagePartner2', 87, 98, 90, 99],
+  ]) {
+    const e = next[id];
+    if (e?.start === oldStart && e?.end === oldEnd) { e.start = start; e.end = end; }
+  }
   return next;
 }

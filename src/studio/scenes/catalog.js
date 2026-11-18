@@ -1,3 +1,4 @@
+import { CIRCLE_FINAL_ID, CIRCLE_FINAL_DEFAULTS } from "./circle-final.js";
 import { WAITING_DEFAULTS } from "./waiting.js";
 import { BRAND_DEFAULTS } from "./brand.js";
 import { PHOTO_PAUSE_DEFAULTS } from "./photo-pause.js";
@@ -43,6 +44,7 @@ export const SCENES = Object.freeze([
   { id: "photo-pause", title: "Фотопауза", code: "08", label: "Фотопауза", status: "ready", defaults: PHOTO_PAUSE_DEFAULTS },
   { id: "finale", title: "Архив — прежнее аутро: История продолжается", code: "A9", label: "Аутро (архив)", status: "ready", archived: true, defaults: FINALE_DEFAULTS },
   { id: LAB2_OUTRO_ID, title: "Аутро — интро в обратном направлении", code: "09", label: "Аутро", status: "ready", defaults: LAB2_OUTRO_DEFAULTS },
+  { id: CIRCLE_FINAL_ID, title: "Логотип и лучи — финальный кадр", code: "10", label: "Логотип и лучи", status: "ready", defaults: CIRCLE_FINAL_DEFAULTS },
   // Кинематографичные лаборатории (cinematic-lab-proto-2 и proto-5).
   // Первая анимация программы. Внутри — 3D-эмблема из роя частиц; в интерфейсе
   // она называется просто «Интро», потому что открывает показ.
@@ -67,7 +69,7 @@ export const PLAYABLE_SCENES = Object.freeze(
       code: scene.code,
       label: scene.label,
       archived: scene.archived === true,
-      chain: scene.archived !== true && scene.id !== "sponsor-promrukav" && scene.id !== "sponsor-keaz",
+      chain: scene.archived !== true && scene.id !== "sponsor-promrukav" && scene.id !== "sponsor-keaz" && scene.id !== CIRCLE_FINAL_ID,
     }))
 );
 

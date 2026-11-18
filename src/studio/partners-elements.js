@@ -1,10 +1,10 @@
 /** Редактируемые слои трёх спонсорских сцен; координаты в кадре 1920×1080. */
 const spec = (id, title, x, y, extra = {}) => ({ id, title, defaults: { enabled: true, x, y, scale: 1, opacity: 1, ...extra } });
 export const PARTNERS_ELEMENTS = Object.freeze([
-  spec('stageOrganizer1', 'Организатор · логотип', 430, 260, { start: 57, end: 65 }),
-  spec('stageOrganizer2', 'Соорганизатор · логотип', 1380, 260, { start: 67, end: 75 }),
-  spec('stagePartner1', 'Спонсор 1 · логотип', 410, 500, { start: 77, end: 85 }),
-  spec('stagePartner2', 'Спонсор 2 · логотип', 1490, 500, { start: 87, end: 98 }),
+  spec('stageOrganizer1', 'Организатор · логотип', 430, 260, { start: 60, end: 68 }),
+  spec('stageOrganizer2', 'Соорганизатор · логотип', 1380, 260, { start: 70, end: 78 }),
+  spec('stagePartner1', 'Спонсор 1 · логотип', 410, 500, { start: 80, end: 88 }),
+  spec('stagePartner2', 'Спонсор 2 · логотип', 1490, 500, { start: 90, end: 99 }),
   spec('stageSingleMark', 'Логотип спонсора', 960, 220, { start: 57, end: 65 }),
   spec('stageOrganizerLabel', 'Подпись организатора', 510, 175, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
   spec('stageCoorganizerLabel', 'Подпись соорганизатора', 1300, 175, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
