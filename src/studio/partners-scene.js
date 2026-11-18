@@ -371,7 +371,7 @@ export class PartnersScene {
     if (kind === 'frame') {
       // Рамка чуть меньше и тише; сложная позолота готовится только один раз.
       ctx.translate(960, 540); ctx.scale(.94, .94); ctx.translate(-960, -540);
-      drawPartnersDecor(ctx, { visible: 1, frame: 1, curtain: 0, motion: 0, local: 0 }, { frameVisible: true, curtainVisible: false }, null);
+      drawPartnersDecor(ctx, { visible: 1, frame: 1, curtain: 0, motion: 1, local: 0 }, { frameVisible: true, curtainVisible: false }, null);
     } else {
       drawAmberAtmosphere(ctx, 0, 1, 1, [], { particles: false });
     }
@@ -432,7 +432,7 @@ export class PartnersScene {
       { x: 1220, y: 70, w: 550, h: 450 },
     ], { veils: false });
     if (data.frameVisible !== false) {
-      ctx.save(); ctx.globalAlpha = visible * cue.frame * .65;
+      ctx.save(); ctx.globalAlpha = visible * cue.frame;
       ctx.drawImage(this._cachedDecoration(master, 'frame'), 0, 0, w, h);
       ctx.restore();
     }
@@ -560,6 +560,21 @@ export class PartnersScene {
     tierGlow(right, topY, 260, 115, visible * cue.shadow * .5);
     tierGlow(left, secondY, 260, 115, visible * cue.shadow * .5);
     tierGlow(right, secondY, 260, 115, visible * cue.shadow * .5);
+    // Тонкие золотые разделители между верхним и нижним знаками.
+    const divider = (x, opacity) => {
+      if (opacity <= .001) return;
+      ctx.save(); ctx.globalAlpha = visible * opacity * .65;
+      const gradient = ctx.createLinearGradient(x - 250, 0, x + 250, 0);
+      gradient.addColorStop(0, 'rgba(232,196,132,0)');
+      gradient.addColorStop(.22, 'rgba(232,196,132,.75)');
+      gradient.addColorStop(.78, 'rgba(232,196,132,.75)');
+      gradient.addColorStop(1, 'rgba(232,196,132,0)');
+      ctx.strokeStyle = gradient; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x - 250, 278); ctx.lineTo(x + 250, 278); ctx.stroke();
+      ctx.restore();
+    };
+    divider(left, Math.min(cue.organizer, cue.organizerSecond));
+    divider(right, Math.min(cue.partner, cue.partnerSecond));
     label(data.organizerLabel, left, 105, visible * cue.organizerLabel, cue.organizerLabel);
     label(data.coorganizerLabel, left, 330, visible * cue.organizerSecond, cue.organizerSecond);
     label(data.partnerLabel, right, 105, visible * cue.partnerLabel, cue.partnerLabel);

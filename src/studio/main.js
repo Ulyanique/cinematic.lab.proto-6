@@ -901,13 +901,28 @@ setRenderHook(fxPreview);
 
 let firstFrameRendered = false;
 let lastOperatorRefresh = 0;
+let partnersPreviewElapsed = 0;
 function frame(now) {
   const elapsed = Math.max(0, (now - last) / 1000);
   const renderDt = Math.min(0.05, elapsed);
   last = now;
   const before = runtime.time;
   if (!recording) {
-    runtime.advance(elapsed, renderDt);
+    // Заставка спонсоров собирает полноразмерный Canvas2D и загружает его
+    // как текстуру. На дисплеях 60/120 Гц лишние кадры удваивали/учетверяли
+    // эту работу относительно 30 fps проекта. Экспорт и seek не ограничены.
+    if (sceneId === "partners") {
+      if (!cfg.playback.paused) {
+        partnersPreviewElapsed += elapsed;
+        if (partnersPreviewElapsed >= 1 / OUTPUT.fps - .002) {
+          runtime.advance(partnersPreviewElapsed, Math.min(.05, partnersPreviewElapsed));
+          partnersPreviewElapsed = 0;
+        }
+      } else partnersPreviewElapsed = 0;
+    } else {
+      partnersPreviewElapsed = 0;
+      runtime.advance(elapsed, renderDt);
+    }
     if (previewTransition) drawPreviewTransition(overlayCtx());
     if (operator.auto && !cfg.playback.paused && !transition &&
         crossedBoundary(before, runtime.time, cfg.timeline.startDelay, runtime.cycle)) {
