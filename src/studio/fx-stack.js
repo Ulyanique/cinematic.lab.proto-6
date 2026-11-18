@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { CIRCLE_BEAMS_GLSL } from "./circle-final/fx/beams-shader.js";
 import { fxCycleTime } from "./fx-cycle.js";
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 
@@ -19,6 +20,7 @@ export const FX_EFFECTS = Object.freeze([
   { key: "dust", label: "Золотая пыль в объёме", src: "proto-2/5", max: 2 },
   { key: "bokeh", label: "Боке — тёплые диски света", src: "proto-1/2", max: 2 },
   { key: "embers", label: "Искры и угли", src: "proto-1/2", max: 2 },
+  { key: "circleFinalRays", label: "Перекрёстные лучи из ролика «Логотип и лучи»", src: "финал", max: 2 },
   { key: "rays", label: "Объёмные лучи света", src: "proto-1/2/5", max: 2 },
   { key: "flare", label: "Анаморфные блики в углах", src: "proto-1/2", max: 2 },
   { key: "sweep", label: "Световой проход по золоту", src: "proto-2", max: 2 },
@@ -117,10 +119,12 @@ precision highp float;
 uniform sampler2D uSrc;
 uniform float uTime, uEv, uFx, uAspect;
 uniform float uDust, uBokeh, uEmber, uRays, uFlare, uSweep, uShock, uRings, uHaze, uZoom, uCA;
+uniform float uCircleFinalRays, uCircleTime;
 uniform vec3 uTint;
 uniform vec2 uOrigin;
 varying vec2 vUv;
 ${HASH}
+${CIRCLE_BEAMS_GLSL}
 
 // пылинки: три слоя глубины, мерцание
 vec3 dustLayer(vec2 p, float t, float scale, float seed, float speed){
@@ -224,6 +228,11 @@ void main(){
   if(uEmber > 0.){
     float s = emberLayer(p, t, 7., 1., 1.) + emberLayer(p, t, 12., 2., 1.3)*.8 + emberLayer(p, t, 20., 3., 1.7)*.7;
     add += mix(vec3(1., .55, .15), hot, .4)*s*uEmber*1.05*fx;
+  }
+  // Тот же рисунок перекрёстных лучей, что и в самостоятельном финальном ролике.
+  if(uCircleFinalRays > 0.){
+    float along = 495. + .08 * (1004. + uCircleTime * 24. - 1100.);
+    add += circleFinalBeams(vUv, uCircleTime, along) * uCircleFinalRays * fx;
   }
   if(uRays > 0.){
     vec2 rd = (uv - uOrigin)*asp;
@@ -418,7 +427,7 @@ export class FxStack {
     this.mats = {
       overlay: mk(OVERLAY_FRAG, {
         uSrc: u(null), uTime: u(0), uEv: u(-1), uFx: u(1), uAspect: u(16 / 9),
-        uDust: u(0), uBokeh: u(0), uEmber: u(0), uRays: u(0), uFlare: u(0), uSweep: u(0), uShock: u(0), uRings: u(0), uHaze: u(0),
+        uDust: u(0), uBokeh: u(0), uEmber: u(0), uRays: u(0), uCircleFinalRays: u(0), uCircleTime: u(0), uFlare: u(0), uSweep: u(0), uShock: u(0), uRings: u(0), uHaze: u(0),
         uZoom: u(0), uCA: u(0), uTint: u(new THREE.Vector3(1, .78, .47)), uOrigin: u(new THREE.Vector2(.5, .58)),
       }),
       bright: mk(BRIGHT_FRAG, { tDiffuse: u(null), uThreshold: u(.7) }),
@@ -503,6 +512,7 @@ export class FxStack {
     ou.uFx.value = clock.beforeStart ? 0 : (cfg.fadeIn <= 0 && cfg.fadeOut <= 0) ? 1 : fx;
     ou.uAspect.value = aspect;
     ou.uDust.value = k("dust"); ou.uBokeh.value = k("bokeh"); ou.uEmber.value = k("embers"); ou.uRays.value = k("rays");
+    ou.uCircleFinalRays.value = k("circleFinalRays"); ou.uCircleTime.value = rel * speed;
     ou.uFlare.value = k("flare"); ou.uSweep.value = k("sweep"); ou.uShock.value = k("shock"); ou.uRings.value = k("rings");
     ou.uHaze.value = k("haze"); ou.uZoom.value = k("zoom"); ou.uCA.value = k("aberration");
     ou.uTint.value.set(tint[0], tint[1], tint[2]);

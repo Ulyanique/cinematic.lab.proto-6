@@ -25,10 +25,10 @@ export function sectionAllowed(sceneId, sectionId, labSectionAllowed) {
   if (sceneId === 'circle-final') return ['timeline', 'playback', 'transition', 'fxStack'].includes(sectionId);
   if ((sceneId === 'partners' || sceneId.startsWith('sponsor-')) && sectionId.startsWith('stage')) return true;
   if (sceneId.startsWith('sponsor-')) {
-    return ['sponsor', 'partnersLight', 'partnersIntroBackground', 'typography', 'timeline', 'playback', 'transition'].includes(sectionId);
+    return ['sponsor', 'partnersLight', 'partnersIntroBackground', 'typography', 'timeline', 'playback', 'transition', 'fxStack'].includes(sectionId);
   }
   if (sceneId === 'partners') {
-    return ['partners', 'partnersLight', 'partnersIntroBackground', 'typography', 'timeline', 'playback', 'transition'].includes(sectionId);
+    return ['partners', 'partnersLight', 'partnersIntroBackground', 'typography', 'timeline', 'playback', 'transition', 'fxStack'].includes(sectionId);
   }
   return true;
 }
