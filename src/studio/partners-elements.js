@@ -18,7 +18,7 @@ export const PARTNERS_ELEMENTS = Object.freeze([
   spec('stageTitle', 'Название вечера', 960, 780, { color: '#ecd4a1' }),
   spec('stageSubtitle', 'Подзаголовок', 960, 845, { color: '#c8a873' }),
   spec('stageTitleDivider', 'Разделитель названия и подзаголовка', 960, 818, { color: '#e5bd7c' }),
-  spec('stageOrnament', 'Нижний золотой орнамент', 960, 823, { color: '#e5bd7c' }),
+  spec('stageOrnament', 'Нижний золотой орнамент', 960, 823, { color: '#e5bd7c', start: 68, end: 98, glint: .65, glintSpeed: 1 }),
 ]);
 const singleOnly = new Set(['stageSingleMark']);
 const groupOnly = new Set(['stageOrganizer1', 'stageOrganizer2', 'stagePartner1', 'stagePartner2', 'stageOrganizerLabel', 'stageCoorganizerLabel', 'stagePartnerLabel', 'stagePartnerLabel2', 'stageOrnament']);
@@ -63,6 +63,7 @@ export const PARTNERS_ELEMENT_SCHEMA = PARTNERS_ELEMENTS.map(s => ({
       { key: 'lineGap', label: 'Отступ от подписи, px', type: 'range', min: 0, max: 150, step: 1 },
       { key: 'lineOpacity', label: 'Непрозрачность полоски', type: 'range', min: 0, max: 1, step: .01 },
     ] : []),
+    ...('glintSpeed' in s.defaults ? [{ key: 'glintSpeed', label: 'Скорость блика', type: 'range', min: 0, max: 2, step: .01 }] : []),
     ...('color' in s.defaults ? [{ key: 'color', label: 'Цвет', type: 'color' }] : []),
     ...('start' in s.defaults ? [
       { key: 'start', label: 'Начало появления, % входа', type: 'range', min: 0, max: 99, step: 1 },

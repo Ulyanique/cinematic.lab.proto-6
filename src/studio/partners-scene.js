@@ -7,7 +7,7 @@ import promrukavUrl from './assets/partners/promrukav.svg';
 import keazUrl from './assets/partners/keaz.svg';
 import { drawPartnersDecor, drawAmberAtmosphere, drawBreathingBackground } from './partners-graphics.js';
 import { elementVisibility, labelLineLayout } from './partners-elements.js';
-import { drawPartnersOrnament } from './partners-ornament.js';
+import { createPartnersOrnamentLayer } from './partners-ornament-layer.js';
 import { createPartnersCurtains } from './partners-curtains.js';
 import { createPartnersLight } from './partners-light.js';
 import { createPartnersIntroBackground } from './partners-intro-background.js';
@@ -389,6 +389,8 @@ export class PartnersScene {
     );
     this.cardMesh.renderOrder = 3;
     this.cardScene.add(this.cardMesh);
+    this.ornament = this.single ? null : createPartnersOrnamentLayer();
+    if (this.ornament) this.cardScene.add(this.ornament.mesh);
     this.glitter = createPartnersGlitter();
     this.glitter.points.renderOrder = 4;
     this.cardScene.add(this.glitter.points);
@@ -573,6 +575,7 @@ export class PartnersScene {
       u.motion.value = (data.motion ?? 1) * cue.visible * cue.background * (config.stageParticles?.opacity ?? 1);
       u.pixelScale.value = master.height / 1080;
     }
+    this.ornament?.update(config.stageOrnament, cue.visible, cue.progress, phase.local, data.motion ?? 1);
     const holdKey = partnersHoldCacheKey(this.cfg.timeline);
     if (holding && this._holdTexture && this._holdRevision === assetsRevision && this._holdKey === holdKey) {
       this._blackFrame = false;
@@ -645,8 +648,6 @@ export class PartnersScene {
       ctx.beginPath(); ctx.moveTo(x - half, y); ctx.lineTo(x + half, y); ctx.stroke();
       ctx.restore();
     }
-
-    if (!this.single) drawPartnersOrnament(ctx, cfg.stageOrnament, visible * cue.partnerSecond);
 
     const trackedLabel = (value, x, y, alpha, entry, color = warm, line = null) => {
       ctx.save();
@@ -818,6 +819,7 @@ export class PartnersScene {
 
   dispose() {
     this.curtains.dispose();
+    this.ornament?.dispose();
     this.emptyTexture.dispose();
     this._frameTexture?.dispose();
     this.frameMesh.geometry.dispose();
