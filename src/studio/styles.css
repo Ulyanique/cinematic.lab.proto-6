@@ -1293,6 +1293,8 @@ body.panels-on .clip-switch { opacity: 1; }
 .drag-editor { position: fixed; z-index: 20; touch-action: none; }
 .drag-editor[hidden], .drag-editor-outline[hidden] { display: none; }
 .drag-editor-outline { position: absolute; border: 1px solid rgba(255, 218, 150, .85); box-shadow: 0 0 0 1px rgba(0,0,0,.4); pointer-events: none; }
+.drag-multi-outlines { position: absolute; inset: 0; pointer-events: none; }
+.drag-editor-secondary { border-style: dashed; }
 .drag-editor.is-dragging { cursor: grabbing !important; }
 .drag-guide { position: absolute; pointer-events: none; background: #f7c776; box-shadow: 0 0 3px #000; opacity: .9; }
 .drag-guide[hidden] { display: none; }

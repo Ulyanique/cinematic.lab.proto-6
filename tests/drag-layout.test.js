@@ -45,3 +45,15 @@ test('corner resizing is proportional, bounded and has no initial jump', () => {
   assert.equal(resizeScale(box, start, { x: 400, y: 200 }, 1, .2, 2), 2);
   assert.equal(resizeScale(box, start, { x: -1000, y: -1000 }, 1, .2, 2), .2);
 });
+
+test('group bounds and common boundary constraint preserve relative positions', async () => {
+  const {selectionBounds, boundedGroupMoves} = await import('../src/studio/drag-layout.js');
+  const bounds = selectionBounds([{x:100,y:50,w:40,h:20},{x:200,y:110,w:20,h:40}]);
+  assert.deepEqual(bounds,{x:145,y:85,w:130,h:90});
+  assert.equal(selectionBounds([]), null);
+  const moves = [{x:100,y:50,dx:40,dy:20,minX:0,maxX:1000,minY:0,maxY:1000},
+    {x:200,y:110,dx:40,dy:20,minX:0,maxX:220,minY:0,maxY:1000}];
+  const result = boundedGroupMoves(moves);
+  assert.equal(result.factor,.5);
+  assert.deepEqual(result.values.map(({x,y})=>[x,y]), [[120,60],[220,120]]);
+});

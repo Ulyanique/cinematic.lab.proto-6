@@ -64,3 +64,23 @@ export function resizeScale(box, start, point, original, min, max) {
   const ratio = 1 + ((point.x - start.x) * x + (point.y - start.y) * y) / denom;
   return clampPosition(original * ratio, min, max);
 }
+
+/** Общая рамка выделения для привязок и направляющих. */
+export function selectionBounds(items) {
+  if (!items.length) return null;
+  const left = Math.min(...items.map(e => e.x - e.w / 2));
+  const right = Math.max(...items.map(e => e.x + e.w / 2));
+  const top = Math.min(...items.map(e => e.y - e.h / 2));
+  const bottom = Math.max(...items.map(e => e.y + e.h / 2));
+  return { x: (left + right) / 2, y: (top + bottom) / 2, w: right - left, h: bottom - top };
+}
+
+/** Общая доля перемещения до ближайшей границы любого из элементов. */
+export function boundedGroupMoves(moves) {
+  let factor = 1;
+  for (const m of moves) for (const [pos, delta, min, max] of [[m.x, m.dx, m.minX, m.maxX], [m.y, m.dy, m.minY, m.maxY]]) {
+    if (delta > 0 && Number.isFinite(max)) factor = Math.min(factor, Math.max(0, (max - pos) / delta));
+    if (delta < 0 && Number.isFinite(min)) factor = Math.min(factor, Math.max(0, (min - pos) / delta));
+  }
+  return { factor, values: moves.map(m => ({...m, x: m.x + m.dx * factor, y: m.y + m.dy * factor})) };
+}

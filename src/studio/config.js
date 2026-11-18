@@ -1,3 +1,4 @@
+import { migrateIntroBackgroundEffect } from "./intro-background-effect.js";
 import { PARTNERS_ELEMENT_SCHEMA } from "./partners-elements.js";
 import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge, migrateSponsorLabels, migrateCurtainEdgeV3, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, migratePartnersCompassContrast, migrateEqualPartnerLogoWidths, migratePartnersTitleAndKeaz, migratePartnersCurtainChoreography, migratePartnersCenterFirst, migrateSingleSponsorLayout, migratePartnerTextCase } from "./partners-stage.js";
 import { migrateIntroBackground } from "./background-migration.js";
@@ -468,6 +469,7 @@ export function replaceConfig(target, source) {
 export function mergeConfig(defaults, patch) {
   const cfg = cloneDefaults(defaults);
   if (patch && typeof patch === "object") deepMerge(cfg, patch);
+  migrateIntroBackgroundEffect(cfg);
   return cfg;
 }
 
@@ -753,6 +755,9 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
       try { localStorage.setItem(FINALE_GUIDES_MIGRATION, "1"); } catch (e) { /* noop */ }
     }
     deepMerge(cfg, saved);
+    if (migrateIntroBackgroundEffect(cfg)) {
+      try { localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(cfg)); } catch (e) { onReadError?.(sceneId, e); }
+    }
   } catch (e) {
     console.warn("Сохранённые настройки повреждены, взяты умолчания", e);
     onReadError?.(sceneId, e);
@@ -795,6 +800,7 @@ export function parseConfigJSON(text, defaults = DEFAULTS) {
   }
   const cfg = cloneDefaults(defaults);
   deepMerge(cfg, data);
+  migrateIntroBackgroundEffect(cfg);
   return cfg;
 }
 

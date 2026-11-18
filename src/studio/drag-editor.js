@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { framePoint, hitElement, sponsorDragElements, clampPosition, snapBox, resizeScale } from './drag-layout.js';
+import { framePoint, hitElement, sponsorDragElements, snapBox, resizeScale, selectionBounds, boundedGroupMoves } from './drag-layout.js';
 
 /** Preview-only hit overlay. Its coordinates never become part of the video. */
-export function createDragEditor({ getState, commit, commitScale, onMessage, onSelect }) {
+export function createDragEditor({ getState, commitGroup, commitScale, onMessage, onSelect }) {
   const button = document.createElement('button');
   button.type = 'button'; button.className = 'studio-btn studio-btn-drag';
   button.title = 'Перемещение элементов мышью'; button.setAttribute('aria-label', button.title);
@@ -12,13 +12,14 @@ export function createDragEditor({ getState, commit, commitScale, onMessage, onS
   const overlay = document.createElement('div');
   overlay.className = 'drag-editor'; overlay.hidden = true;
   const outline = document.createElement('div'); outline.className = 'drag-editor-outline'; outline.hidden = true; overlay.appendChild(outline);
+  const additionalOutlines = document.createElement('div'); additionalOutlines.className = 'drag-multi-outlines'; overlay.appendChild(additionalOutlines);
   const handle = document.createElement('div'); handle.className = 'drag-resize-handle'; outline.appendChild(handle);
   const verticalGuide = document.createElement('div'), horizontalGuide = document.createElement('div');
   verticalGuide.className = 'drag-guide drag-guide-x'; horizontalGuide.className = 'drag-guide drag-guide-y';
   verticalGuide.hidden = horizontalGuide.hidden = true;
   overlay.append(verticalGuide, horizontalGuide);
   document.body.appendChild(overlay);
-  let enabled = false, drag = null, selectedId = null;
+  let enabled = false, drag = null, selectedId = null, selectedIds = new Set();
   function syncRect() {
     const rect = getState().canvas.getBoundingClientRect();
     Object.assign(overlay.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
@@ -71,8 +72,19 @@ export function createDragEditor({ getState, commit, commitScale, onMessage, onS
   function showHit(hit) {
     outline.hidden = !hit;
     if (!hit) return;
-    handle.hidden = !(hit.id === selectedId && hit.scaleKey);
+    handle.hidden = !(selectedIds.size === 1 && hit.id === selectedId && hit.scaleKey);
     Object.assign(outline.style, { left: `${(hit.x - hit.w / 2) / 1920 * 100}%`, top: `${(hit.y - hit.h / 2) / 1080 * 100}%`, width: `${hit.w / 1920 * 100}%`, height: `${hit.h / 1080 * 100}%` });
+  }
+  function showSelection(targets = elements()) {
+    const selected = targets.filter(item => selectedIds.has(item.id));
+    showHit(targets.find(item => item.id === selectedId) || selected[0]);
+    additionalOutlines.replaceChildren();
+    for (const item of selected) {
+      if (item.id === selectedId) continue;
+      const node = document.createElement('div'); node.className = 'drag-editor-outline drag-editor-secondary';
+      Object.assign(node.style, { left: `${(item.x - item.w / 2) / 1920 * 100}%`, top: `${(item.y - item.h / 2) / 1080 * 100}%`, width: `${item.w / 1920 * 100}%`, height: `${item.h / 1080 * 100}%` });
+      additionalOutlines.appendChild(node);
+    }
   }
   function showGuides(guides = []) {
     const x = guides.find(g => g.axis === 'x'), y = guides.find(g => g.axis === 'y');
@@ -88,9 +100,9 @@ export function createDragEditor({ getState, commit, commitScale, onMessage, onS
   button.addEventListener('click', () => {
     if (getState().recording) { onMessage('Во время записи перемещение недоступно.'); return; }
     if (drag) finish(true);
-    enabled = !enabled; overlay.hidden = !enabled; outline.hidden = true; selectedId = null;
+    enabled = !enabled; overlay.hidden = !enabled; outline.hidden = true; selectedId = null; selectedIds.clear(); additionalOutlines.replaceChildren();
     button.setAttribute('aria-pressed', String(enabled));
-    if (enabled) { syncRect(); onMessage('Перетащите элемент или потяните за угол рамки, чтобы изменить размер.'); }
+    if (enabled) { syncRect(); onMessage('Перетащите элемент; Shift или Ctrl добавляет элементы к выделению. Alt отключает привязку.'); }
   });
   window.addEventListener('resize', () => { if (enabled) syncRect(); });
   overlay.addEventListener('pointerdown', event => {
@@ -99,14 +111,32 @@ export function createDragEditor({ getState, commit, commitScale, onMessage, onS
     const targets = elements();
     const pt = framePoint(rect, event.clientX, event.clientY);
     const selected = targets.find(e => e.id === selectedId);
-    const onHandle = selected?.scaleKey && Math.abs(pt.x - selected.x - selected.w / 2) <= 14 * 1920 / rect.width && Math.abs(pt.y - selected.y - selected.h / 2) <= 14 * 1080 / rect.height;
+    const onHandle = selectedIds.size === 1 && !event.shiftKey && !event.ctrlKey && !event.metaKey && selected?.scaleKey && Math.abs(pt.x - selected.x - selected.w / 2) <= 14 * 1920 / rect.width && Math.abs(pt.y - selected.y - selected.h / 2) <= 14 * 1080 / rect.height;
     const hit = onHandle ? selected : hitElement(pt, targets);
-    if (!hit) return;
-    selectedId = hit.id; onSelect?.(hit.id); showHit(hit);
+    const modified = event.shiftKey || event.ctrlKey || event.metaKey;
+    if (!hit) {
+      if (!modified) { selectedIds.clear(); selectedId = null; showSelection(targets); }
+      return;
+    }
+    if (modified && selectedIds.has(hit.id)) {
+      selectedIds.delete(hit.id);
+      selectedId = [...selectedIds].at(-1) || null;
+      showSelection(targets); event.preventDefault(); return;
+    }
+    if (modified) selectedIds.add(hit.id);
+    else if (!selectedIds.has(hit.id)) { selectedIds.clear(); selectedIds.add(hit.id); }
+    selectedId = hit.id; onSelect?.(hit.id); showSelection(targets);
     const holder = state.cfg[hit.id];
     const world = hit.kind === 'world' ? worldPoint(state.scene.intro?.camera || state.scene.camera, rect, event.clientX, event.clientY, hit.z) : null;
     if (hit.kind === 'world' && !world) return;
-    drag = { hit, id: state.id, rect, x: event.clientX, y: event.clientY, originalX: holder[hit.xKey || 'x'], originalY: holder[hit.yKey || 'y'], world, targets, mode: onHandle ? 'resize' : 'move', startPoint: pt, originalScale: holder[hit.scaleKey], config: state.cfg, paused: state.cfg.playback.paused };
+    const members = targets.filter(item => selectedIds.has(item.id)).map(item => {
+      const h = state.cfg[item.id];
+      return { hit: item, x: h[item.xKey || 'x'], y: h[item.yKey || 'y'],
+        world: item.kind === 'world' ? worldPoint(state.scene.intro?.camera || state.scene.camera, rect, event.clientX, event.clientY, item.z) : null };
+    });
+    if (members.some(m => m.hit.kind === 'world' && !m.world)) return;
+    const bounds = selectionBounds(members.map(m => m.hit));
+    drag = { hit, members, bounds, id: state.id, rect, x: event.clientX, y: event.clientY, originalX: holder[hit.xKey || 'x'], originalY: holder[hit.yKey || 'y'], world, targets: targets.filter(item => !selectedIds.has(item.id)), mode: onHandle ? 'resize' : 'move', startPoint: pt, originalScale: holder[hit.scaleKey], config: state.cfg, paused: state.cfg.playback.paused };
     state.cfg.playback.paused = true;
     overlay.setPointerCapture(event.pointerId); overlay.classList.add('is-dragging');
     event.preventDefault();
@@ -114,8 +144,8 @@ export function createDragEditor({ getState, commit, commitScale, onMessage, onS
   overlay.addEventListener('pointermove', event => {
     if (!drag) {
       const rect = syncRect(), hit = hitElement(framePoint(rect, event.clientX, event.clientY), elements());
-      const selected = elements().find(e => e.id === selectedId);
-      overlay.style.cursor = hit ? 'grab' : 'default'; showHit(selected || hit); return;
+      overlay.style.cursor = hit ? 'grab' : 'default';
+      if (selectedIds.size) showSelection(); else showHit(hit); return;
     }
     const state = getState();
     if (state.id !== drag.id) { finish(true); return; }
@@ -129,37 +159,47 @@ export function createDragEditor({ getState, commit, commitScale, onMessage, onS
     }
     const pointerDx = (event.clientX - drag.x) * 1920 / drag.rect.width;
     const pointerDy = (event.clientY - drag.y) * 1080 / drag.rect.height;
-    const candidate = { ...drag.hit, x: drag.hit.x + pointerDx, y: drag.hit.y + pointerDy };
-    // Восемь экранных пикселей независимо от размера предпросмотра. Alt отключает привязку.
+    const candidate = { ...drag.bounds, x: drag.bounds.x + pointerDx, y: drag.bounds.y + pointerDy };
     const snapped = event.altKey ? { x: candidate.x, y: candidate.y, guides: [] }
       : snapBox(candidate, drag.targets, 8 * 1920 / drag.rect.width, 8 * 1080 / drag.rect.height);
-    const screenDx = snapped.x - drag.hit.x, screenDy = snapped.y - drag.hit.y;
-    let dx, dy;
-    if (drag.hit.kind === 'world') {
-      const clientX = drag.x + screenDx * drag.rect.width / 1920;
-      const clientY = drag.y + screenDy * drag.rect.height / 1080;
-      const world = worldPoint(state.scene.intro?.camera || state.scene.camera, drag.rect, clientX, clientY, drag.hit.z);
-      if (!world) return;
-      dx = world.x - drag.world.x; dy = world.y - drag.world.y;
-    } else { dx = screenDx; dy = screenDy; }
-    const fields = state.sections.find(s => s.id === drag.hit.id)?.fields || [];
-    const fieldX = fields.find(f => f.key === (drag.hit.xKey || 'x')), fieldY = fields.find(f => f.key === (drag.hit.yKey || 'y'));
-    const x = clampPosition(drag.originalX + dx, fieldX?.min ?? -Infinity, fieldX?.max ?? Infinity);
-    const y = clampPosition(drag.originalY + dy, fieldY?.min ?? -Infinity, fieldY?.max ?? Infinity);
-    showGuides(x === drag.originalX + dx && y === drag.originalY + dy ? snapped.guides : []);
-    commit(drag.id, drag.hit.id, drag.hit.xKey || 'x', drag.hit.yKey || 'y', x, y, true);
-    const moved = elements().find(item => item.id === drag.hit.id); showHit(moved);
+    const screenDx = snapped.x - drag.bounds.x, screenDy = snapped.y - drag.bounds.y;
+    const moves = [];
+    for (const member of drag.members) {
+      const item = member.hit;
+      let dx = screenDx, dy = screenDy;
+      if (item.kind === 'world') {
+        const world = worldPoint(state.scene.intro?.camera || state.scene.camera, drag.rect,
+          drag.x + screenDx * drag.rect.width / 1920, drag.y + screenDy * drag.rect.height / 1080, item.z);
+        if (!world) return;
+        dx = world.x - member.world.x; dy = world.y - member.world.y;
+      }
+      const fields = state.sections.find(s => s.id === item.id)?.fields || [];
+      const xKey = item.xKey || 'x', yKey = item.yKey || 'y';
+      const fx = fields.find(f => f.key === xKey), fy = fields.find(f => f.key === yKey);
+      moves.push({ id: item.id, xKey, yKey, x: member.x, y: member.y, dx, dy,
+        minX: fx?.min, maxX: fx?.max, minY: fy?.min, maxY: fy?.max });
+    }
+    const result = boundedGroupMoves(moves);
+    showGuides(result.factor === 1 ? snapped.guides : []);
+    commitGroup(drag.id, result.values, true);
+    showSelection();
   });
   function finish(cancel = false) {
     if (!drag) return;
     drag.config.playback.paused = drag.paused;
     const holder = drag.config[drag.hit.id];
     if (holder && drag.mode === 'resize') commitScale(drag.id, drag.hit.id, drag.hit.scaleKey, cancel ? drag.originalScale : holder[drag.hit.scaleKey], false);
-    else if (holder) commit(drag.id, drag.hit.id, drag.hit.xKey || 'x', drag.hit.yKey || 'y', cancel ? drag.originalX : holder[drag.hit.xKey || 'x'], cancel ? drag.originalY : holder[drag.hit.yKey || 'y'], false);
-    drag = null; overlay.classList.remove('is-dragging'); showHit(elements().find(e => e.id === selectedId)); showGuides();
+    else {
+      const values = drag.members.map(m => {
+        const xKey = m.hit.xKey || 'x', yKey = m.hit.yKey || 'y', current = drag.config[m.hit.id];
+        return { id: m.hit.id, xKey, yKey, x: cancel ? m.x : current[xKey], y: cancel ? m.y : current[yKey] };
+      });
+      commitGroup(drag.id, values, false);
+    }
+    drag = null; overlay.classList.remove('is-dragging'); showSelection(); showGuides();
   }
   overlay.addEventListener('pointerup', () => finish());
   overlay.addEventListener('pointercancel', () => finish(true));
   window.addEventListener('keydown', event => { if (event.key === 'Escape' && drag) { finish(true); event.preventDefault(); } });
-  return { cancel() { finish(true); }, sync() { finish(true); selectedId = null; if (enabled) { syncRect(); outline.hidden = true; } } };
+  return { cancel() { finish(true); }, sync() { finish(true); selectedId = null; selectedIds.clear(); additionalOutlines.replaceChildren(); if (enabled) { syncRect(); outline.hidden = true; } } };
 }

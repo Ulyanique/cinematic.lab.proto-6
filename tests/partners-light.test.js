@@ -20,11 +20,11 @@ test('animated background light is a separate switchable layer', () => {
 });
 
 
-test('intro shader is an independent disabled-by-default optional sponsor background', async () => {
+test('legacy intro background shader remains available for old projects', async () => {
   const { createPartnersIntroBackground } = await import('../src/studio/partners-intro-background.js');
   assert.equal(PARTNERS_DEFAULTS.partnersIntroBackground.enabled, false);
-  assert.equal(sectionAllowed('partners', 'partnersIntroBackground'), true);
-  assert.equal(sectionAllowed('sponsor-keaz', 'partnersIntroBackground'), true);
+  assert.equal(sectionAllowed('partners', 'partnersIntroBackground'), false);
+  assert.equal(sectionAllowed('sponsor-keaz', 'partnersIntroBackground'), false);
   const bg = createPartnersIntroBackground();
   assert.equal(bg.mesh.visible, false);
   assert.match(bg.mesh.material.fragmentShader, /gl_FragColor=vec4\(col,uOpacity\)/);

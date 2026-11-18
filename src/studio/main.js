@@ -380,8 +380,10 @@ const dragEditor = createDragEditor({
   commitScale: (id, section, key, value, live) => commitSceneConfig(id, config => {
     if (config[section]) config[section][key] = value;
   }, { live }),
-  commit: (id, section, xKey, yKey, x, y, live) => commitSceneConfig(id, config => {
-    if (config[section]) { config[section][xKey] = x; config[section][yKey] = y; }
+  commitGroup: (id, values, live) => commitSceneConfig(id, config => {
+    for (const {id: section, xKey, yKey, x, y} of values) {
+      if (config[section]) { config[section][xKey] = x; config[section][yKey] = y; }
+    }
   }, { live }),
 });
 

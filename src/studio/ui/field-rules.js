@@ -21,6 +21,7 @@ export const SECTION_NOTES = {
 
 /** Разделы, которые вообще показываются у сцены. */
 export function sectionAllowed(sceneId, sectionId, labSectionAllowed) {
+  if (sectionId === 'partnersIntroBackground') return false;
   if (labSectionAllowed && labSectionAllowed(sceneId, sectionId) === false) return false;
   if (sceneId === 'circle-final') return ['timeline', 'playback', 'transition', 'fxStack'].includes(sectionId);
   if ((sceneId === 'partners' || sceneId.startsWith('sponsor-')) && sectionId.startsWith('stage')) return true;
