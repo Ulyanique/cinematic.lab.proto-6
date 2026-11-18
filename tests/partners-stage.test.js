@@ -13,11 +13,11 @@ test('curtains, large emblem, shrinking and logos appear in order and reverse on
   assert.equal(at(2.1).organizer, 0);
   assert.equal(at(2.85).compassShrink, 1);
   assert.ok(at(3.1).organizer > 0);
-  assert.equal(at(3.1).partner, 0);
+  assert.equal(at(3.1).organizerSecond, 0);
   assert.equal(at(3.6).organizer, 1);
-  assert.ok(at(3.6).partner > 0);
-  assert.equal(at(3.6).organizerSecond, 0);
-  assert.ok(at(4.1).organizerSecond > 0);
+  assert.ok(at(3.6).organizerSecond > 0);
+  assert.equal(at(3.6).partner, 0);
+  assert.ok(at(4.1).partner > 0);
   assert.equal(at(4.1).partnerSecond, 0);
   assert.ok(at(4.5).partnerSecond > 0);
   assert.equal(at(5).partnerSecond, 1);

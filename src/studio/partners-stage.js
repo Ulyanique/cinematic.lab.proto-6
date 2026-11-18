@@ -9,10 +9,10 @@ export function partnersStageCues(phase, timeline, motion = 1) {
   const closing = smooth(exitStart, exitStart + exitDuration, t);
   const p = t < entry ? t / entry : t < exitStart ? 1 : 1 - closing;
   const visible = phase.beforeStart ? 0 : 1 - smooth(exitStart + exitDuration * .92, exitStart + exitDuration, t);
-  // Четыре знака: сначала оба верхних, затем оба нижних.
+  // Четыре знака по вертикали: организатор, соорганизатор, спонсоры.
   const organizer = smooth(.57, .65, p);
-  const partner = smooth(.67, .75, p);
-  const organizerSecond = smooth(.77, .85, p);
+  const organizerSecond = smooth(.67, .75, p);
+  const partner = smooth(.77, .85, p);
   const partnerSecond = smooth(.87, .98, p);
   const idle = smooth(.92, 1, p) * clamp(motion);
   return {
