@@ -278,6 +278,18 @@ export function migrateSponsorSideLabel(saved) {
     next.sponsor.subtitle = 'вечер ретроспектива';
   }
   if (next.stageSubtitle?.color === '#d2ac70') next.stageSubtitle.color = '#c8a873';
-  if (next.stageSingleMark?.x === 960 && next.stageSingleMark?.y === 385) next.stageSingleMark.x = 1140;
+  if (next.stageSingleMark?.x === 960 && next.stageSingleMark?.y === 385) next.stageSingleMark.x = 1130;
+  return next;
+}
+
+/** 05А/05Б: текстовый блок по референсу — разделитель и подстрочник выше. */
+export function migrateSponsorTitleBlock(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  const divider = next.stageTitleDivider;
+  if (divider?.x === 960 && divider?.y === 215) divider.y = 195;
+  const subtitle = next.stageSubtitle;
+  if (subtitle?.x === 960 && subtitle?.y === 265) subtitle.y = 235;
+  const mark = next.stageSingleMark;
+  if (mark?.x === 1140 && mark?.y === 385) mark.x = 1130;
   return next;
 }

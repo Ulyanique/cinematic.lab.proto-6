@@ -30,7 +30,9 @@ export function partnerElementDefaults(single = false) {
     out[s.id] = { ...s.defaults };
   }
   if (single) {
-    const reference = { stageTitle: [960, 150], stageTitleDivider: [960, 215], stageSubtitle: [960, 265], stageSingleMark: [1140, 385], stageCompass: [960, 715] };
+    // Замеры по референсу 05А/05Б: заголовок y=150, разделитель и подстрочник
+    // выровнены вплотную над логотипом (группа тоже 195/235), знак чуть левее.
+    const reference = { stageTitle: [960, 150], stageTitleDivider: [960, 195], stageSubtitle: [960, 235], stageSingleMark: [1130, 385], stageCompass: [960, 715] };
     for (const [id, [x, y]] of Object.entries(reference)) Object.assign(out[id], { x, y });
     out.stageTitleDivider.width = 520;
     out.stageSubtitle.color = '#c8a873';

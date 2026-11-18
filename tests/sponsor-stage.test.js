@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SPONSOR_PROMRUKAV_DEFAULTS as a, SPONSOR_KEAZ_DEFAULTS as b } from '../src/studio/scenes/partners.js';
-import { migrateSponsorStage } from '../src/studio/partners-stage.js';
+import { migrateSponsorStage, migrateSponsorTitleBlock } from '../src/studio/partners-stage.js';
 import { sectionAllowed } from '../src/studio/ui/field-rules.js';
 
 test('individual sponsors share timing, curtains and optional light', () => {
@@ -38,8 +38,9 @@ test('single-sponsor cards use reference composition and editable sponsor subtit
     assert.equal(c.sponsor.sponsorLabel, 'СПОНСОР');
     assert.ok(c.stageSponsorLabel.x < c.stageSingleMark.x);
     assert.equal(c.stageTitle.y, 150);
-    assert.equal(c.stageTitleDivider.y, 215);
-    assert.equal(c.stageSubtitle.y, 265);
+    assert.equal(c.stageTitleDivider.y, 195);
+    assert.equal(c.stageSubtitle.y, 235);
+    assert.equal(c.stageSingleMark.x, 1130);
     assert.equal(c.stageSingleMark.y, 385);
     assert.equal(c.stageCompass.y, 715);
     assert.equal(c.stageTitleDivider.width, 520);
@@ -72,7 +73,17 @@ test('partner text keeps user-entered capitalization, while untouched defaults k
 test('side sponsor label migration preserves customized text and positions', async () => {
   const { migrateSponsorSideLabel } = await import('../src/studio/partners-stage.js');
   assert.deepEqual(migrateSponsorSideLabel({sponsor:{subtitle:'СПОНСОР'},stageSingleMark:{x:960,y:385},stageSubtitle:{color:'#d2ac70'}}),
-    {sponsor:{subtitle:'вечер ретроспектива'},stageSingleMark:{x:1140,y:385},stageSubtitle:{color:'#c8a873'}});
+    {sponsor:{subtitle:'вечер ретроспектива'},stageSingleMark:{x:1130,y:385},stageSubtitle:{color:'#c8a873'}});
   const custom = {sponsor:{subtitle:'Партнёр'},stageSingleMark:{x:800,y:385},stageSubtitle:{color:'#123456'}};
   assert.deepEqual(migrateSponsorSideLabel(custom), {...custom, sponsor:{subtitle:'вечер ретроспектива',sponsorLabel:'Партнёр'}});
+});
+
+test('05А/05Б text block migration lifts only the untouched defaults', () => {
+  const old = { stageTitleDivider:{x:960,y:215,width:520}, stageSubtitle:{x:960,y:265,color:'#c8a873'}, stageSingleMark:{x:1140,y:385} };
+  const next = migrateSponsorTitleBlock(old);
+  assert.deepEqual(next.stageTitleDivider, {x:960,y:195,width:520});
+  assert.deepEqual(next.stageSubtitle, {x:960,y:235,color:'#c8a873'});
+  assert.equal(next.stageSingleMark.x, 1130);
+  const custom = { stageTitleDivider:{x:960,y:150}, stageSubtitle:{x:700,y:265}, stageSingleMark:{x:1000,y:385} };
+  assert.deepEqual(migrateSponsorTitleBlock(custom), custom);
 });
