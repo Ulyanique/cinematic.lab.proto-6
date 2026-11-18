@@ -1,4 +1,4 @@
-import { migratePartnersStage } from "./partners-stage.js";
+import { migratePartnersStage, migratePartnersSequence } from "./partners-stage.js";
 import { migrateIntroBackground } from "./background-migration.js";
 import { DECOR_SLOTS } from "./brand-decor-config.js";
 import { PARTICLE_CLOUD_IDS } from "./particle-cloud-config.js";
@@ -19,6 +19,8 @@ export const DEFAULTS = WAITING_DEFAULTS;
 // Схема UI: группы → поля. type: range | color | bool
 export const SCHEMA = [
   { id: "partners", title: "Спонсоры и организаторы", fields: [
+    {key:"title",label:"Название вечера",type:"text",maxLength:120},
+    {key:"subtitle",label:"Подзаголовок",type:"text",maxLength:120},
     {key:"organizerLabel",label:"Заголовок организатора",type:"text",maxLength:60},
     {key:"coorganizerLabel",label:"Заголовок соорганизатора",type:"text",maxLength:60},
     {key:"organizer1",label:"Организатор 1",type:"text",maxLength:80},
@@ -460,12 +462,15 @@ export function mergeConfig(defaults, patch) {
 export function loadSceneConfig(sceneId, defaults, onReadError) {
   const cfg = cloneDefaults(defaults);
   let raw = null;
-  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false;
+  let migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false;
   let migratePhotoCenter = false, migratePhotoSize = false, migrateBrandCenter = false, migrateGuides = false, migrateFinaleGuides = false, migrateBrandLift = false;
   try {
     raw = localStorage.getItem(sceneStorageKey(sceneId));
     if (!raw && sceneId === "waiting") raw = localStorage.getItem(LEGACY_KEY);
-    if (sceneId === "partners") migratePartnersStageNeeded = !localStorage.getItem("partners-stage-minute-v1");
+    if (sceneId === "partners") {
+      migratePartnersStageNeeded = !localStorage.getItem("partners-stage-minute-v1");
+      migratePartnersSequenceNeeded = !localStorage.getItem("partners-stage-sequence-v1");
+    }
     if (sceneId === "lab-swarm-brand") migrateIntroBackgroundNeeded = !localStorage.getItem("lab-swarm-brand-minute-hold-v1");
     if (sceneId === "photo-pause") {
       migratePhotoCenter = !localStorage.getItem(PHOTO_CENTER_MIGRATION);
@@ -483,6 +488,9 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     return cfg;
   }
   if (!raw) {
+    if (migratePartnersSequenceNeeded) {
+      try { localStorage.setItem("partners-stage-sequence-v1", "1"); } catch (e) { /* noop */ }
+    }
     if (migratePartnersStageNeeded) {
       try { localStorage.setItem("partners-stage-minute-v1", "1"); } catch (e) { /* noop */ }
     }
@@ -516,6 +524,13 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
       try {
         localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
         localStorage.setItem("partners-stage-minute-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migratePartnersSequenceNeeded) {
+      saved = migratePartnersSequence(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-stage-sequence-v1", "1");
       } catch (e) { onReadError?.(sceneId, e); }
     }
     if (migrateIntroBackgroundNeeded) {

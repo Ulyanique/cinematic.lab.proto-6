@@ -3,25 +3,45 @@ import assert from 'node:assert/strict';
 import { partnersStageCues, migratePartnersStage } from '../src/studio/partners-stage.js';
 const tl = { drawDuration: 2.6, emergeDuration: 2.4, holdDuration: 30, fadeDuration: 2.3, restDuration: 1.2 };
 const at = t => partnersStageCues({ beforeStart: false, local: t }, tl);
-test('curtains open before the logo and sponsors, and close in reverse order', () => {
+test('curtains, large emblem, shrinking and logos appear in order and reverse on exit', () => {
+  assert.equal(at(0).background, 0);
   assert.equal(at(0).curtainOpen, 0);
-  assert.equal(at(0).organizer, 0);
-  assert.equal(at(2.1).curtainOpen, 1);
-  assert.ok(at(2.1).compass < 1e-10);
-  assert.ok(at(2.5).compass > 0);
+  assert.equal(at(1.15).curtainOpen, 1);
+  assert.equal(at(1.15).compass, 0);
+  assert.ok(at(1.9).compass > 0);
+  assert.equal(at(1.9).compassShrink, 0);
   assert.equal(at(2.1).organizer, 0);
-  assert.equal(at(5).organizer, 1);
+  assert.equal(at(2.85).compassShrink, 1);
+  assert.ok(at(3.1).organizer > 0);
+  assert.equal(at(3.1).partner, 0);
+  assert.equal(at(3.6).organizer, 1);
+  assert.ok(at(3.6).partner > 0);
+  assert.equal(at(3.6).organizerSecond, 0);
+  assert.ok(at(4.1).organizerSecond > 0);
+  assert.equal(at(4.1).partnerSecond, 0);
+  assert.ok(at(4.5).partnerSecond > 0);
+  assert.equal(at(5).partnerSecond, 1);
+  assert.equal(at(5).title, 1);
   assert.equal(at(35).curtainOpen, 1);
   assert.equal(at(37.3).curtainOpen, 0);
-  assert.equal(at(37.3).organizer, 0);
   for (const u of [.2, .4, .6, .8]) {
     const eased = u * u * (3 - 2 * u);
     const opened = at((1 - eased) * 5);
     const closed = at(35 + 2.3 * u);
-    for (const key of ['curtainOpen', 'compass', 'organizer', 'partnerSecond']) {
+    for (const key of ['background', 'curtainOpen', 'compass', 'compassShrink', 'title', 'organizer', 'partner', 'organizerSecond', 'partnerSecond']) {
       assert.ok(Math.abs(opened[key] - closed[key]) < 1e-9, key);
     }
   }
+});
+test('only the old default entrance gets longer', async () => {
+  const { migratePartnersSequence } = await import('../src/studio/partners-stage.js');
+  const old = { timeline: { drawDuration: 2.6, emergeDuration: 2.4, holdDuration: 30 }, partners: { title: 'custom' } };
+  const migrated = migratePartnersSequence(old);
+  assert.equal(migrated.timeline.drawDuration, 6.6);
+  assert.equal(migrated.timeline.holdDuration, 30);
+  assert.equal(migrated.partners.title, 'custom');
+  assert.equal(old.timeline.drawDuration, 2.6);
+  assert.equal(migratePartnersSequence({ timeline: { drawDuration: 1, emergeDuration: 3 } }).timeline.drawDuration, 1);
 });
 test('existing settings retain assets and get 30 seconds of hold', () => {
   const saved = { timeline: { holdDuration: 17.5 }, partners: { curtainWidth: 476, partner1Logo: 'custom' } };
@@ -88,4 +108,11 @@ test('hold cache key changes whenever timeline dimensions change', async () => {
   for (const field of ['drawDuration', 'emergeDuration', 'holdDuration', 'fadeDuration', 'restDuration', 'startDelay']) {
     assert.notEqual(partnersHoldCacheKey({ ...base, [field]: base[field] + 1 }), key, field);
   }
+});
+
+test('default sequence has a nine-second entrance and thirty-second hold', async () => {
+  const { PARTNERS_DEFAULTS } = await import('../src/studio/scenes/partners.js');
+  const t = PARTNERS_DEFAULTS.timeline;
+  assert.equal(t.drawDuration + t.emergeDuration, 9);
+  assert.equal(t.holdDuration, 30);
 });

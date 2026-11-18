@@ -5,7 +5,9 @@ import { createSceneTimeline } from './scene-timeline.js';
 // Цикл длиннее остальных роликов: в этой сцене читают четыре названия и две
 // пары знаков, а не одну строку. На 20 секундах удержание было короче, чем
 // нужно, чтобы прочитать состав спонсоров.
-export const PARTNERS_DEFAULTS = createSharedSceneConfig(createSceneTimeline(38.5));
+export const PARTNERS_DEFAULTS = createSharedSceneConfig(createSceneTimeline(42.5));
+PARTNERS_DEFAULTS.timeline.drawDuration += 4;
+PARTNERS_DEFAULTS.timeline.holdDuration -= 4;
 PARTNERS_DEFAULTS.transition = {duration:.9};
 PARTNERS_DEFAULTS.partners = {
   title: 'Янтарный циркуль', subtitle: 'Вечер ретроспектива',

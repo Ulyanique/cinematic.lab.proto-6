@@ -446,17 +446,17 @@ export class PartnersScene {
     // Фон и постоянный свет берутся готовым слоем: масштабирование фото и
     // полноэкранный градиент выполняются один раз, а не 60 раз в секунду.
     const staticLayer = this._buildStaticLayer(master, backgroundCanvas);
-    ctx.save(); ctx.globalAlpha = visible;
+    ctx.save(); ctx.globalAlpha = visible * cue.background;
     drawBreathingBackground(ctx, backgroundCanvas, w, h, tl.drawDuration + tl.emergeDuration, phase.cycle);
     ctx.drawImage(staticLayer, 0, 0, w, h);
     ctx.restore();
     // Защищаем от частиц области знаков в верхних боковых колонках.
     // Свет и сложную позолоту кэшируем, а искры оставляем живыми.
     const motion = Math.max(0, Math.min(1, data.motion ?? 1));
-    ctx.save(); ctx.globalAlpha = visible * motion;
+    ctx.save(); ctx.globalAlpha = visible * cue.background * motion;
     ctx.drawImage(this._cachedDecoration(master, 'veil'), 0, 0, w, h);
     ctx.restore();
-    if (!holding) drawAmberAtmosphere(ctx, phase.local, motion * visible, phase.cycle, [
+    if (!holding) drawAmberAtmosphere(ctx, phase.local, motion * visible * cue.background, phase.cycle, [
       { x: 150, y: 70, w: 550, h: 450 },
       { x: 1220, y: 70, w: 550, h: 450 },
     ], { veils: false });
@@ -465,10 +465,12 @@ export class PartnersScene {
       ctx.drawImage(this._cachedDecoration(master, 'frame'), 0, 0, w, h);
       ctx.restore();
     }
-    // Неподвижный контур эмблемы интро — именно слой фона, под знаками.
+    // Эмблема проявляется крупно и плавно уменьшается к фоновой композиции.
     if (introOutlineImage && cue.compass > .001) {
-      ctx.save(); ctx.globalAlpha = visible * cue.compass * .36;
-      ctx.drawImage(introOutlineImage, 760, 285, 400, 420);
+      const size = 600 - 260 * cue.compassShrink;
+      const height = size * 4133.76 / 3937.77;
+      ctx.save(); ctx.globalAlpha = visible * cue.compass * .42;
+      ctx.drawImage(introOutlineImage, 960 - size / 2, 455 - height / 2, size, height);
       ctx.restore();
     }
     const text = (value, x, y, font, color, alpha, maxWidth, entry = 1) => {
@@ -477,6 +479,12 @@ export class PartnersScene {
       ctx.fillText(String(value ?? ''), x, y + 22 * (1 - entry), maxWidth); ctx.restore();
     };
     const warm = '#d2ac70', ivory = '#f6e4be';
+    // Подпись появляется под уменьшившейся эмблемой, а не поверх неё.
+    text(String(data.title ?? 'Янтарный циркуль').toLocaleUpperCase('ru'), 960, 685,
+      '600 48px "Cormorant Garamond", Georgia, serif', '#ecd4a1', visible * cue.title, 650, cue.title);
+    text(String(data.subtitle ?? 'вечер ретроспектива').toLocaleLowerCase('ru'), 960, 740,
+      '400 29px "Cormorant Garamond", Georgia, serif', '#c8a873', visible * cue.title, 580, cue.title);
+
     const trackedLabel = (value, x, y, alpha, entry) => {
       ctx.save();
       ctx.globalAlpha = alpha;

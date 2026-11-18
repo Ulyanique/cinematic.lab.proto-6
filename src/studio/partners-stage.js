@@ -9,13 +9,20 @@ export function partnersStageCues(phase, timeline, motion = 1) {
   const closing = smooth(exitStart, exitStart + exitDuration, t);
   const p = t < entry ? t / entry : t < exitStart ? 1 : 1 - closing;
   const visible = phase.beforeStart ? 0 : 1 - smooth(exitStart + exitDuration * .92, exitStart + exitDuration, t);
-  const marks = smooth(.68, .91, p);
-  const idle = smooth(.85, 1, p) * clamp(motion);
+  // Четыре знака: сначала оба верхних, затем оба нижних.
+  const organizer = smooth(.57, .65, p);
+  const partner = smooth(.67, .75, p);
+  const organizerSecond = smooth(.77, .85, p);
+  const partnerSecond = smooth(.87, .98, p);
+  const idle = smooth(.92, 1, p) * clamp(motion);
   return {
-    visible, curtainOpen: smooth(0, .42, p), compass: smooth(.42, .67, p),
-    organizerLabel: marks, organizer: marks, organizerSecond: smooth(.71, .94, p),
-    partnerLabel: marks, partner: smooth(.69, .92, p), partnerSecond: smooth(.72, .95, p),
-    frame: smooth(.08, .45, p), curtain: 0, shadow: idle, idle,
+    visible, background: smooth(.04, .30, p),
+    curtainOpen: smooth(0, .23, p),
+    compass: smooth(.25, .39, p), compassShrink: smooth(.42, .57, p),
+    title: smooth(.55, .66, p),
+    organizerLabel: organizer, organizer, organizerSecond,
+    partnerLabel: partner, partner, partnerSecond,
+    frame: smooth(.12, .36, p), curtain: 0, shadow: idle, idle,
     glintStrength: .85 * idle, holdGlint: idle, motion: clamp(motion), local: t,
   };
 }
@@ -56,4 +63,13 @@ export function introOutlineSvg(svg) {
 export function partnersHoldCacheKey(timeline) {
   return [timeline.drawDuration, timeline.emergeDuration, timeline.holdDuration,
     timeline.fadeDuration, timeline.restDuration, timeline.startDelay].join('|');
+}
+
+/** Обновляем только старый стандартный вход; пользовательские фазы сохраняем. */
+export function migratePartnersSequence(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  if (next.timeline?.drawDuration === 2.6 && next.timeline?.emergeDuration === 2.4) {
+    next.timeline.drawDuration = 6.6;
+  }
+  return next;
 }
