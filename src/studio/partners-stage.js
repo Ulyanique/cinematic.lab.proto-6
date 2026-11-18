@@ -44,3 +44,10 @@ export function migratePartnersStage(saved) {
   if (next.partners?.curtainWidth === 476) next.partners.curtainWidth = 96;
   return next;
 }
+
+/** Тот же рисунок, что в интро, без заливки: только мягкий золотой контур. */
+export function introOutlineSvg(svg) {
+  return svg
+    .replace(/width="39\.5198mm" height="41\.4868mm"/, 'width="800" height="840"')
+    .replace('.fil0 {fill:#D7B56D}', '.fil0 {fill:none;stroke:#D7B56D;stroke-width:18;stroke-linejoin:round;stroke-linecap:round}');
+}

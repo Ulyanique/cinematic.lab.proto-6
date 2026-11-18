@@ -71,3 +71,12 @@ test('curtain image keeps its aspect and dimensions throughout movement', async 
   assert.equal(calls[8][1], -380); // slides outwards
   assert.equal(calls[0][1], calls[1][1]); // mirrored curtain shares the motion
 });
+
+test('intro artwork is rendered as an unfilled golden outline', async () => {
+  const { introOutlineSvg } = await import('../src/studio/partners-stage.js');
+  const svg = '<svg><style>.fil0 {fill:#D7B56D}</style><path class="fil0"/></svg>';
+  const outline = introOutlineSvg(svg);
+  assert.match(outline, /fill:none/);
+  assert.match(outline, /stroke:#D7B56D/);
+  assert.match(outline, /<path class="fil0"\/>/);
+});

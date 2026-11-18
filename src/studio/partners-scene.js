@@ -7,7 +7,8 @@ import promrukavUrl from './assets/partners/promrukav.svg';
 import keazUrl from './assets/partners/keaz.svg';
 import { drawPartnersDecor, drawAmberAtmosphere, drawBreathingBackground } from './partners-graphics.js';
 import { partnersStageCues, drawStageCurtains } from './partners-stage.js';
-import { PartnersCenterLogo } from './partners-center-logo.js';
+import introLogoSvg from './lab2/logo.svg?raw';
+import { introOutlineSvg } from './partners-stage.js';
 import { glintSpan, easeOutBack } from './partners-motion.js';
 import { computePhase } from './timeline.js';
 import { BASE_FRAME } from './scenes/catalog.js';
@@ -23,7 +24,7 @@ const loadImage = url => new Promise(resolve => {
   image.src = url;
 });
 
-let backgroundCanvas, curtainImage;
+let backgroundCanvas, curtainImage, introOutlineImage;
 const builtinMarks = {};
 /** Исходные изображения встроенных логотипов: нужны, чтобы доделать второй стиль. */
 const builtinMarkSource = {};
@@ -105,8 +106,8 @@ export function drawMarkGlint(ctx, logo, x, y, w, h, span, alpha) {
 }
 
 // Предельный размер одного знака; масштаб не меняет пропорции.
-const MARK_MAX_WIDTH = 500;
-const MARK_MAX_HEIGHT = 105;
+const MARK_MAX_WIDTH = 560;
+const MARK_MAX_HEIGHT = 125;
 const MARK_SUPERSAMPLE = 2;
 
 // Золотая заливка использует альфу SVG/PNG, а не прямоугольную белую плашку.
@@ -166,8 +167,11 @@ export function markBounds(canvas) {
   return { x: minX / width, y: minY / height, width: (maxX - minX + 1) / width, height: (maxY - minY + 1) / height };
 }
 
-const imageReady = Promise.all([backgroundUrl, curtainUrl, proelectroUrl, proelectroschitUrl, promrukavUrl, keazUrl].map(loadImage)).then(images => {
-  const [background, curtain, ...marks] = images;
+const outlineUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(introOutlineSvg(introLogoSvg))}`;
+const imageReady = Promise.all([backgroundUrl, curtainUrl, proelectroUrl, proelectroschitUrl, promrukavUrl, keazUrl, outlineUrl].map(loadImage)).then(images => {
+  const [background, curtain, ...rest] = images;
+  const marks = rest.slice(0, 4);
+  introOutlineImage = rest[4];
   if (background) {
     // Подгонка с сохранением пропорций (центр кадра), без растяжения.
     backgroundCanvas = document.createElement('canvas');
@@ -270,14 +274,13 @@ export async function preloadPartnerCustomLogos(partnersCfg) {
 export class PartnersScene {
   constructor(canvas, cfg) {
     this.cfg = cfg;
-    this.centerLogo = new PartnersCenterLogo();
     this.isIntro = false;
     this.contourWaves = null;
     // Стиль известен из настроек сразу: готовим только нужный вариант логотипов.
     setPartnersLogoStyle(cfg.partners?.logoStyle);
     this._quality = suggestedQuality(masterId());
     this.renderer = new THREE.WebGLRenderer({
-      canvas, antialias: false, alpha: false, powerPreference: 'high-performance', stencil: false, depth: true,
+      canvas, antialias: false, alpha: false, powerPreference: 'high-performance', stencil: false, depth: false,
     });
     this.renderer.setClearColor(0x000000, 1);
     this.renderer.toneMapping = THREE.NoToneMapping;
@@ -436,6 +439,12 @@ export class PartnersScene {
       ctx.drawImage(this._cachedDecoration(master, 'frame'), 0, 0, w, h);
       ctx.restore();
     }
+    // Неподвижный контур эмблемы интро — именно слой фона, под знаками.
+    if (introOutlineImage && cue.compass > .001) {
+      ctx.save(); ctx.globalAlpha = visible * cue.compass * .36;
+      ctx.drawImage(introOutlineImage, 760, 285, 400, 420);
+      ctx.restore();
+    }
     const text = (value, x, y, font, color, alpha, maxWidth, entry = 1) => {
       ctx.save(); ctx.globalAlpha = alpha; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = font; ctx.fillStyle = color;
       ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 9; ctx.shadowOffsetY = 3;
@@ -526,7 +535,7 @@ export class PartnersScene {
       ctx.translate(cx, cy);
       ctx.scale(grow, grow);
       // Клип по кадру при входе остаётся: он не даёт знаку «вылезать» за блок.
-      ctx.beginPath(); ctx.rect(-268, -80, 536, 160); ctx.clip();
+      ctx.beginPath(); ctx.rect(-295, -85, 590, 170); ctx.clip();
       ctx.drawImage(logo, -lw / 2, -lh / 2, lw, lh);
       // Блик проходит уже по проявленному знаку — иначе он светит в пустоту.
       drawMarkGlint(ctx, logo, -lw / 2, -lh / 2, lw, lh,
@@ -555,7 +564,7 @@ export class PartnersScene {
       ctx.restore();
     };
     // Все четыре знака в верхней половине и на внешних сторонах кадра.
-    const left = 425, right = 1495, topY = 195, secondY = 420;
+    const left = 425, right = 1495, topY = 245, secondY = 465;
     tierGlow(left, topY, 260, 115, visible * cue.shadow * .5);
     tierGlow(right, topY, 260, 115, visible * cue.shadow * .5);
     tierGlow(left, secondY, 260, 115, visible * cue.shadow * .5);
@@ -570,22 +579,18 @@ export class PartnersScene {
       gradient.addColorStop(.78, 'rgba(232,196,132,.75)');
       gradient.addColorStop(1, 'rgba(232,196,132,0)');
       ctx.strokeStyle = gradient; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(x - 250, 278); ctx.lineTo(x + 250, 278); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x - 250, 325); ctx.lineTo(x + 250, 325); ctx.stroke();
       ctx.restore();
     };
     divider(left, Math.min(cue.organizer, cue.organizerSecond));
     divider(right, Math.min(cue.partner, cue.partnerSecond));
-    label(data.organizerLabel, left, 105, visible * cue.organizerLabel, cue.organizerLabel);
-    label(data.coorganizerLabel, left, 330, visible * cue.organizerSecond, cue.organizerSecond);
-    label(data.partnerLabel, right, 105, visible * cue.partnerLabel, cue.partnerLabel);
+    label(data.organizerLabel, left, 150, visible * cue.organizerLabel, cue.organizerLabel);
+    label(data.coorganizerLabel, left, 370, visible * cue.organizerSecond, cue.organizerSecond);
+    label(data.partnerLabel, right, 150, visible * cue.partnerLabel, cue.partnerLabel);
     company('organizer1', left, topY, cue.organizer, 2.75, 0, 1);
     company('organizer2', left, secondY, cue.organizerSecond, 3.25, 1, 1);
     company('partner1', right, topY, cue.partner, 4.45, 2, 1);
     company('partner2', right, secondY, cue.partnerSecond, 4.95, 3, 1);
-    // Циркуль рисуется на GPU после подложки, без дорогостоящего чтения
-    // пикселей из второго WebGL-контекста в Canvas2D на каждом кадре.
-    this._logoOpacity = visible * cue.compass;
-    if (this._logoOpacity > .001) this.centerLogo.update(phase.local, phase.cycle, this._logoOpacity);
     // Занавес расположен поверх всех элементов и в конце закрывается обратно.
     if (data.curtainVisible !== false) {
       ctx.save(); ctx.globalAlpha = visible;
@@ -598,26 +603,10 @@ export class PartnersScene {
   render() {
     this.renderer.setRenderTarget(null);
     if (this._blackFrame) this.renderer.clear(true, true, true);
-    else {
-      this.renderer.setScissorTest(false);
-      this.renderer.setViewport(0, 0, this._w, this._h);
-      this.renderer.autoClear = true;
-      this.renderer.render(this.cardScene, this.cardCamera);
-      if (this._logoOpacity > .001) {
-        // Знак появляется только после полного раскрытия штор и исчезает до
-        // их закрытия, поэтому может идти отдельным проходом поверх кадра.
-        this.renderer.autoClear = false;
-        this.renderer.clearDepth();
-        this.renderer.setViewport(this._w * 730 / 1920, this._h * 365 / 1080, this._w * 460 / 1920, this._h * 460 / 1080);
-        this.renderer.render(this.centerLogo.scene, this.centerLogo.camera);
-        this.renderer.setViewport(0, 0, this._w, this._h);
-        this.renderer.autoClear = true;
-      }
-    }
+    else this.renderer.render(this.cardScene, this.cardCamera);
   }
 
   dispose() {
-    this.centerLogo.dispose();
     this._textures.forEach(texture => texture.dispose());
     this.cardMesh.geometry.dispose();
     this.cardMesh.material.dispose();
