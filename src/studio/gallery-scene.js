@@ -14,7 +14,7 @@ import { isBuiltinGalleryName, builtinGalleryUrl } from './gallery-defaults.js';
 export class GalleryScene extends LabScene {
   constructor(canvas, cfg) {
     super(canvas, cfg);
-    this.engine = new GalleryEngine(this.host, { manual: true });
+    this.engine = new GalleryEngine(this.host, { manual: true, shards: this.cfg?.gallery_effects?.shards !== false });
     this.engine.pause();
     this.loadedNames = Array(GALLERY_SLOT_COUNT).fill(null);
     this.errors = Array(GALLERY_SLOT_COUNT).fill('');
@@ -102,6 +102,7 @@ export class GalleryScene extends LabScene {
   }
 
   configChanged() {
+    this.engine?.setShards(this.cfg?.gallery_effects?.shards !== false);
     void this.syncSlots().then(() => {
       if (!this.disposed) window.__logo?.renderAt?.(window.__logo.time);
     });

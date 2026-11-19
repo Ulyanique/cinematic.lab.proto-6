@@ -39,57 +39,28 @@ const PANEL_H = 6.525
 const PANEL_DIST = 11.5
 
 // ── осколки ───────────────────────────────────────────────────────────────
-const SHARD_TARGET = 6
+// Раскладка по эскизу заказчика: рама остаётся ПРЯМОУГОЛЬНОЙ, внутри — два
+// диагональных реза, три куска; центральный самый большой, на нём «живёт» лицо.
+// Внешние куски сужаются книзу (как в эскизе). Доли — от половины ширины панели.
+const CUT_TOP_L = -0.70, CUT_BOT_L = -0.52 // левый рез: x на верхнем / нижнем краю
+const CUT_TOP_R = 0.52, CUT_BOT_R = 0.31   // правый рез: x на верхнем / нижнем краю
 
-const polyArea = (poly: [number, number][]) =>
-  Math.abs(poly.reduce((acc, [x, y], i) => {
-    const [x2, y2] = poly[(i + 1) % poly.length]
-    return acc + x * y2 - x2 * y
-  }, 0) / 2)
+/** Раскладка: [левый квад, центральный трапеция, правый квад]. */
+function designedShards(hw: number, hh: number): [number, number][][] {
+  const xTL = CUT_TOP_L * hw, xBL = CUT_BOT_L * hw
+  const xTR = CUT_TOP_R * hw, xBR = CUT_BOT_R * hw
+  return [
+    [[-hw, -hh], [xBL, -hh], [xTL, hh], [-hw, hh]],          // левый
+    [[xBL, -hh], [xBR, -hh], [xTR, hh], [xTL, hh]],          // центральный (самый большой)
+    [[xBR, -hh], [hw, -hh], [hw, hh], [xTR, hh]],            // правый
+  ]
+}
 
 /** Среднее вершин — годится для небольших выпуклых кусков. */
 const polyCentroid = (poly: [number, number][]): [number, number] => {
   let sx = 0, sy = 0
   for (const [x, y] of poly) { sx += x; sy += y }
   return [sx / poly.length, sy / poly.length]
-}
-
-/** Отсечение выпуклого многоугольника полуплоскостью (Sutherland–Hodgman). */
-function clipSide(poly: [number, number][], px: number, py: number, nx: number, ny: number, sign: 1 | -1): [number, number][] {
-  const out: [number, number][] = []
-  for (let i = 0; i < poly.length; i++) {
-    const a = poly[i], b = poly[(i + 1) % poly.length]
-    const da = ((a[0] - px) * nx + (a[1] - py) * ny) * sign
-    const db = ((b[0] - px) * nx + (b[1] - py) * ny) * sign
-    if (da >= 0) out.push(a)
-    if ((da >= 0) !== (db >= 0)) {
-      const k = da / (da - db)
-      out.push([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k])
-    }
-  }
-  return out
-}
-
-/** Деление прямоугольника панели на SHARD_TARGET выпуклых осколков (детерминированно). */
-function shatterPanel(hw: number, hh: number, rng: () => number): [number, number][][] {
-  let pieces: [number, number][][] = [
-    [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]],
-  ]
-  while (pieces.length < SHARD_TARGET) {
-    let idx = 0
-    for (let i = 1; i < pieces.length; i++) if (polyArea(pieces[i]) > polyArea(pieces[idx])) idx = i
-    const piece = pieces[idx]
-    const [cx, cy] = polyCentroid(piece)
-    const px = cx + (rng() - 0.5) * 0.9
-    const py = cy + (rng() - 0.5) * 0.9
-    const angle = rng() * Math.PI
-    const a = clipSide(piece, px, py, Math.cos(angle), Math.sin(angle), 1)
-    const b = clipSide(piece, px, py, Math.cos(angle), Math.sin(angle), -1)
-    // Слишком мелкая доля — не дробим дальше: часть осколков остаётся крупными.
-    if (a.length < 3 || b.length < 3 || Math.min(polyArea(a), polyArea(b)) < polyArea(piece) * 0.18) break
-    pieces.splice(idx, 1, a, b)
-  }
-  return pieces
 }
 
 type Pose = { p: THREE.Vector3; r: THREE.Vector3; u: THREE.Vector3 }
@@ -135,6 +106,8 @@ export class GalleryEngine {
 
   // комета
   private trails: { geo: LineSegmentsGeometry; line: LineSegments2 }[] = []
+  private hemi!: THREE.HemisphereLight
+  private dustMat!: THREE.PointsMaterial
   private cometLight: THREE.PointLight
   private cometHead: THREE.Sprite
   private cometGlow: THREE.Sprite
@@ -160,9 +133,11 @@ export class GalleryEngine {
   /** Ручной режим: без собственного RAF-цикла — кадр рисует адаптер студии
    *  через renderAt(t), поэтому предпросмотр и экспорт идут одним путём. */
   private manual = false
+  private shards = true
 
-  constructor(container: HTMLElement, options: { manual?: boolean } = {}) {
+  constructor(container: HTMLElement, options: { manual?: boolean; shards?: boolean } = {}) {
     this.manual = Boolean(options.manual)
+    this.shards = options.shards !== false
     this.container = container
     this.pr = Math.min(window.devicePixelRatio || 1, 2)
 
@@ -241,7 +216,8 @@ export class GalleryEngine {
     this.starGlow.position.copy(sp)
     this.starLight.position.copy(sp)
 
-    this.buildPanels()
+    this.buildSlots()
+    this.buildPanelMeshes()
 
     // финал
     this.finale = new Finale(goldMat, this.pr)
@@ -288,7 +264,10 @@ export class GalleryEngine {
           }
           col += st*vec3(1.0,0.72,0.35)*0.05;
           col *= 1.0 - smoothstep(0.28,0.95,length(c*vec2(1.0,0.85))*1.25)*0.62;
-          col += uFlash*vec3(1.0,0.93,0.78)*2.6;
+          // вспышка — радиальная, как у реального фотоаппарата: яркая сердцевина,
+          // края кадра остаются тёмными (и никакой плоской заливки)
+          float rf = length(c*vec2(uRes.x/uRes.y, 1.0));
+          col += uFlash*vec3(1.0,0.9,0.72)*(exp(-rf*rf*3.6)*1.15+0.06);
           col *= 1.0 - uFinaleDim;
           float n = hash(vUv*uRes + fract(uTime)*91.7);
           col += (n-0.5)*0.012*(1.0-uFinaleDim);
@@ -464,13 +443,17 @@ export class GalleryEngine {
   }
 
   private buildLights() {
-    this.scene.add(new THREE.HemisphereLight(0xffd7a0, 0x20120a, 0.18))
+    this.hemi = new THREE.HemisphereLight(0xffd7a0, 0x20120a, 0)
+    this.scene.add(this.hemi)
     return new THREE.MeshStandardMaterial({ color: 0xd9a441, metalness: 0.9, roughness: 0.3, flatShading: true })
   }
 
   private makeLineMat(width: number, vertexColors: boolean) {
     const m = new LineMaterial({ color: 0xffffff, linewidth: width, vertexColors, worldUnits: false })
     m.fog = true
+    m.transparent = true
+    m.opacity = 0
+    m.userData.baseOpacity = 1
     this.lineMats.push(m)
     return m
   }
@@ -585,6 +568,7 @@ export class GalleryEngine {
       mat.color = new THREE.Color(0xd6b57e)
       mat.transparent = true
       mat.opacity = opacity
+      mat.userData.baseOpacity = opacity
       mat.depthWrite = false
       // Сетка не должна теряться в тумане и на ярких переходах кадра —
       // она всегда остаётся «чертёжом» поверх тёмного пола/потолка.
@@ -609,30 +593,32 @@ export class GalleryEngine {
       pos.set([p.x, p.y, p.z], i * 3)
     }
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
-    const pts = new THREE.Points(
-      g,
-      new THREE.PointsMaterial({ map: dotTexture(), size: 0.06, color: 0xffcf80, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.3 }),
-    )
+    this.dustMat = new THREE.PointsMaterial({ map: dotTexture(), size: 0.06, color: 0xffcf80, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 })
+    const pts = new THREE.Points(g, this.dustMat)
     this.corridor.add(pts)
   }
 
-  private buildPanels() {
+  /** Слоты медиа создаются один раз: переключение осколков их не трогает. */
+  private buildSlots() {
+    for (const cfg of MEDIA) this.slots.push(new MediaSlot(cfg, this.slots.length, PANEL_W / PANEL_H))
+  }
+
+  private buildPanelMeshes() {
     const hw = PANEL_W / 2
     const hh = PANEL_H / 2
     const tint = new THREE.Color(0xffc468)
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x8c7552, metalness: 0.85, roughness: 0.42 })
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x8c7552, metalness: 0.6, roughness: 0.5 })
     const flareTex = starTexture(10, 21)
 
-    for (let i = 0; i < MEDIA.length; i++) {
-      const cfg = MEDIA[i]
-      const slot = new MediaSlot(cfg, i, PANEL_W / PANEL_H)
-      this.slots.push(slot)
+    for (let i = 0; i < this.slots.length; i++) {
+      const slot = this.slots[i]
       const side = i % 2 === 0 ? 1 : -1
       const tc = clipCenter(i)
       const panelRng = mulberry32(0x51ab + i * 997)
-      // Разбиваем панель на выпуклые осколки; каждый — своя глубина и свой
-      // микроповорот. Видео при этом собирается воедино через непрерывные UV.
-      const shards = shatterPanel(hw, hh, panelRng)
+      const full: [number, number][] = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]]
+      // Осколки: лицо остаётся в едином центральном куске; видео собирается
+      // воедино непрерывными UV. Глубина и микроповорот каждого куска — свои.
+      const pieces = this.shards ? designedShards(hw, hh) : [full]
 
       const mat = new THREE.ShaderMaterial({
         transparent: true,
@@ -681,7 +667,8 @@ export class GalleryEngine {
       this.lineMats.push(lmat)
 
       const shardGroup = new THREE.Group()
-      for (const shard of shards) {
+      for (let pieceIndex = 0; pieceIndex < pieces.length; pieceIndex++) {
+        const shard = pieces[pieceIndex]
         const [cx, cy] = polyCentroid(shard)
         const shape = new THREE.Shape(shard.map(([x, y]) => new THREE.Vector2(x, y)))
 
@@ -710,13 +697,14 @@ export class GalleryEngine {
         edgeLine.frustumCulled = false
 
         const piece = new THREE.Group()
-        // осколок со своим микросмещением в глубину и лёгким поворотом
-        piece.position.set(cx, cy, (panelRng() - 0.5) * 0.9)
-        piece.rotation.z = (panelRng() - 0.5) * 0.055
-        const shrink = 0.94 + panelRng() * 0.035
+        // кусок со своим микросмещением в глубину и лёгким поворотом
+        piece.position.set(cx, cy, (panelRng() - 0.5) * 0.55)
+        piece.rotation.z = (panelRng() - 0.5) * 0.02
+        const shrink = 0.972 + panelRng() * 0.022
         piece.scale.setScalar(shrink)
         const plate = new THREE.Mesh(plateGeo, pFrameMat)
-        plate.position.z = -0.34
+        plate.position.z = -0.34 - pieceIndex * 0.012 // у каждого куска своя глубина подложки — без z-fighting на стыках
+
         plate.scale.setScalar(1.05) // тонкая золотая кайма по граням скола
         const media = new THREE.Mesh(geo, mat)
         piece.add(plate, media, edgeLine)
@@ -756,6 +744,36 @@ export class GalleryEngine {
       this.corridor.add(root)
       this.panels.push({ root, fly, mat, slot, side, roll, tc, pos, flare, frameMat: pFrameMat, edgeMat: lmat, motes })
     }
+  }
+
+  /** Удалить только меши панелей; слоты (и загруженное видео) остаются. */
+  private disposePanelMeshes() {
+    for (const p of this.panels) {
+      this.corridor.remove(p.root)
+      p.root.traverse((obj) => {
+        const mesh = obj as THREE.Mesh
+        mesh.geometry?.dispose?.()
+        const material = (obj as unknown as { material?: THREE.Material | THREE.Material[] }).material
+        if (Array.isArray(material)) material.forEach((m) => m.dispose())
+        else material?.dispose()
+      })
+      p.frameMat.dispose()
+      p.mat.dispose()
+      p.edgeMat.dispose()
+      const idx = this.lineMats.indexOf(p.edgeMat)
+      if (idx >= 0) this.lineMats.splice(idx, 1)
+    }
+    this.panels = []
+  }
+
+  /** «Разбивать панели на осколки»: выключение возвращает цельные плоскости. */
+  setShards(on: boolean) {
+    const next = on !== false
+    if (this.shards === next) return
+    this.shards = next
+    this.disposePanelMeshes()
+    this.buildPanelMeshes()
+    this.updatePanels(this.time)
   }
 
   // ───────────────────────── API ─────────────────────────
@@ -957,10 +975,16 @@ export class GalleryEngine {
     fu.uFlash.value = flash
     fu.uTime.value = t
     fu.uFinaleDim.value = finaleDim(t, FLASH_T)
-    fu.uFade.value = 1 - smooth(0, 1.4, t) * 1 // плавный выход из черного
-    this.bloom.strength = 0.22 + flash * 0.8 + (inFinale ? 0.15 * Math.exp(-(t - FLASH_T) * 0.5) : 0)
+    // выход из черноты в начале и уход в темноту в конце (логотип растворяется в черноте)
+    const endFade = smooth(END_T - 2.4, END_T - 0.1, t)
+    fu.uFade.value = Math.max(1 - smooth(0, 2.6, t), endFade)
+    this.bloom.strength = 0.22 + flash * 0.4 + (inFinale ? 0.12 * Math.exp(-(t - FLASH_T) * 0.5) : 0)
 
     const cam = this.camera
+    const intro = smooth(0, 2.4, t) // пол/потолок/стены/пыль проявляются вместе с пост-fade
+    for (const lm of this.lineMats) lm.opacity = (lm.userData.baseOpacity ?? 1) * intro
+    if (this.hemi) this.hemi.intensity = 0.18 * intro
+    this.dustMat.opacity = 0.3 * intro
     if (!inFinale) {
       // позиция камеры
       const sc = S(cameraTime(t))
@@ -978,7 +1002,8 @@ export class GalleryEngine {
       cam.up.set(0, 1, 0)
       cam.lookAt(target)
       this.camLight.position.copy(camPos).add(this.tmpC.set(0, 2, 0))
-      this.camLight.intensity = 22
+      this.camLight.intensity = 22 * intro
+      this.scene.environmentIntensity = 0.32 * intro
 
       this.updateComet(t)
       this.updatePanels(t)
@@ -991,13 +1016,14 @@ export class GalleryEngine {
       cam.up.set(0, 1, 0)
       cam.lookAt(0, FIN_Y, 0)
       // Эмблема интро — главный герой финала: поднимаем отражения.
-      this.scene.environmentIntensity = 0.32 + 0.75 * smooth(0, 1.6, tb)
+      this.scene.environmentIntensity = (0.32 + 0.75 * smooth(0, 1.6, tb)) * (1 - endFade)
       this.cometLight.intensity = 0
       this.starLight.intensity = 0
       // тёплый «камерный» свет, чтобы эмблема не уходила в силуэт
       this.camLight.position.copy(cam.position).add(this.tmpC.set(0, 1.5, 6))
-      this.camLight.intensity = 70
+      this.camLight.intensity = 70 * (1 - endFade)
       this.finale.update(tb, t)
+      this.finale.light.intensity *= 1 - endFade
     }
 
     // ── фон интро, но БЕЗ лучей: эффект «прожекторов» в начале убран по просьбе.
@@ -1005,8 +1031,9 @@ export class GalleryEngine {
     const bu = this.bgMat.uniforms
     bu.uTime.value = t
     bu.uBeam.value = 0
-    bu.uRib.value = 0.45 + 0.08 * Math.sin(t * 0.6 + 1)
-    bu.uGlow.value = 0.25
+    const calm = inFinale ? smooth(0, 2.5, t - FLASH_T) : 0
+    bu.uRib.value = (0.45 + 0.08 * Math.sin(t * 0.6 + 1)) * (1 - calm * 0.75)
+    bu.uGlow.value = 0.25 * (1 - calm * 0.7)
     bu.uFlash.value = flash * 0.6
     bu.uFinal.value = inFinale ? smooth(0, 2, t - FLASH_T) : 0
     bu.uCam.value.set(cam.position.x * -0.25, (inFinale ? 0 : cam.position.y) * -0.25)
@@ -1104,7 +1131,7 @@ export class GalleryEngine {
     const k = smooth(FLASH_T - 4.4, FLASH_T, t)
     const visibility = smooth(clipCenter(MEDIA.length - 1) + PANEL_AFTER, FLASH_T - 1.1, t)
     const twinkle = 1 + 0.05 * Math.sin(t * 13)
-    const sz = (4 + 8 * k * k) * twinkle
+    const sz = (3 + 6 * k * k) * twinkle
     this.starGlow.scale.set(sz * 1.35, sz * 1.35, 1)
     ;(this.starGlow.material as THREE.SpriteMaterial).opacity = (0.22 + 0.6 * k) * visibility
     this.starLight.intensity = 1800 * k * k * visibility
@@ -1149,9 +1176,10 @@ export class GalleryEngine {
       ;(p.flare.material as THREE.SpriteMaterial).opacity = 0
       lightW = Math.max(lightW, al)
       lightPos.copy(p.pos)
+      lightPos.y -= 7
     }
     this.panelLight.position.copy(lightPos)
-    this.panelLight.intensity = 90 * lightW
+    this.panelLight.intensity = 70 * lightW
   }
 
   dispose() {

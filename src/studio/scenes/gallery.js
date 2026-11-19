@@ -36,5 +36,6 @@ export const GALLERY_DEFAULTS = (() => {
   cfg.gallery_video = Object.fromEntries(
     Array.from({ length: GALLERY_SLOT_COUNT }, (_, i) => [`slot${i}`, GALLERY_BUILTIN[i]]),
   );
+  cfg.gallery_effects = { shards: true };
   return cfg;
 })();

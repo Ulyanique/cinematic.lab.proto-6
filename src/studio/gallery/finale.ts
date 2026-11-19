@@ -15,11 +15,7 @@ function randDir() {
 }
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x))
-const easeOutBack = (x: number) => {
-  const c1 = 1.70158, c3 = c1 + 1
-  const y = clamp01(x) - 1
-  return 1 + c3 * y * y * y + c1 * y * y
-}
+const easeOutCubic = (x: number) => 1 - Math.pow(1 - clamp01(x), 3)
 
 /**
  * Финал галереи: вспышка распадается на логотип из интро и золотые осколки —
@@ -96,24 +92,28 @@ export class Finale {
   update(tb: number, now: number) {
     const t = Math.max(tb, 0)
 
-    // логотип интро: быстрый сбор с перелётом и мягкий «выход» к камере
-    const assemble = clamp01(t / 1.35)
-    const e = easeOutBack(assemble)
-    // Золото полностью вырезано (uReveal=1): анимации reveal в финале нет.
-    for (const m of this.goldMats) {
+    // Появление — как у эмблемы в интро: золото «прорисовывается» послойно
+    // (reveal каждого куска со своим сдвигом), без пружинистого перелёта.
+    // как в интро (пресет swarm): sine-протяжка reveal по каждой детали со своим
+    // стартом; вспышка — короткий выброс в момент, когда деталь «оседает»
+    const n = this.goldMats.length
+    const DUR = 1.15, STAG = 0.12, LEAD = 0.25
+    for (let i = 0; i < n; i++) {
+      const m = this.goldMats[i]
       const u = (m as THREE.MeshPhysicalMaterial).userData.u
-      if (u) {
-        u.uReveal.value = 1
-        u.uFlash.value = Math.exp(-t * 0.9) * 1.5
-      }
+      if (!u) continue
+      const start = LEAD + i * STAG
+      const k = clamp01((t - start) / DUR)
+      u.uReveal.value = -(Math.cos(Math.PI * k) - 1) / 2
+      u.uFlash.value = Math.exp(-Math.pow((t - (start + DUR * 0.9)) * 4.0, 2.0)) * 0.5
     }
-    this.logoRoot.scale.setScalar(Math.max(0.001, this.logoScale * e))
-    const settle = 1 - assemble
-    this.logoRoot.position.z = -6 * (1 - assemble) + Math.sin(now * 0.6) * 0.12 * assemble
-    this.logoRoot.rotation.y = settle * -1.1 + Math.sin(now * 0.45 + 0.6) * 0.08 * assemble
-    this.logoRoot.rotation.x = settle * 0.35
+    const appear = easeOutCubic(t / 2.1)
+    this.logoRoot.scale.setScalar(Math.max(0.001, this.logoScale * (0.86 + 0.14 * appear)))
+    this.logoRoot.position.z = -5.5 * (1 - appear) + Math.sin(now * 0.6) * 0.12 * appear
+    this.logoRoot.rotation.y = -0.55 * (1 - appear) + Math.sin(now * 0.45 + 0.6) * 0.08 * appear
+    this.logoRoot.rotation.x = 0.16 * (1 - appear)
 
-    this.light.intensity = 9000 * Math.exp(-t * 1.1) + 650
+    this.light.intensity = 110 * Math.exp(-t * 1.35) + 24
 
     for (const d of this.debris) {
       const r = (d.speed * (1 - Math.exp(-t * 0.9))) / 0.9 + 1.5

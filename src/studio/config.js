@@ -26,6 +26,9 @@ export const SCHEMA = [
     key: `slot${i}`, label: `Видео ${String(i + 1).padStart(2, "0")}`, type: "video",
     hint: "Видео или фото для панели; пустой слот — плейсхолдер в цветах интро",
   })) },
+  { id: "gallery_effects", title: "Осколки панелей", fields: [
+    { key: "shards", label: "Разбивать панели на осколки", type: "bool", hint: "Выкл — цельные плоскости вместо парящих золотых осколков" },
+  ] },
   { id: "partnersIntroBackground", title: "Фон интро", fields: [
     { key: "enabled", label: "Использовать вместо картинки", type: "bool" },
     { key: "strength", label: "Яркость", type: "range", min: 0, max: 2, step: .01 },

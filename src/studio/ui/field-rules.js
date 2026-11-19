@@ -14,6 +14,7 @@ export const SECTION_NOTES = {
   partners: 'Исходные названия показывают встроенные золотые логотипы; можно загрузить свой SVG/PNG или ввести текст.',
   lab5_video: 'Каждый слот — один визит камеры к монолиту. Пустой слот оставляет плейсхолдер: видно, что источник не назначен.',
   gallery_video: 'Десять панелей золотого коридора. По умолчанию в слотах — встроенные ролики просмотрки (01–10.mp4); можно заменить файлом. Пустой слот — плейсхолдер в цветах интро. Файлы хранятся в браузере.',
+  gallery_effects: 'Золотые осколки парят перед панелью и собирают её воедино. Выключите, если нужна цельное видео без разбивки.',
   caption: '«Вписать в поля» уменьшает строку по ширине до ориентировочных полей 5%; длинный текст проверьте вручную.',
   transition: 'Растворение при переключении ролика в просмотре; в запись одного ролика не попадает.',
   finale: 'Если этапы фразы не помещаются, они сокращаются. Увеличьте удержание или фазу ухода на таймлайне.',
@@ -25,7 +26,7 @@ export function sectionAllowed(sceneId, sectionId, labSectionAllowed) {
   if (sectionId === 'partnersIntroBackground') return false;
   if (labSectionAllowed && labSectionAllowed(sceneId, sectionId) === false) return false;
   if (sceneId === 'circle-final') return ['timeline', 'playback', 'transition', 'fxStack'].includes(sectionId);
-  if (sceneId === 'gallery') return ['gallery_video', 'timeline', 'playback', 'transition', 'fxStack'].includes(sectionId);
+  if (sceneId === 'gallery') return ['gallery_video', 'gallery_effects', 'timeline', 'playback', 'transition', 'fxStack'].includes(sectionId);
   if ((sceneId === 'partners' || sceneId.startsWith('sponsor-')) && sectionId.startsWith('stage')) return true;
   if (sceneId.startsWith('sponsor-')) {
     return ['sponsor', 'partnersLight', 'partnersIntroBackground', 'typography', 'timeline', 'playback', 'transition', 'fxStack'].includes(sectionId);

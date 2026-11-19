@@ -66,12 +66,26 @@ test('shared emblem builder is used by both intro and finale', () => {
   assert.match(read('src/studio/lab2/emblem.ts'), /export function buildEmblem/);
 });
 
-test('gallery panels are shattered into depth-staggered shards', () => {
+test('gallery panels are split into a rectangular triptych with the largest central piece', () => {
   const engine = read('src/studio/gallery/engine.ts');
-  assert.match(engine, /SHARD_TARGET = 6/);
-  assert.match(engine, /function shatterPanel/);
-  // осколки смещены по глубине и повёрнуты
-  assert.match(engine, /piece\.position\.set\(cx, cy, \(panelRng\(\) - 0\.5\) \* 0\.9\)/);
+  assert.match(engine, /function designedShards/);
+  // прямоугольная рама и три куска, центральный — самый большой
+  assert.match(engine, /CUT_TOP_L/);
+  assert.match(engine, /CUT_BOT_R/);
+  // центральная трапеция шире боковых квадов на обоих краях
+  const hw = 1;
+  const m = engine.match(/const CUT_TOP_L = ([-\d.]+), CUT_BOT_L = ([-\d.]+) \/\/.*?\nconst CUT_TOP_R = ([-\d.]+), CUT_BOT_R = ([-\d.]+)/s);
+  const [topL, botL, topR, botR] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])];
+  const sideLTop = topL - (-1), sideRTop = 1 - topR;
+  const centerTop = topR - topL;
+  const centerBot = botR - botL;
+  const sideLBot = botL - (-1), sideRBot = 1 - botR;
+  assert.ok(centerTop > sideLTop && centerTop > sideRTop, 'центральная часть шире боковых сверху');
+  assert.ok(centerBot > sideLBot && centerBot > sideRBot, 'центральная часть шире боковых снизу');
+  assert.ok(centerTop >= centerBot, 'центр сужается книзу — как в эскизе');
+  assert.ok(topL < botL && topR > botR, 'резы диагональные, внешние куски сужаются книзу');
+  // куски смещены по глубине и едва повёрнуты (эскиз: тонкие диагональные зазоры)
+  assert.match(engine, /piece\.position\.set\(cx, cy, \(panelRng\(\) - 0\.5\) \* 0\.55\)/);
   assert.match(engine, /piece\.rotation\.z = /);
   // видео при этом остаётся единым через непрерывные UV
   assert.match(engine, /uv\.setXY\(k, \(pa\.getX\(k\) \+ hw\) \/ PANEL_W/);
