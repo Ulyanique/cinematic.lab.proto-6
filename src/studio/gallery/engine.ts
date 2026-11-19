@@ -38,6 +38,60 @@ const PANEL_W = 11.6
 const PANEL_H = 6.525
 const PANEL_DIST = 11.5
 
+// ── осколки ───────────────────────────────────────────────────────────────
+const SHARD_TARGET = 6
+
+const polyArea = (poly: [number, number][]) =>
+  Math.abs(poly.reduce((acc, [x, y], i) => {
+    const [x2, y2] = poly[(i + 1) % poly.length]
+    return acc + x * y2 - x2 * y
+  }, 0) / 2)
+
+/** Среднее вершин — годится для небольших выпуклых кусков. */
+const polyCentroid = (poly: [number, number][]): [number, number] => {
+  let sx = 0, sy = 0
+  for (const [x, y] of poly) { sx += x; sy += y }
+  return [sx / poly.length, sy / poly.length]
+}
+
+/** Отсечение выпуклого многоугольника полуплоскостью (Sutherland–Hodgman). */
+function clipSide(poly: [number, number][], px: number, py: number, nx: number, ny: number, sign: 1 | -1): [number, number][] {
+  const out: [number, number][] = []
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length]
+    const da = ((a[0] - px) * nx + (a[1] - py) * ny) * sign
+    const db = ((b[0] - px) * nx + (b[1] - py) * ny) * sign
+    if (da >= 0) out.push(a)
+    if ((da >= 0) !== (db >= 0)) {
+      const k = da / (da - db)
+      out.push([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k])
+    }
+  }
+  return out
+}
+
+/** Деление прямоугольника панели на SHARD_TARGET выпуклых осколков (детерминированно). */
+function shatterPanel(hw: number, hh: number, rng: () => number): [number, number][][] {
+  let pieces: [number, number][][] = [
+    [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]],
+  ]
+  while (pieces.length < SHARD_TARGET) {
+    let idx = 0
+    for (let i = 1; i < pieces.length; i++) if (polyArea(pieces[i]) > polyArea(pieces[idx])) idx = i
+    const piece = pieces[idx]
+    const [cx, cy] = polyCentroid(piece)
+    const px = cx + (rng() - 0.5) * 0.9
+    const py = cy + (rng() - 0.5) * 0.9
+    const angle = rng() * Math.PI
+    const a = clipSide(piece, px, py, Math.cos(angle), Math.sin(angle), 1)
+    const b = clipSide(piece, px, py, Math.cos(angle), Math.sin(angle), -1)
+    // Слишком мелкая доля — не дробим дальше: часть осколков остаётся крупными.
+    if (a.length < 3 || b.length < 3 || Math.min(polyArea(a), polyArea(b)) < polyArea(piece) * 0.18) break
+    pieces.splice(idx, 1, a, b)
+  }
+  return pieces
+}
+
 type Pose = { p: THREE.Vector3; r: THREE.Vector3; u: THREE.Vector3 }
 
 interface Panel {
@@ -565,8 +619,6 @@ export class GalleryEngine {
   private buildPanels() {
     const hw = PANEL_W / 2
     const hh = PANEL_H / 2
-    // A simple, undistorted 16:9 canvas keeps both artwork and user media readable.
-    const poly: [number, number][] = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]]
     const tint = new THREE.Color(0xffc468)
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x8c7552, metalness: 0.85, roughness: 0.42 })
     const flareTex = starTexture(10, 21)
@@ -577,13 +629,11 @@ export class GalleryEngine {
       this.slots.push(slot)
       const side = i % 2 === 0 ? 1 : -1
       const tc = clipCenter(i)
-      const shape = new THREE.Shape(poly.map(([x, y]) => new THREE.Vector2(x, y)))
+      const panelRng = mulberry32(0x51ab + i * 997)
+      // Разбиваем панель на выпуклые осколки; каждый — своя глубина и свой
+      // микроповорот. Видео при этом собирается воедино через непрерывные UV.
+      const shards = shatterPanel(hw, hh, panelRng)
 
-      // медиа-плоскость
-      const geo = new THREE.ShapeGeometry(shape)
-      const pa = geo.getAttribute('position')
-      const uv = geo.getAttribute('uv')
-      for (let k = 0; k < pa.count; k++) uv.setXY(k, (pa.getX(k) + hw) / PANEL_W, (pa.getY(k) + hh) / PANEL_H)
       const mat = new THREE.ShaderMaterial({
         transparent: true,
         uniforms: {
@@ -619,35 +669,59 @@ export class GalleryEngine {
             gl_FragColor = vec4(col*uAlpha, max(mask*0.97, edge)*uAlpha);
           }`,
       })
-      const media = new THREE.Mesh(geo, mat)
       slot.onTexture = (t) => (mat.uniforms.uMap.value = t)
 
-      // рамка (золотой «лист»)
+      // золотой лист за каждым осколком (общий для панели материал — затухание в одном месте)
       const pFrameMat = frameMat.clone()
       pFrameMat.transparent = true
-      const frame = new THREE.Mesh(
-        new THREE.ExtrudeGeometry(shape, { depth: 0.6, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.14, bevelSegments: 3 }),
-        pFrameMat,
-      )
-      frame.position.z = -0.95
-      frame.scale.set(1.018, 1.022, 1)
-
-      // светящийся контур
-      const lp: number[] = []
-      for (let k = 0; k < poly.length; k++) {
-        const a = poly[k]
-        const b = poly[(k + 1) % poly.length]
-        lp.push(a[0], a[1], 0.03, b[0], b[1], 0.03)
-      }
-      const lg = new LineSegmentsGeometry()
-      lg.setPositions(lp)
-      const lmat = new LineMaterial({ color: 0xffffff, linewidth: 2.4, worldUnits: false })
-      lmat.color = new THREE.Color(0.78, 0.66, 0.48).multiplyScalar(0.75)
+      const lmat = new LineMaterial({ color: 0xffffff, linewidth: 1.6, worldUnits: false })
+      lmat.color = new THREE.Color(0.86, 0.72, 0.5).multiplyScalar(0.85)
       lmat.fog = true
       lmat.transparent = true
       this.lineMats.push(lmat)
-      const edgeLine = new LineSegments2(lg, lmat)
-      edgeLine.frustumCulled = false
+
+      const shardGroup = new THREE.Group()
+      for (const shard of shards) {
+        const [cx, cy] = polyCentroid(shard)
+        const shape = new THREE.Shape(shard.map(([x, y]) => new THREE.Vector2(x, y)))
+
+        // медиа-осколок
+        const geo = new THREE.ShapeGeometry(shape)
+        const pa = geo.getAttribute('position')
+        const uv = geo.getAttribute('uv')
+        for (let k = 0; k < pa.count; k++) uv.setXY(k, (pa.getX(k) + hw) / PANEL_W, (pa.getY(k) + hh) / PANEL_H)
+        geo.translate(-cx, -cy, 0)
+
+        // золотая подложка осколка — чуть крупнее и позади: тонкий «золотой срез»
+        const plateGeo = new THREE.ExtrudeGeometry(shape, {
+          depth: 0.2, bevelEnabled: true, bevelThickness: 0.055, bevelSize: 0.045, bevelSegments: 2,
+        })
+        plateGeo.translate(-cx, -cy, 0)
+
+        // контур осколка
+        const lp: number[] = []
+        for (let k = 0; k < shard.length; k++) {
+          const a = shard[k], b = shard[(k + 1) % shard.length]
+          lp.push(a[0] - cx, a[1] - cy, 0.03, b[0] - cx, b[1] - cy, 0.03)
+        }
+        const lg = new LineSegmentsGeometry()
+        lg.setPositions(lp)
+        const edgeLine = new LineSegments2(lg, lmat)
+        edgeLine.frustumCulled = false
+
+        const piece = new THREE.Group()
+        // осколок со своим микросмещением в глубину и лёгким поворотом
+        piece.position.set(cx, cy, (panelRng() - 0.5) * 0.9)
+        piece.rotation.z = (panelRng() - 0.5) * 0.055
+        const shrink = 0.94 + panelRng() * 0.035
+        piece.scale.setScalar(shrink)
+        const plate = new THREE.Mesh(plateGeo, pFrameMat)
+        plate.position.z = -0.34
+        plate.scale.setScalar(1.05) // тонкая золотая кайма по граням скола
+        const media = new THREE.Mesh(geo, mat)
+        piece.add(plate, media, edgeLine)
+        shardGroup.add(piece)
+      }
 
       const flare = new THREE.Sprite(
         new THREE.SpriteMaterial({ map: flareTex, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, transparent: true, opacity: 0 }),
@@ -663,13 +737,13 @@ export class GalleryEngine {
       }))
       motes.frustumCulled = false
       const fly = new THREE.Group()
-      fly.add(frame, media, edgeLine, flare, motes)
+      fly.add(shardGroup, flare, motes)
       const root = new THREE.Group()
       root.add(fly)
       root.visible = false
 
-      // позиция/ориентация панели
-      const sPanel = S(tc) + PANEL_DIST
+      // позиция/ориентация панели; глубина у каждой своя — «парение», не стенка
+      const sPanel = S(tc) + PANEL_DIST + (panelRng() - 0.5) * 2.3
       const pose = this.sample(sPanel)
       const pos = pose.p.clone().addScaledVector(pose.r, side * 0.9).addScaledVector(pose.u, (i % 3 === 1 ? 1.2 : -0.3) + 0.6)
       const camPos = this.sample(S(tc)).p.clone()

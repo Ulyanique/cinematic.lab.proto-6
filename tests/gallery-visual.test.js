@@ -65,3 +65,16 @@ test('shared emblem builder is used by both intro and finale', () => {
   assert.match(read('src/studio/gallery/finale.ts'), /buildEmblem/);
   assert.match(read('src/studio/lab2/emblem.ts'), /export function buildEmblem/);
 });
+
+test('gallery panels are shattered into depth-staggered shards', () => {
+  const engine = read('src/studio/gallery/engine.ts');
+  assert.match(engine, /SHARD_TARGET = 6/);
+  assert.match(engine, /function shatterPanel/);
+  // осколки смещены по глубине и повёрнуты
+  assert.match(engine, /piece\.position\.set\(cx, cy, \(panelRng\(\) - 0\.5\) \* 0\.9\)/);
+  assert.match(engine, /piece\.rotation\.z = /);
+  // видео при этом остаётся единым через непрерывные UV
+  assert.match(engine, /uv\.setXY\(k, \(pa\.getX\(k\) \+ hw\) \/ PANEL_W/);
+  // панели парят на своей глубине, а не в одной плоскости
+  assert.match(engine, /PANEL_DIST \+ \(panelRng\(\) - 0\.5\) \* 2\.3/);
+});
