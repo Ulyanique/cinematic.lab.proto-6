@@ -20,7 +20,6 @@ import {
 } from "./config.js";
 import { LogoScene } from "./scene.js";
 import { BrandScene } from "./brand-scene.js";
-import { PhotoPauseScene } from "./photo-pause-scene.js";
 import { PartnersScene, loadPartnersBackground, preloadPartnerCustomLogos, preloadPartnersCustomBackground } from "./partners-scene.js";
 import { SponsorScene } from "./sponsor-scene.js";
 import { FinaleScene } from "./finale-scene.js";
@@ -37,7 +36,7 @@ import {
   saveSceneSnapshot, loadSceneSnapshot, hasSceneSnapshot, encodeConfigShareHash,
 } from "./scene-snapshots.js";
 import { AnimationRuntime, cycleDuration, setRenderHook } from "./runtime.js";
-import { Lab2Scene, Lab2BrandScene, Lab2OutroScene, Lab5Scene } from "./lab-scenes.js";
+import { Lab2Scene, Lab2BrandScene, Lab2OutroScene, Lab2PhotoScene, Lab5Scene } from "./lab-scenes.js";
 import { LAB2_ID, LAB2_BRAND_ID, LAB2_OUTRO_ID, LAB5_ID, isLabScene } from "./scenes/labs.js";
 import { FxStack, fxActive, applyFxPreset, EFFECT_KEYS } from "./fx-stack.js";
 import { frameCount, estimateVideoBytes, videoBitrateFor } from "./video-math.js";
@@ -260,7 +259,7 @@ function applyTypography(force = false) {
 applyTypography();
 
 const adapters = { waiting: LogoScene, brand: BrandScene,
-  "partners": PartnersScene, "photo-pause": PhotoPauseScene, finale: FinaleScene,
+  "partners": PartnersScene, "photo-pause": Lab2PhotoScene, finale: FinaleScene,
   // Заставки партнёров — один класс, знак берётся из своего конфига.
   "sponsor-promrukav": SponsorScene, "sponsor-keaz": SponsorScene,
   // Кинематографичные лаборатории proto-2 и proto-5

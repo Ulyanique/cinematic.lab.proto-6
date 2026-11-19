@@ -26,7 +26,9 @@ export const LAB5_ID = "lab-monoliths";
  */
 export const LAB2_BRAND_ID = "lab-swarm-brand";
 export const LAB2_OUTRO_ID = "lab-swarm-outro";
-export const LAB_IDS = Object.freeze([LAB2_ID, LAB5_ID, LAB2_BRAND_ID, LAB2_OUTRO_ID]);
+/** Фотопауза собрана на той же интро-машинерии, что «Фон»; id остаётся прежним. */
+export const PHOTO_PAUSE_ID = "photo-pause";
+export const LAB_IDS = Object.freeze([LAB2_ID, LAB5_ID, LAB2_BRAND_ID, LAB2_OUTRO_ID, PHOTO_PAUSE_ID]);
 export const isLabScene = (id) => LAB_IDS.includes(id);
 
 /**
@@ -306,6 +308,8 @@ export const LAB_SCHEMA_SECTIONS = [...lab2Sections, ...lab5Sections];
 export function labSectionAllowed(sceneId, sectionId) {
   if (!isLabScene(sceneId)) return null;
   if (["timeline", "playback", "transition", "fxStack"].includes(sectionId)) return true;
+  // У фотопаузы свой раздел с апертурой — остальное те же lab2_*.
+  if (sceneId === PHOTO_PAUSE_ID) return sectionId === "photo" || sectionId.startsWith(LAB2_PREFIX);
   // Фон собран из той же композиции, что «Интро», поэтому его разделы — те же
   // lab2_*: отдельного набора настроек у него нет и не должно быть.
   return sectionId.startsWith(sceneId === LAB5_ID ? LAB5_PREFIX : LAB2_PREFIX);

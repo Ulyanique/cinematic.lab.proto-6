@@ -1,17 +1,24 @@
-import { createSceneTimeline } from "./scene-timeline.js";
-import { createSharedSceneConfig } from "./shared-visuals.js";
+import { LAB2_BRAND_DEFAULTS } from "./labs.js";
 
-// Фотопауза использует общий 24-секундный жест и собственную рамку.
-export const PHOTO_PAUSE_DEFAULTS = createSharedSceneConfig(createSceneTimeline(24));
-
-// Логотип по центру; рамка и круговой текст настраиваются отдельно.
-PHOTO_PAUSE_DEFAULTS.caption.titleText = "Фотопауза";
-PHOTO_PAUSE_DEFAULTS.logo.scale = 0.58;
-PHOTO_PAUSE_DEFAULTS.logo.offsetY = 0;
-PHOTO_PAUSE_DEFAULTS.photo = {
-  textEnabled: false, offsetX: 0, offsetY: 0, text: "ФОТОПАУЗА", repeats: 4, radius: 1.75, fontSize: 0.20,
-  rotationSpeed: 0.035, textOpacity: 0.82, textColor: null, color: "#e8c77e",
-  apertureEnabled: true, apertureOffsetX: 0, apertureOffsetY: 0, apertureRadius: 1.3, apertureOpacity: 0.5, apertureColor: "#e8c77e",
-  logoTurns: 1, ringRadius: 1.57, frameEnabled: true, frameMargin: 0.045, frameLength: 0.08, frameOpacity: 0.55,
-  framePulse: 0.015, framePulseCycles: 2,
-};
+/**
+ * Фотопауза — та же композиция, что «Фон» (№ 02): интро-сборка эмблемы из роя,
+ * объёмная надпись, кольца и свет «фона», без подзаголовка и даты. Два своих
+ * штриха: вместо «ЯНТАРНЫЙ ЦИРКУЛЬ» — слово «ФОТОПАУЗА» мельче, а дуги
+ * «циркуля» вокруг знака заменены апертурой фотографической диафрагмы
+ * (как была на прежней фотопаузе). Русский текст короче исходной строки,
+ * поэтому `scale` уменьшен: буквы мельче, а не просто короче.
+ */
+export const PHOTO_PAUSE_DEFAULTS = (() => {
+  const cfg = JSON.parse(JSON.stringify(LAB2_BRAND_DEFAULTS));
+  // Надпись: «ФОТОПАУЗА», мельче «ЯНТАРНОГО ЦИРКУЛЯ».
+  cfg.lab2_title.text = "ФОТОПАУЗА";
+  cfg.lab2_title.scale = 0.62;
+  // Дуги циркуля вокруг эмблемы убраны: их место занимает апертура.
+  cfg.lab2_compass.enabled = false;
+  // Собственная настройка апертуры (раздел «Апертура»): как на прежней фотопаузе.
+  cfg.photo = {
+    apertureEnabled: true, apertureOffsetX: 0, apertureOffsetY: 0,
+    apertureRadius: 3.1, apertureOpacity: 0.85, apertureColor: "#e8c77e",
+  };
+  return cfg;
+})();

@@ -14,6 +14,8 @@ import { localCycleTime, repeatTime } from "./playback.js";
 import { cycleDuration } from "./runtime.js";
 import { holdForDuration } from "./operator-timeline.js";
 import { lab2FrameTiming, lab2OutroFrameTiming } from "./lab2-timing.js";
+import { PhotoAperture } from "./photo-aperture.js";
+import { apertureSegments } from "./scenes/aperture-layout.js";
 
 /**
  * Адаптеры лабораторий к общему циклу студии: сцена получает время `update(t)` и
@@ -164,6 +166,70 @@ export class Lab2Scene extends LabScene {
   dispose() {
     super.dispose();
     try { this.intro.dispose(); } catch (error) { console.warn("Лаборатория 10: ошибка освобождения", error); }
+  }
+}
+
+/**
+ * Фотопауза: композиция «Фона» (эмблема из роя, надпись, кольца à la Фон) плюс
+ * раскрывающаяся апертура диафрагмы, как была на прежней фотопаузе. Апертура —
+ * отдельный слой поверх интро-кадра: раскрывается до удара эмблемы и растворяется,
+ * как только знак осел.
+ */
+export class Lab2PhotoScene extends Lab2Scene {
+  constructor(canvas, cfg) {
+    super(canvas, cfg);
+    this.photo = true;
+    // Как у «Фона»: вход студии растянут на всю сборку композиции, а не резкий
+    // «удар» эмблемы посередине пролога.
+    this.brand = true;
+    this.aperture = new PhotoAperture();
+    this.apertureAdded = false;
+  }
+
+  /** Время фильма — то же, по которому render() ставит кадр интро. */
+  filmSeconds() {
+    const timeline = this.cfg.timeline;
+    const cycle = cycleDuration(timeline);
+    const local = localCycleTime(this.time, cycle, timeline.startDelay || 0);
+    const entryEnd = phaseBounds(this.lab.general).exitAt;
+    return lab2FrameTiming(local, timeline, this.lab.general.impact, entryEnd).filmTime;
+  }
+
+  update(t) {
+    super.update(t);
+    if (!this.ready || this.disposed) return;
+    if (!this.apertureAdded && this.intro?.scene) {
+      this.intro.scene.add(this.aperture.group);
+      this.apertureAdded = true;
+    }
+    const p = this.cfg.photo || {};
+    const clamp01 = (x) => Math.max(0, Math.min(1, x));
+    const smooth = (x) => { const k = clamp01(x); return k * k * (3 - 2 * k); };
+    const tFilm = this.filmSeconds();
+    // Раскрытие к удару эмблемы, короткое «присутствие» и мягкий уход.
+    const open = smooth((tFilm - 1.1) / 2.3);
+    const opacity = smooth((tFilm - 1.1) / 0.8) * (1 - smooth((tFilm - 3.6) / 1.2));
+    const a = this.aperture;
+    const logo = this.intro?.logoRoot;
+    a.group.position.set(
+      (logo?.position.x ?? 0) + (p.apertureOffsetX ?? 0),
+      (logo?.position.y ?? 0) + (p.apertureOffsetY ?? 0),
+      -0.6, // чуть позади эмблемы, как на прежней фотопаузе
+    );
+    a.group.scale.setScalar(p.apertureRadius ?? 3.1);
+    // На светлом рое тонкие линии гаснут: поднимаем цвет в HDR, чтобы апертура
+    // читалась как светящийся контур (её и так подхватывает блумом сцены).
+    a.material.color.set(p.apertureColor ?? "#e8c77e").multiplyScalar(2.1);
+    a.material.opacity = (p.apertureOpacity ?? 0.85) * opacity;
+    const positions = a.geometry.getAttribute("position");
+    positions.array.set(apertureSegments(open));
+    positions.needsUpdate = true;
+    a.group.visible = (p.apertureEnabled !== false) && a.material.opacity > 0.004;
+  }
+
+  dispose() {
+    try { this.aperture?.dispose(); } catch { /* сцена уже закрывается */ }
+    super.dispose();
   }
 }
 

@@ -77,7 +77,7 @@ export function eyeKey(section) {
 export function defaultSection(sceneId, sections) {
   const preferred = sceneId.startsWith('lab5')
     ? ['lab5_text', 'lab5_video']
-    : sceneId.startsWith('lab2')
+    : sceneId.startsWith('lab2') || sceneId === 'photo-pause'
       ? ['lab2_logo', 'lab2_title']
       : ['caption', 'logo', 'timeline'];
   for (const id of preferred) {
