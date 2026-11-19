@@ -35,10 +35,10 @@ export const SCENES = Object.freeze([
   // архивным: он на месте «02», но помечен, чтобы два «Фона» не путались.
   { id: "brand", title: "Архив — прежний фирменный фон для речи и ужина", code: "A2", label: "Фон (архив)", status: "ready", archived: true, defaults: BRAND_DEFAULTS },
   { id: "dream-project", title: "Проект мечты", status: "planned" },
-  { id: "partners", title: "Спонсоры и партнёры (макет)", code: "04", label: "Спонсоры", status: "preview", defaults: PARTNERS_DEFAULTS },
-  // Заставки отдельных спонсоров: тот же кадр, но один знак крупно по центру.
-  { id: "sponsor-promrukav", title: "Спонсор — Промрукав", code: "05а", label: "Промрукав", status: "preview", defaults: SPONSOR_PROMRUKAV_DEFAULTS },
-  { id: "sponsor-keaz", title: "Спонсор — КЭАЗ", code: "05б", label: "КЭАЗ", status: "preview", defaults: SPONSOR_KEAZ_DEFAULTS },
+  { id: "partners", title: "Партнёры и организаторы (макет)", code: "04", label: "Партнёры", status: "preview", defaults: PARTNERS_DEFAULTS },
+  // Заставки отдельных партнёров: тот же кадр, но один знак крупно по центру.
+  { id: "sponsor-promrukav", title: "Партнёр — Промрукав", code: "05а", label: "Промрукав", status: "preview", defaults: SPONSOR_PROMRUKAV_DEFAULTS },
+  { id: "sponsor-keaz", title: "Партнёр — КЭАЗ", code: "05б", label: "КЭАЗ", status: "preview", defaults: SPONSOR_KEAZ_DEFAULTS },
   { id: "archive", title: "Янтарный циркуль: помним всё", status: "needs-assets" },
   { id: "trick-brief", title: "ТЗ с подвохом", status: "needs-host" },
   { id: "architect", title: "Проектировщик объясняет", status: "needs-host" },
@@ -61,7 +61,7 @@ export const SCENES = Object.freeze([
  * Ролики, которые можно открыть и записать. Это единственный список id для
  * пульта, панели настроек и цепочки: раньше у каждого модуля был свой, и
  * наборы успевали разойтись. `chain` — сцена по умолчанию входит в автопоказ;
- * спонсорские заставки играют отдельно.
+ * партнёрские заставки играют отдельно.
  */
 export const PLAYABLE_SCENES = Object.freeze(
   SCENES.filter((scene) => scene.defaults && ["ready", "preview"].includes(scene.status))

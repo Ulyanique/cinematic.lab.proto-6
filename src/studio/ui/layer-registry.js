@@ -36,8 +36,8 @@ export const LAYER_META = Object.freeze({
   caption: { group: 'Текст', label: 'Надписи', hint: 'название, подзаголовок, дата' },
   typography: { group: 'Текст', label: 'Типографика', hint: 'шрифт и начертание' },
   ...Object.fromEntries(['stageSponsorLabel', 'stageOrganizer1', 'stageOrganizer2', 'stagePartner1', 'stagePartner2', 'stageSingleMark', 'stageOrganizerLabel', 'stageCoorganizerLabel', 'stagePartnerLabel', 'stagePartnerLabel2', 'stageBackground', 'stageCurtains', 'stageFrame', 'stageParticles', 'stageCompass', 'stageTitle', 'stageSubtitle', 'stageTitleDivider', 'stageOrnament'].map(id => [id, { group: 'Кадр', hint: 'положение, размер и видимость', eye: 'enabled' }])),
-  partners: { group: 'Текст', label: 'Спонсоры и организаторы', hint: 'имена и логотипы' },
-  sponsor: { group: 'Текст', label: 'Спонсор и подписи', hint: 'знак спонсора и строки' },
+  partners: { group: 'Текст', label: 'Партнёры и организаторы', hint: 'имена и логотипы' },
+  sponsor: { group: 'Текст', label: 'Партнёр и подписи', hint: 'знак партнёра и строки' },
   finale: { group: 'Текст', label: 'Финальный уход', hint: 'этапы финальной фразы' },
 
   // ── кадр ──────────────────────────────────────────────────────────────

@@ -72,7 +72,7 @@ test('sponsor subtitle edits the displayed source text from the selected layer a
   const dom = new JSDOM('<!doctype html><html><body></body></html>', {url:'https://example.org'});
   for (const name of ['window','document','localStorage','Element','HTMLElement','HTMLInputElement','HTMLTextAreaElement','HTMLSelectElement','HTMLButtonElement','navigator']) Object.defineProperty(globalThis, name, {value:dom.window[name], configurable:true, writable:true});
   globalThis.innerWidth = 1200; globalThis.innerHeight = 900;
-  const defaults = { stageSubtitle:{enabled:true}, sponsor:{subtitle:'СПОНСОР'}, partners:{subtitle:'вечер ретроспектива'} };
+  const defaults = { stageSubtitle:{enabled:true}, sponsor:{subtitle:'ПАРТНЁР'}, partners:{subtitle:'вечер ретроспектива'} };
   const cfg = structuredClone(defaults);
   const section = {id:'stageSubtitle',title:'Подзаголовок',fields:[...partnerTextFields('sponsor-keaz','stageSubtitle'), {key:'enabled',label:'Видимость',type:'bool'}]};
   const state = {sceneId:'sponsor-keaz', sceneLabel:'КЭАЗ', sections:[section], config:cfg, defaults};
@@ -82,13 +82,13 @@ test('sponsor subtitle edits the displayed source text from the selected layer a
   });
   panels.openSection('stageSubtitle');
   let input = document.querySelector('.ins-row[data-key="sponsor.subtitle"] .ins-text');
-  assert.equal(input.value,'СПОНСОР');
+  assert.equal(input.value,'ПАРТНЁР');
   input.value = 'Партнёр'; input.dispatchEvent(new dom.window.Event('input'));
   input.dispatchEvent(new dom.window.Event('change'));
   assert.equal(cfg.sponsor.subtitle,'Партнёр');
   assert.equal(cfg.partners.subtitle,'вечер ретроспектива');
   document.querySelector('.ins-row[data-key="sponsor.subtitle"] .ins-reset').click();
-  assert.equal(cfg.sponsor.subtitle,'СПОНСОР');
+  assert.equal(cfg.sponsor.subtitle,'ПАРТНЁР');
   assert.equal(partnerTextFields('partners','stageSubtitle')[0].sourceSection,'partners');
   assert.equal(partnerTextFields('lab-swarm','stageSubtitle').length,0);
   panels.panels.layers.el.remove(); panels.panels.settings.el.remove(); dom.window.close();

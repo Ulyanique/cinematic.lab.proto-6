@@ -5,7 +5,7 @@ import { createSceneTimeline } from './scene-timeline.js';
 // Отдельная сцена с присланными изображениями и независимыми настройками.
 // Цикл длиннее остальных роликов: в этой сцене читают четыре названия и две
 // пары знаков, а не одну строку. На 20 секундах удержание было короче, чем
-// нужно, чтобы прочитать состав спонсоров.
+// нужно, чтобы прочитать состав партнёров.
 export const PARTNERS_DEFAULTS = createSharedSceneConfig(createSceneTimeline(42.5));
 PARTNERS_DEFAULTS.timeline.drawDuration += 4;
 PARTNERS_DEFAULTS.timeline.holdDuration -= 4;
@@ -17,7 +17,7 @@ PARTNERS_DEFAULTS.partnersLight = { enabled: true, strength: .7, speed: 1 };
 PARTNERS_DEFAULTS.partners = {
   title: 'ЯНТАРНЫЙ ЦИРКУЛЬ', subtitle: 'вечер ретроспектива',
   organizerLabel: 'ОРГАНИЗАТОР', coorganizerLabel: 'СООРГАНИЗАТОР', organizer1: 'ПРОэлектро', organizer2: 'ПРОэлектрощит',
-  partnerLabel: 'СПОНСОР', partner2Label: 'СПОНСОР', partner1: 'Промрукав', partner2: 'КЭАЗ',
+  partnerLabel: 'ПАРТНЁР', partner2Label: 'ПАРТНЁР', partner1: 'Промрукав', partner2: 'КЭАЗ',
   logoStyle: 'gold',
   organizer1Logo: '', organizer2Logo: '', partner1Logo: '', partner2Logo: '',
   // Оставшаяся у края ширина раскрытых занавесов.
@@ -25,9 +25,9 @@ PARTNERS_DEFAULTS.partners = {
   frameVisible: true, curtainVisible: true, foliageVisible: true, compassVisible: true, motion: 1,
 };
 
-// ── Заставки отдельных спонсоров ──────────────────────────────────────────
-// В общем ролике «Спонсоры» четыре знака стоят двумя ярусами — это список.
-// Когда слово берёт один спонсор, ему нужен свой кадр: тот же фон и рамка,
+// ── Заставки отдельных партнёров ──────────────────────────────────────────
+// В общем ролике «Партнёры» четыре знака стоят двумя ярусами — это список.
+// Когда слово берёт один партнёр, ему нужен свой кадр: тот же фон и рамка,
 // но знак крупно по центру. Заголовок, подзаголовок и разделитель повторяют
 // вертикаль общего ролика, поэтому заставки стыкуются с ним без шва.
 /** @param {"promrukav"|"keaz"} mark */
@@ -44,7 +44,7 @@ function sponsorCard(mark) {
     mark,
     markLogo: "",
     markScale: 1,
-    title: 'ЯНТАРНЫЙ ЦИРКУЛЬ', subtitle: 'вечер ретроспектива', sponsorLabel: 'СПОНСОР',
+    title: 'ЯНТАРНЫЙ ЦИРКУЛЬ', subtitle: 'вечер ретроспектива', sponsorLabel: 'ПАРТНЁР',
     logoStyle: 'gold',
     frameVisible: true, curtainVisible: true, curtainWidth: 168, motion: 1,
   };

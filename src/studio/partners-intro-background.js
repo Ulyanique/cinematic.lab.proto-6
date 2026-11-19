@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { bgVert, bgFrag } from './lab2/shaders.ts';
 
-/** Тот же шейдер, что в интро, как отдельный отключаемый фон спонсоров. */
+/** Тот же шейдер, что в интро, как отдельный отключаемый фон партнёров. */
 export function createPartnersIntroBackground() {
   const uniforms = {
     uTime: { value: 0 }, uAspect: { value: 16 / 9 }, uBeam: { value: 1 }, uRib: { value: 1 },

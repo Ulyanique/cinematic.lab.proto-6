@@ -1,4 +1,4 @@
-/** Сценические сигналы спонсорской заставки: открытие и зеркальное закрытие. */
+/** Сценические сигналы партнёрской заставки: открытие и зеркальное закрытие. */
 const clamp = x => Math.max(0, Math.min(1, x));
 const smooth = (a, b, x) => { const p = clamp((x - a) / Math.max(1e-6, b - a)); return p * p * (3 - 2 * p); };
 export function partnersStageCues(phase, timeline, motion = 1, curtainFadePercent = 8, twoStageCurtains = false) {
@@ -9,7 +9,7 @@ export function partnersStageCues(phase, timeline, motion = 1, curtainFadePercen
   const closing = smooth(exitStart, exitStart + exitDuration, t);
   const p = t < entry ? t / entry : t < exitStart ? 1 : 1 - closing;
   const visible = phase.beforeStart ? 0 : 1 - smooth(exitStart + exitDuration * .92, exitStart + exitDuration, t);
-  // Сначала организатор и соорганизатор, затем два спонсора.
+  // Сначала организатор и соорганизатор, затем два партнёра.
   const organizer = twoStageCurtains ? smooth(.60, .68, p) : smooth(.57, .65, p);
   const organizerSecond = twoStageCurtains ? smooth(.70, .78, p) : smooth(.67, .75, p);
   const partner = twoStageCurtains ? smooth(.80, .88, p) : smooth(.77, .85, p);
@@ -294,11 +294,38 @@ export function migrateSponsorTitleBlock(saved) {
   return next;
 }
 
-/** Подпись спонсора на заставке одного спонсора: намного крупнее базовых 24 px. */
+/** Подпись партнёра на заставке одного партнёра: намного крупнее базовых 24 px. */
 export function migrateSponsorLabelScale(saved) {
   const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
   const layer = next.stageSponsorLabel;
   if (layer && (layer.scale === 1 || layer.scale == null)) layer.scale = 2.5;
   if (layer?.x === 620) layer.x = 550; // иначе крупная подпись наезжает на знак
+  return next;
+}
+
+/**
+ * Флаг однократного переименования старого слова.
+ * Ранее на заставках писалось «СПОНСОР»; теперь слово единообразно — «ПАРТНЁР».
+ */
+export const SPONSOR_WORD_FLAG = 'sponsor-word-to-partner-v1';
+
+/**
+ * Однократное переименование старого слова в стандартных подписях на «ПАРТНЁР».
+ * Идёт последней после прежних миграций подписей: они доводят старые сохранённые
+ * настройки до старого стандарта («СПОНСОРЫ» → «СПОНСОР»), а эта миграция
+ * переводит прежний стандарт на новый. Собственный текст пользователя,
+ * отличающийся от старого стандарта, не трогаем.
+ */
+export function migrateSponsorWord(saved) {
+  const next = structuredClone(saved && typeof saved === 'object' ? saved : {});
+  for (const key of ['partnerLabel', 'partner2Label']) {
+    const text = next.partners?.[key];
+    if (text === 'СПОНСОРЫ' || text === 'СПОНСОР') next.partners[key] = 'ПАРТНЁР';
+  }
+  if (next.sponsor) {
+    if (next.sponsor.sponsorLabel === 'СПОНСОР' || next.sponsor.sponsorLabel === 'СПОНСОРЫ') next.sponsor.sponsorLabel = 'ПАРТНЁР';
+    // Промежуточный старый стандарт подзаголовка — тоже прежнее слово.
+    if (next.sponsor.subtitle === 'СПОНСОР') next.sponsor.subtitle = 'ПАРТНЁР';
+  }
   return next;
 }

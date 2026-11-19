@@ -74,7 +74,7 @@ if (!activeScene?.defaults || !["ready", "preview"].includes(activeScene.status)
 // "waiting" остаётся внутренним идентификатором для старых ссылок и настроек.
 let sceneId = activeScene.id;
 // Настройки каждой готовой сцены живут отдельно: в браузере свой ключ на сцену.
-// Заставки отдельных спонсоров — те же страницы программы, поэтому идут в общем
+// Заставки отдельных партнёров — те же страницы программы, поэтому идут в общем
 // списке: у каждой свой конфиг, своя кнопка и своя запись.
 const READY_IDS = ["waiting", "brand", "partners", "sponsor-promrukav", "sponsor-keaz", "photo-pause", "finale", LAB2_ID, LAB2_BRAND_ID, LAB2_OUTRO_ID, LAB5_ID, CIRCLE_FINAL_ID, GALLERY_ID];
 const configs = new Map();
@@ -214,7 +214,7 @@ function activateClasses(id) {
     document.body.classList.toggle(`scene-${name === "photo-pause" ? "photo" : name}`, id === name);
   }
   document.body.classList.toggle("scene-waiting", id === "waiting");
-  // На заставках спонсора текст живёт в кадре: DOM-титр там не нужен.
+  // На заставках партнёра текст живёт в кадре: DOM-титр там не нужен.
   document.body.classList.toggle("scene-sponsor", id.startsWith("sponsor-"));
 }
 activateClasses(sceneId);
@@ -261,7 +261,7 @@ applyTypography();
 
 const adapters = { waiting: LogoScene, brand: BrandScene,
   "partners": PartnersScene, "photo-pause": PhotoPauseScene, finale: FinaleScene,
-  // Заставки спонсоров — один класс, знак берётся из своего конфига.
+  // Заставки партнёров — один класс, знак берётся из своего конфига.
   "sponsor-promrukav": SponsorScene, "sponsor-keaz": SponsorScene,
   // Кинематографичные лаборатории proto-2 и proto-5
   [LAB2_ID]: Lab2Scene, [LAB2_BRAND_ID]: Lab2BrandScene, [LAB2_OUTRO_ID]: Lab2OutroScene, [LAB5_ID]: Lab5Scene, [CIRCLE_FINAL_ID]: CircleFinalScene, [GALLERY_ID]: GalleryScene };
@@ -514,7 +514,7 @@ function syncMasterSize() {
 // WebGL целиком: превью и экспорт совпадают пиксель в пиксель.
 function captionSourceFor(id) {
   return () => {
-    // «Спонсоры» и заставки спонсоров собирают текст в кадре: DOM-титра нет.
+    // «Партнёры» и заставки партнёров собирают текст в кадре: DOM-титра нет.
     if (id === CIRCLE_FINAL_ID || id === "partners" || id.startsWith("sponsor-") || isLabScene(id) || !document.getElementById("caption")) return null;
     return { sceneId: id, alpha: 1 };
   };
@@ -972,7 +972,7 @@ function frame(now) {
   const before = runtime.time;
   if (!recording) {
     // На паузе сцена уже перерисовывается при seek и изменении настроек.
-    // Во время воспроизведения удержание спонсоров больше не перезагружает
+    // Во время воспроизведения удержание партнёров больше не перезагружает
     // большой Canvas каждый кадр, поэтому рендерим с частотой дисплея.
     if ((sceneId !== "partners" && !sceneId.startsWith("sponsor-")) || !cfg.playback.paused) runtime.advance(elapsed, renderDt);
     if (previewTransition) drawPreviewTransition(overlayCtx());
@@ -991,7 +991,7 @@ function frame(now) {
       applyTypography(true); scene.refreshTextTexture?.();
       if (!recording) runtime.renderAt(runtime.time, 1 / OUTPUT.fps);
       window.__bootReady?.();
-      if (!partnersLoaded && sceneId === "partners") toast("Не все изображения спонсоров загрузились; возможны текстовые замены", true);
+      if (!partnersLoaded && sceneId === "partners") toast("Не все изображения партнёров загрузились; возможны текстовые замены", true);
       if (!fabricLoaded) toast("Текстура камня не загрузилась; используется упрощённый фон", true);
       // Остальные шрифты подгружаем в простое, чтобы переключение в настройках было мгновенным.
       const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 250));

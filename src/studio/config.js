@@ -1,6 +1,6 @@
 import { migrateIntroBackgroundEffect } from "./intro-background-effect.js";
 import { PARTNERS_ELEMENT_SCHEMA } from "./partners-elements.js";
-import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge, migrateSponsorLabels, migrateCurtainEdgeV3, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, migratePartnersCompassContrast, migrateEqualPartnerLogoWidths, migratePartnersTitleAndKeaz, migratePartnersCurtainChoreography, migratePartnersCenterFirst, migrateSingleSponsorLayout, migratePartnerTextCase, migrateSponsorSideLabel, migrateSponsorTitleBlock, migrateSponsorLabelScale } from "./partners-stage.js";
+import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge, migrateSponsorLabels, migrateCurtainEdgeV3, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, migratePartnersCompassContrast, migrateEqualPartnerLogoWidths, migratePartnersTitleAndKeaz, migratePartnersCurtainChoreography, migratePartnersCenterFirst, migrateSingleSponsorLayout, migratePartnerTextCase, migrateSponsorSideLabel, migrateSponsorTitleBlock, migrateSponsorLabelScale, migrateSponsorWord, SPONSOR_WORD_FLAG } from "./partners-stage.js";
 import { migrateGalleryBuiltinClips, GALLERY_BUILTIN_FLAG } from "./gallery-defaults.js";
 import { migrateIntroBackground } from "./background-migration.js";
 import { DECOR_SLOTS } from "./brand-decor-config.js";
@@ -36,7 +36,7 @@ export const SCHEMA = [
     {key:"strength",label:"Яркость света",type:"range",min:0,max:1.5,step:.01},
     {key:"speed",label:"Скорость изменения",type:"range",min:0,max:2,step:.01},
   ] },
-  { id: "partners", title: "Спонсоры и организаторы", fields: [
+  { id: "partners", title: "Партнёры и организаторы", fields: [
     {key:"title",label:"Название вечера",type:"text",maxLength:120},
     {key:"subtitle",label:"Подзаголовок",type:"text",maxLength:120},
     {key:"organizerLabel",label:"Заголовок организатора",type:"text",maxLength:60},
@@ -45,8 +45,8 @@ export const SCHEMA = [
     {key:"organizer1Logo",label:"Организатор 1: свой логотип",type:"image"},
     {key:"organizer2",label:"Соорганизатор",type:"text",maxLength:80},
     {key:"organizer2Logo",label:"Соорганизатор: свой логотип",type:"image"},
-    {key:"partnerLabel",label:"Подпись спонсора 1",type:"text",maxLength:60},
-    {key:"partner2Label",label:"Подпись спонсора 2",type:"text",maxLength:60},
+    {key:"partnerLabel",label:"Подпись партнёра 1",type:"text",maxLength:60},
+    {key:"partner2Label",label:"Подпись партнёра 2",type:"text",maxLength:60},
     {key:"partner1",label:"Партнёр 1",type:"text",maxLength:80},
     {key:"partner1Logo",label:"Партнёр 1: свой логотип",type:"image"},
     {key:"partner2",label:"Партнёр 2",type:"text",maxLength:80},
@@ -60,9 +60,9 @@ export const SCHEMA = [
     {key:"curtainWidth",label:"Занавес у края: ширина, px",type:"range",min:20,max:240,step:4},
     {key:"motion",label:"Движение декора при удержании",type:"range",min:0,max:1,step:.01},
   ] },
-  // Заставка одного спонсора: тот же кадр, что у «Спонсоров», но знак крупно
+  // Заставка одного партнёра: тот же кадр, что у «Партнёров», но знак крупно
   // по центру. Поля повторяют общий раздел, чтобы правки привычно искались.
-  { id: "sponsor", title: "Спонсор и подписи", fields: [
+  { id: "sponsor", title: "Партнёр и подписи", fields: [
     { key: "mark", label: "Чей знак в кадре", type: "select", options: [
       { value: "promrukav", label: "Промрукав" },
       { value: "keaz", label: "КЭАЗ" },
@@ -485,6 +485,7 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
   let raw = null;
   let migrateGalleryBuiltinClipsNeeded = false, migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false, migrateCurtainEdgeNeeded = false, migrateCurtainEdgeV3Needed = false, migrateSponsorLabelsNeeded = false, migrateReferenceLayoutNeeded = false, migratePartnerLabelLinesNeeded = false, migratePartnersTopTitleNeeded = false, migratePartnersCompassContrastNeeded = false, migrateEqualPartnerLogoWidthsNeeded = false, migratePartnersTitleAndKeazNeeded = false, migratePartnersCurtainChoreographyNeeded = false, migratePartnersCenterFirstNeeded = false, migrateSingleSponsorLayoutNeeded = false, migratePartnerTextCaseNeeded = false, migrateSponsorSideLabelNeeded = false, migrateSponsorTitleBlockNeeded = false, migrateSponsorLabelScaleNeeded = false;
   let migratePhotoCenter = false, migratePhotoSize = false, migrateBrandCenter = false, migrateGuides = false, migrateFinaleGuides = false, migrateBrandLift = false;
+  let migrateSponsorWordNeeded = false;
   try {
     raw = localStorage.getItem(sceneStorageKey(sceneId));
     if (!raw && sceneId === "waiting") raw = localStorage.getItem(LEGACY_KEY);
@@ -508,6 +509,7 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     if (sceneId.startsWith("sponsor-")) migrateSponsorTitleBlockNeeded = !localStorage.getItem(`sponsor-title-block-v1:${sceneId}`);
     if (sceneId.startsWith("sponsor-")) migrateSponsorLabelScaleNeeded = !localStorage.getItem(`sponsor-label-scale-v1:${sceneId}`);
     if (sceneId === "gallery") migrateGalleryBuiltinClipsNeeded = !localStorage.getItem(GALLERY_BUILTIN_FLAG);
+    if (sceneId === "partners" || sceneId.startsWith("sponsor-")) migrateSponsorWordNeeded = !localStorage.getItem(`${SPONSOR_WORD_FLAG}:${sceneId}`);
     if (sceneId.startsWith("sponsor-")) migrateSingleSponsorLayoutNeeded = !localStorage.getItem(`single-sponsor-layout-v1:${sceneId}`);
     if (sceneId.startsWith("sponsor-")) migrateSponsorStageNeeded = !localStorage.getItem(`sponsor-stage-v1:${sceneId}`);
     if (sceneId === "lab-swarm-brand") migrateIntroBackgroundNeeded = !localStorage.getItem("lab-swarm-brand-minute-hold-v1");
@@ -795,6 +797,15 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
         try { localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved)); } catch (e) { /* noop */ }
       }
       try { localStorage.setItem(FINALE_GUIDES_MIGRATION, "1"); } catch (e) { /* noop */ }
+    }
+    // Однократное переименование старого слова в стандартных подписях на «ПАРТНЁР».
+    // Идёт последней после прежних миграций подписей.
+    if (migrateSponsorWordNeeded) {
+      saved = migrateSponsorWord(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(`${SPONSOR_WORD_FLAG}:${sceneId}`, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
     }
     deepMerge(cfg, saved);
     if (migrateIntroBackgroundEffect(cfg)) {

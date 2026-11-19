@@ -1,16 +1,16 @@
-/** Редактируемые слои трёх спонсорских сцен; координаты в кадре 1920×1080. */
+/** Редактируемые слои трёх партнёрских сцен; координаты в кадре 1920×1080. */
 const spec = (id, title, x, y, extra = {}) => ({ id, title, defaults: { enabled: true, x, y, scale: 1, opacity: 1, ...extra } });
 export const PARTNERS_ELEMENTS = Object.freeze([
   spec('stageOrganizer1', 'Организатор · логотип', 430, 260, { start: 60, end: 68 }),
   spec('stageOrganizer2', 'Соорганизатор · логотип', 1380, 260, { start: 70, end: 78 }),
-  spec('stagePartner1', 'Спонсор 1 · логотип', 410, 500, { start: 80, end: 88 }),
-  spec('stagePartner2', 'Спонсор 2 · логотип', 1490, 500, { start: 90, end: 99 }),
-  spec('stageSponsorLabel', 'Подпись спонсора', 620, 385, { color: '#d2ac70', lineEnabled: false, lineLength: 150, lineGap: 20, lineOpacity: .65 }),
-  spec('stageSingleMark', 'Логотип спонсора', 960, 220, { start: 57, end: 65 }),
+  spec('stagePartner1', 'Партнёр 1 · логотип', 410, 500, { start: 80, end: 88 }),
+  spec('stagePartner2', 'Партнёр 2 · логотип', 1490, 500, { start: 90, end: 99 }),
+  spec('stageSponsorLabel', 'Подпись партнёра', 620, 385, { color: '#d2ac70', lineEnabled: false, lineLength: 150, lineGap: 20, lineOpacity: .65 }),
+  spec('stageSingleMark', 'Логотип партнёра', 960, 220, { start: 57, end: 65 }),
   spec('stageOrganizerLabel', 'Подпись организатора', 510, 175, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
   spec('stageCoorganizerLabel', 'Подпись соорганизатора', 1300, 175, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
-  spec('stagePartnerLabel', 'Подпись спонсора 1', 490, 365, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
-  spec('stagePartnerLabel2', 'Подпись спонсора 2', 1410, 365, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
+  spec('stagePartnerLabel', 'Подпись партнёра 1', 490, 365, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
+  spec('stagePartnerLabel2', 'Подпись партнёра 2', 1410, 365, { color: '#d2ac70', lineEnabled: true, lineLength: 320, lineGap: 20, lineOpacity: .65 }),
   spec('stageBackground', 'Фоновая картинка', 960, 540, { backgroundImage: '' }),
   spec('stageCurtains', 'Шторы', 960, 540, { leftVisible: true, rightVisible: true, leftOffset: 0, rightOffset: 0, fadePercent: 8 }),
   spec('stageFrame', 'Рамка и блик', 960, 540, { glint: 1 }),
@@ -36,7 +36,7 @@ export function partnerElementDefaults(single = false) {
     for (const [id, [x, y]] of Object.entries(reference)) Object.assign(out[id], { x, y });
     out.stageTitleDivider.width = 520;
     out.stageSubtitle.color = '#c8a873';
-    // Подпись спонсора читается с последнего ряда: примерно в 2.5 раза крупнее
+    // Подпись партнёра читается с последнего ряда: примерно в 2.5 раза крупнее
     // базовых 24 px, на одной горизонтали со знаком; сдвинута влево,
     // чтобы не наезжать на знак КЭАЗ.
     out.stageSponsorLabel.scale = 2.5;

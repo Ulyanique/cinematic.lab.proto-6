@@ -45,7 +45,7 @@ export const SCENE_NAV = Object.freeze(
       code: scene.code,
       label: scene.label,
       title: scene.title,
-      // Заставка спонсора — тот же кадр, что «Спонсоры», но со своим знаком:
+      // Заставка партнёра — тот же кадр, что «Партнёры», но со своим знаком:
       // в автопоказ её ставят отдельно, поэтому по умолчанию она вне программы.
       program: scene.chain !== false,
       archived: scene.archived === true,

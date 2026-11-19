@@ -267,7 +267,7 @@ function selectedBackground(section) {
 
 /**
  * Изображения программы: фон, занавес и встроенные знаки. Заставки отдельных
- * спонсоров берут их отсюда же — вторая копия картинок в памяти не нужна.
+ * партнёров берут их отсюда же — вторая копия картинок в памяти не нужна.
  * @returns {{background: HTMLCanvasElement|null, curtain: HTMLImageElement|null}}
  */
 export function partnersAssets() {
@@ -275,8 +275,8 @@ export function partnersAssets() {
 }
 
 /**
- * Готовый знак для заставки спонсора: встроенный золотой (или свой файл).
- * Возвращает канвас в том же виде, в каком знаки рисуются в «Спонсорах»,
+ * Готовый знак для заставки партнёра: встроенный золотой (или свой файл).
+ * Возвращает канвас в том же виде, в каком знаки рисуются в «Партнёрах»,
  * поэтому блик и тиснение совпадают.
  * @param {string} key @param {string} [customUrl] @param {string} [style]
  */
@@ -292,7 +292,7 @@ export function partnersMark(key, customUrl, style = 'gold') {
   return builtinMark(key, resolved);
 }
 
-/** Заголовок и подзаголовок по умолчанию: у заставок они те же, что у «Спонсоров». */
+/** Заголовок и подзаголовок по умолчанию: у заставок они те же, что у «Партнёров». */
 export function partnerDefaults() {
   return PARTNERS_DEFAULTS.partners;
 }
@@ -340,7 +340,7 @@ export async function preloadPartnerCustomLogos(partnersCfg) {
 }
 
 /**
- * Сцена 04 «Спонсоры»: лёгкий автономный WebGL-адаптер без тяжёлого 3D-графа
+ * Сцена 04 «Партнёры»: лёгкий автономный WebGL-адаптер без тяжёлого 3D-графа
  * основной сцены и с двойной буферизацией 2D-полотна (0 аллокаций canvas на кадр).
  */
 export class PartnersScene {
@@ -815,7 +815,7 @@ export class PartnersScene {
       const scale = 1.45 * Math.max(.5, Math.min(1.8, Number(data.markScale) || 1)) *
         (data.mark === 'keaz' ? PARTNERS_MARK_LAYOUT.keazScale : 1);
       glowFor(e, 400, 130);
-      label(cfg.stageSponsorLabel, data.sponsorLabel ?? 'СПОНСОР', visible * cue.organizer, cue.organizer, -1);
+      label(cfg.stageSponsorLabel, data.sponsorLabel ?? 'ПАРТНЁР', visible * cue.organizer, cue.organizer, -1);
       company('single', e, cue.organizer, 2.75, 0, scale);
     } else {
       glowFor(cfg.stageOrganizer1); glowFor(cfg.stageOrganizer2);

@@ -107,7 +107,7 @@ html, body {
 }
 
 /* Фирменное поле: название под знаком, без даты и дополнительных строк.
-   На заставках спонсора весь текст собирается в кадре (заголовок, подзаголовок,
+   На заставках партнёра весь текст собирается в кадре (заголовок, подзаголовок,
    разделитель), поэтому DOM-титр там скрыт целиком. */
 body.scene-sponsor #caption { display: none; }
 body.scene-brand #caption .cap-rule,
@@ -924,7 +924,7 @@ body.editor-focus .editor-workspace-resize { display: none; }
 .storage-warning button { margin: 6px; padding: 6px 10px; cursor: pointer; }
 .export-dialog small { display: block; margin-bottom: 12px; line-height: 1.4; }
 
-/* Отдельный макет спонсоров содержит собственные тексты в рендере. */
+/* Отдельный макет партнёров содержит собственные тексты в рендере. */
 body.scene-partners #caption { display: none; }
 
 /* Интерфейс уважает системный запрос на покой: служебные анимации и переходы

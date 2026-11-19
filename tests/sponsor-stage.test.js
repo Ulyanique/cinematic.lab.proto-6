@@ -35,7 +35,7 @@ test('single-sponsor cards use reference composition and editable sponsor subtit
   const { migrateSingleSponsorLayout } = await import('../src/studio/partners-stage.js');
   for (const c of [a, b]) {
     assert.equal(c.sponsor.subtitle, 'вечер ретроспектива');
-    assert.equal(c.sponsor.sponsorLabel, 'СПОНСОР');
+    assert.equal(c.sponsor.sponsorLabel, 'ПАРТНЁР');
     assert.ok(c.stageSponsorLabel.x < c.stageSingleMark.x);
     assert.equal(c.stageTitle.y, 150);
     assert.equal(c.stageTitleDivider.y, 195);
@@ -86,4 +86,26 @@ test('05А/05Б text block migration lifts only the untouched defaults', () => {
   assert.equal(next.stageSingleMark.x, 1130);
   const custom = { stageTitleDivider:{x:960,y:150}, stageSubtitle:{x:700,y:265}, stageSingleMark:{x:1000,y:385} };
   assert.deepEqual(migrateSponsorTitleBlock(custom), custom);
+});
+
+test('sponsor word migration renames only the legacy default captions', async () => {
+  const { migrateSponsorWord, SPONSOR_WORD_FLAG } = await import('../src/studio/partners-stage.js');
+  assert.equal(SPONSOR_WORD_FLAG, 'sponsor-word-to-partner-v1');
+  // Старый стандарт подписей → новый.
+  assert.equal(migrateSponsorWord({ partners: { partnerLabel: 'СПОНСОР', partner2Label: 'СПОНСОРЫ' } }).partners.partnerLabel, 'ПАРТНЁР');
+  const both = migrateSponsorWord({ partners: { partnerLabel: 'СПОНСОРЫ', partner2Label: 'СПОНСОР' } });
+  assert.equal(both.partners.partnerLabel, 'ПАРТНЁР');
+  assert.equal(both.partners.partner2Label, 'ПАРТНЁР');
+  // Заставки одного партнёра: и подпись, и промежуточный старый стандарт подзаголовка.
+  const single = migrateSponsorWord({ sponsor: { sponsorLabel: 'СПОНСОР', subtitle: 'СПОНСОР' } });
+  assert.equal(single.sponsor.sponsorLabel, 'ПАРТНЁР');
+  assert.equal(single.sponsor.subtitle, 'ПАРТНЁР');
+  // Собственный текст пользователя не трогаем.
+  const custom = migrateSponsorWord({ partners: { partnerLabel: 'Мой партнёр' }, sponsor: { sponsorLabel: 'Особый знак', subtitle: 'вечер ретроспектива' } });
+  assert.equal(custom.partners.partnerLabel, 'Мой партнёр');
+  assert.equal(custom.sponsor.sponsorLabel, 'Особый знак');
+  assert.equal(custom.sponsor.subtitle, 'вечер ретроспектива');
+  // Пустые и повреждённые входы — без падений.
+  assert.deepEqual(migrateSponsorWord(null), {});
+  assert.deepEqual(migrateSponsorWord({ partners: {} }), { partners: {} });
 });

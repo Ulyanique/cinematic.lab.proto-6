@@ -45,8 +45,8 @@ test('curtain width migration changes only the old default', () => {
 test('sponsor labels are separate, align over logos and preserve old custom text and style', () => {
   assert.ok(PARTNERS_DEFAULTS.stagePartnerLabel.x > PARTNERS_DEFAULTS.stagePartner1.x);
   assert.ok(PARTNERS_DEFAULTS.stagePartnerLabel2.x < PARTNERS_DEFAULTS.stagePartner2.x);
-  assert.equal(PARTNERS_DEFAULTS.partners.partnerLabel, 'СПОНСОР');
-  assert.equal(PARTNERS_DEFAULTS.partners.partner2Label, 'СПОНСОР');
+  assert.equal(PARTNERS_DEFAULTS.partners.partnerLabel, 'ПАРТНЁР');
+  assert.equal(PARTNERS_DEFAULTS.partners.partner2Label, 'ПАРТНЁР');
   const old = { partners: { partnerLabel: 'СПОНСОРЫ' }, stagePartnerLabel: { x: 960, opacity: .7, color: '#ffffff' } };
   const next = migrateSponsorLabels(old);
   assert.equal(next.partners.partnerLabel, 'СПОНСОР');
