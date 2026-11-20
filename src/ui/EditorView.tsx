@@ -19,6 +19,7 @@ export const EditorView: React.FC = () => {
     if (!el) return
     const renderer = new ViewportRenderer(el)
     rendererRef.current = renderer
+    ;(window as unknown as { __bootReady?: () => void }).__bootReady?.()
     const onResize = () => renderer.resize()
     window.addEventListener('resize', onResize)
     return () => {
