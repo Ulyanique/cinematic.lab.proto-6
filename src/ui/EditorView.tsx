@@ -90,11 +90,45 @@ export const EditorView: React.FC = () => {
     <EditorShell store={store}>
       <div
         ref={viewportRef}
-        onClick={(e) => {
+        onMouseDown={(e) => {
           const picked = rendererRef.current?.pickLayer(e.clientX, e.clientY) ?? null
           store.selectLayer(picked)
+          if (!picked) return
+          const layer = comp.layers.find((l) => l.id === picked)
+          if (!layer || layer.locked || !Array.isArray(layer.transform.position)) return
+          const startPos = [...(layer.transform.position as [number, number, number])] as [
+            number,
+            number,
+            number,
+          ]
+          const startX = e.clientX
+          const startY = e.clientY
+
+          const onMove = (ev: MouseEvent) => {
+            const dx = (ev.clientX - startX) * 0.02
+            const dy = -(ev.clientY - startY) * 0.02
+            store.updateLayer(picked, (l) => ({
+              ...l,
+              transform: {
+                ...l.transform,
+                position: [
+                  Number((startPos[0] + dx).toFixed(2)),
+                  Number((startPos[1] + dy).toFixed(2)),
+                  startPos[2],
+                ],
+              },
+            }))
+          }
+
+          const onUp = () => {
+            window.removeEventListener('mousemove', onMove)
+            window.removeEventListener('mouseup', onUp)
+          }
+
+          window.addEventListener('mousemove', onMove)
+          window.addEventListener('mouseup', onUp)
         }}
-        className="relative border border-neutral-800 bg-neutral-950 overflow-hidden cursor-pointer"
+        className="relative border border-neutral-800 bg-neutral-950 overflow-hidden cursor-grab active:cursor-grabbing"
         style={{
           aspectRatio: `${comp.width} / ${comp.height}`,
           maxHeight: '100%',
