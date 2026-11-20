@@ -90,7 +90,11 @@ export const EditorView: React.FC = () => {
     <EditorShell store={store}>
       <div
         ref={viewportRef}
-        className="relative border border-neutral-800 bg-neutral-950 overflow-hidden"
+        onClick={(e) => {
+          const picked = rendererRef.current?.pickLayer(e.clientX, e.clientY) ?? null
+          store.selectLayer(picked)
+        }}
+        className="relative border border-neutral-800 bg-neutral-950 overflow-hidden cursor-pointer"
         style={{
           aspectRatio: `${comp.width} / ${comp.height}`,
           maxHeight: '100%',

@@ -47,6 +47,24 @@ export class ViewportRenderer {
     this.renderer.setSize(w, h)
   }
 
+  pickLayer(clientX: number, clientY: number): string | null {
+    const rect = this.renderer.domElement.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) return null
+    const ndc = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    )
+    this.raycaster.setFromCamera(ndc, this.camera)
+    const meshes = Array.from(this.layerMeshes.values()).filter((m) => m.visible)
+    const hits = this.raycaster.intersectObjects(meshes, false)
+    if (hits.length === 0) return null
+    const hitMesh = hits[0].object as THREE.Mesh
+    for (const [id, mesh] of this.layerMeshes.entries()) {
+      if (mesh === hitMesh) return id
+    }
+    return null
+  }
+
   private getOrCreateMesh(layer: EvaluatedLayer): THREE.Mesh {
     let mesh = this.layerMeshes.get(layer.id)
     if (!mesh) {
