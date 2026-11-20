@@ -111,7 +111,34 @@ export class ViewportRenderer {
 
       const mediaUrl = typeof layer.data?.mediaUrl === 'string' ? layer.data.mediaUrl : undefined
       const mediaKind = layer.data?.mediaKind === 'video' ? 'video' : 'image'
-      if (mediaUrl) {
+      if (layer.type === 'text') {
+        const text = typeof layer.data?.text === 'string' ? layer.data.text : layer.name
+        const color = typeof layer.data?.color === 'string' ? layer.data.color : '#fbbf24'
+        const key = `text:${text}:${color}`
+        let cached = this.mediaCache?.get(layer.id)
+        if (!cached || cached.url !== key) {
+          if (cached) cached.texture.dispose()
+          const canvas = document.createElement('canvas')
+          canvas.width = 1024
+          canvas.height = 512
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            ctx.fillStyle = color
+            ctx.font = 'bold 84px Inter, system-ui, sans-serif'
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2)
+          }
+          const texture = new THREE.CanvasTexture(canvas)
+          texture.colorSpace = THREE.SRGBColorSpace
+          cached = { url: key, texture }
+          this.mediaCache?.set(layer.id, cached)
+          mat.map = texture
+          mat.color.setHex(0xffffff)
+          mat.needsUpdate = true
+        }
+      } else if (mediaUrl) {
         let cached = this.mediaCache.get(layer.id)
         if (!cached || cached.url !== mediaUrl) {
           if (cached) cached.texture.dispose()

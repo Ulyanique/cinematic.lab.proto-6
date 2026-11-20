@@ -25,6 +25,40 @@ export const Inspector: React.FC<InspectorProps> = ({ store }) => {
         {layer.name}
       </div>
 
+      {/* Text layer properties */}
+      {layer.type === 'text' && (
+        <div className="space-y-2 pb-2 border-b border-neutral-800">
+          <label className="block space-y-1">
+            <span className="text-neutral-400">Текст</span>
+            <input
+              type="text"
+              value={typeof layer.data?.text === 'string' ? layer.data.text : layer.name}
+              onChange={(e) =>
+                store.updateLayer(layer.id, (l) => ({
+                  ...l,
+                  data: { ...l.data, text: e.target.value },
+                }))
+              }
+              className="w-full px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-neutral-100"
+            />
+          </label>
+          <label className="flex items-center justify-between">
+            <span className="text-neutral-400">Цвет</span>
+            <input
+              type="color"
+              value={typeof layer.data?.color === 'string' ? layer.data.color : '#fbbf24'}
+              onChange={(e) =>
+                store.updateLayer(layer.id, (l) => ({
+                  ...l,
+                  data: { ...l.data, color: e.target.value },
+                }))
+              }
+              className="w-8 h-6 bg-transparent border-0 cursor-pointer"
+            />
+          </label>
+        </div>
+      )}
+
       {/* Media upload */}
       <div className="space-y-1">
         <span className="text-neutral-400 block">Медиа (видео / фото)</span>
