@@ -28,7 +28,7 @@ export const EditorShell: React.FC<EditorShellProps> = ({ store, children }) => 
 
   return (
     <div
-      className="flex flex-col h-screen w-screen bg-neutral-950 text-neutral-100 overflow-hidden font-sans"
+      className="fixed inset-0 z-50 flex flex-col h-screen w-screen bg-neutral-950 text-neutral-100 overflow-hidden font-sans"
       style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }}
     >
       {/* Top Bar */}
