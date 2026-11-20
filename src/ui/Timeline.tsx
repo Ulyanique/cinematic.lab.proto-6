@@ -124,7 +124,9 @@ export const Timeline: React.FC<TimelineProps> = ({ store }) => {
                     e.stopPropagation()
                     store.updateLayer(layer.id, (l) => ({ ...l, visible: !l.visible }))
                   }}
-                  className={`w-4 text-center ${layer.visible ? 'text-neutral-200' : 'text-neutral-600'}`}
+                  className={`w-4 h-4 flex items-center justify-center rounded bg-transparent border-0 ${
+                    layer.visible ? 'text-amber-400' : 'text-zinc-600'
+                  }`}
                 >
                   {layer.visible ? '●' : '○'}
                 </button>

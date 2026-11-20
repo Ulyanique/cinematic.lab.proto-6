@@ -40,12 +40,12 @@ export const EditorShell: React.FC<EditorShellProps> = ({ store, children }) => 
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex rounded bg-neutral-800 p-0.5">
+          <div className="flex rounded bg-zinc-800/80 p-0.5">
             <button
               type="button"
               onClick={() => setMode('quick')}
-              className={`px-2.5 py-0.5 rounded ${
-                mode === 'quick' ? 'bg-amber-500/25 text-amber-300' : 'text-neutral-400'
+              className={`px-2.5 py-0.5 rounded transition-colors ${
+                mode === 'quick' ? 'bg-amber-500/20 text-amber-300' : 'bg-transparent text-zinc-400 hover:text-zinc-200'
               }`}
             >
               Шаблон
@@ -53,8 +53,8 @@ export const EditorShell: React.FC<EditorShellProps> = ({ store, children }) => 
             <button
               type="button"
               onClick={() => setMode('pro')}
-              className={`px-2.5 py-0.5 rounded ${
-                mode === 'pro' ? 'bg-amber-500/25 text-amber-300' : 'text-neutral-400'
+              className={`px-2.5 py-0.5 rounded transition-colors ${
+                mode === 'pro' ? 'bg-amber-500/20 text-amber-300' : 'bg-transparent text-zinc-400 hover:text-zinc-200'
               }`}
             >
               Редактор

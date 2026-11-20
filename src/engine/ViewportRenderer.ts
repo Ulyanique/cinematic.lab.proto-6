@@ -6,6 +6,7 @@ export class ViewportRenderer {
   private scene: THREE.Scene
   private camera: THREE.PerspectiveCamera
   private layerMeshes = new Map<string, THREE.Mesh>()
+  private raycaster = new THREE.Raycaster()
   private container: HTMLElement
 
   constructor(container: HTMLElement) {

@@ -53,11 +53,11 @@ export const AssetsPanel: React.FC<AssetsPanelProps> = ({ store }) => {
 
   return (
     <aside className="w-56 bg-neutral-900 border-r border-neutral-800 flex flex-col text-xs text-neutral-200 shrink-0">
-      <div className="flex border-b border-neutral-800">
+      <div className="flex border-b border-neutral-800 bg-neutral-900">
         <button
           type="button"
           onClick={() => setTab('templates')}
-          className={`flex-1 py-2 text-center ${
+          className={`flex-1 py-2 text-center bg-neutral-900 ${
             tab === 'templates' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-neutral-400'
           }`}
         >
@@ -66,7 +66,7 @@ export const AssetsPanel: React.FC<AssetsPanelProps> = ({ store }) => {
         <button
           type="button"
           onClick={() => setTab('layers')}
-          className={`flex-1 py-2 text-center ${
+          className={`flex-1 py-2 text-center bg-neutral-900 ${
             tab === 'layers' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-neutral-400'
           }`}
         >
