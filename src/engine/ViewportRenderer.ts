@@ -90,6 +90,39 @@ export class ViewportRenderer {
       mat.opacity = layer.transform.opacity
       mat.emissive.setHex(layer.id === selectedLayerId ? 0x78350f : 0x000000)
 
+      const mediaUrl = typeof layer.data?.mediaUrl === 'string' ? layer.data.mediaUrl : undefined
+      const mediaKind = layer.data?.mediaKind === 'video' ? 'video' : 'image'
+      if (mediaUrl) {
+        let cached = this.mediaCache.get(layer.id)
+        if (!cached || cached.url !== mediaUrl) {
+          if (cached) cached.texture.dispose()
+          if (mediaKind === 'video') {
+            const video = document.createElement('video')
+            video.src = mediaUrl
+            video.muted = true
+            video.playsInline = true
+            video.loop = true
+            const texture = new THREE.VideoTexture(video)
+            texture.colorSpace = THREE.SRGBColorSpace
+            cached = { url: mediaUrl, texture, video }
+          } else {
+            const texture = new THREE.TextureLoader().load(mediaUrl)
+            texture.colorSpace = THREE.SRGBColorSpace
+            cached = { url: mediaUrl, texture }
+          }
+          this.mediaCache.set(layer.id, cached)
+          mat.map = cached.texture
+          mat.color.setHex(0xffffff)
+          mat.needsUpdate = true
+        }
+        if (cached.video && Number.isFinite(cached.video.duration) && cached.video.duration > 0) {
+          const target = layer.mediaTime % cached.video.duration
+          if (Math.abs(cached.video.currentTime - target) > 0.15) {
+            cached.video.currentTime = target
+          }
+        }
+      }
+
       if (!hasFocus) {
         focusZ = layer.transform.position[2]
         hasFocus = true
@@ -110,6 +143,8 @@ export class ViewportRenderer {
   }
 
   dispose(): void {
+    this.mediaCache.forEach((c) => c.texture.dispose())
+    this.mediaCache.clear()
     this.layerMeshes.forEach((mesh) => {
       mesh.geometry.dispose()
       ;(mesh.material as THREE.Material).dispose()

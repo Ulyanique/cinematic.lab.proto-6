@@ -25,6 +25,29 @@ export const Inspector: React.FC<InspectorProps> = ({ store }) => {
         {layer.name}
       </div>
 
+      {/* Media upload */}
+      <div className="space-y-1">
+        <span className="text-neutral-400 block">Медиа (видео / фото)</span>
+        <input
+          type="file"
+          accept="video/*,image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (!file) return
+            const url = URL.createObjectURL(file)
+            const kind = file.type.startsWith('video/') ? 'video' : 'image'
+            store.updateLayer(layer.id, (l) => ({
+              ...l,
+              data: { ...l.data, mediaUrl: url, mediaKind: kind, mediaName: file.name },
+            }))
+          }}
+          className="w-full text-[11px] text-neutral-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-neutral-800 file:text-amber-300 hover:file:bg-neutral-700"
+        />
+        {typeof layer.data?.mediaName === 'string' && (
+          <div className="text-[10px] text-neutral-400 truncate">{layer.data.mediaName}</div>
+        )}
+      </div>
+
       <label className="block space-y-1">
         <span className="text-neutral-400">Название</span>
         <input
