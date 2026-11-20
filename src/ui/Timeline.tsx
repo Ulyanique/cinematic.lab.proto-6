@@ -19,6 +19,54 @@ export const Timeline: React.FC<TimelineProps> = ({ store }) => {
     store.setTime(ratio * comp.duration)
   }
 
+  const startDrag = (
+    e: React.MouseEvent,
+    layerId: string,
+    mode: 'move' | 'trim-left' | 'trim-right',
+    initialStart: number,
+    initialDuration: number,
+  ) => {
+    e.stopPropagation()
+    store.selectLayer(layerId)
+    const el = trackAreaRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const startX = e.clientX
+
+    const onMove = (ev: MouseEvent) => {
+      const dx = ev.clientX - startX
+      const dt = (dx / rect.width) * comp.duration
+
+      store.updateLayer(layerId, (l) => {
+        if (l.locked) return l
+        if (mode === 'move') {
+          return { ...l, startTime: Math.max(0, Number((initialStart + dt).toFixed(2))) }
+        }
+        if (mode === 'trim-left') {
+          const maxShift = initialDuration - 0.1
+          const shift = Math.max(-initialStart, Math.min(maxShift, dt))
+          return {
+            ...l,
+            startTime: Number((initialStart + shift).toFixed(2)),
+            duration: Number((initialDuration - shift).toFixed(2)),
+          }
+        }
+        return {
+          ...l,
+          duration: Math.max(0.1, Number((initialDuration + dt).toFixed(2))),
+        }
+      })
+    }
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
   const playheadPct = comp.duration > 0 ? (state.currentTime / comp.duration) * 100 : 0
 
   return (
@@ -105,17 +153,32 @@ export const Timeline: React.FC<TimelineProps> = ({ store }) => {
             return (
               <div key={layer.id} className="relative h-7 border-b border-neutral-800/40">
                 <div
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    store.selectLayer(layer.id)
-                  }}
-                  className={`absolute top-1 bottom-1 rounded-sm cursor-pointer ${
+                  onMouseDown={(e) =>
+                    startDrag(e, layer.id, 'move', layer.startTime, layer.duration)
+                  }
+                  className={`group absolute top-1 bottom-1 rounded-sm cursor-grab active:cursor-grabbing flex items-center overflow-hidden px-1.5 text-[10px] ${
                     selected
-                      ? 'bg-amber-500/50 border border-amber-300'
-                      : 'bg-sky-500/35 border border-sky-400/40'
+                      ? 'bg-amber-500/45 border border-amber-300 text-amber-100'
+                      : 'bg-sky-500/35 border border-sky-400/40 text-sky-100'
                   }`}
                   style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-                />
+                >
+                  {/* Left trim handle */}
+                  <div
+                    onMouseDown={(e) =>
+                      startDrag(e, layer.id, 'trim-left', layer.startTime, layer.duration)
+                    }
+                    className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/40"
+                  />
+                  <span className="truncate pointer-events-none">{layer.name}</span>
+                  {/* Right trim handle */}
+                  <div
+                    onMouseDown={(e) =>
+                      startDrag(e, layer.id, 'trim-right', layer.startTime, layer.duration)
+                    }
+                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/40"
+                  />
+                </div>
               </div>
             )
           })}

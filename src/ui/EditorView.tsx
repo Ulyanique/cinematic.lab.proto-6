@@ -64,12 +64,11 @@ export const EditorView: React.FC = () => {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [store])
 
-  const activeLayers = evaluated.layers.filter((l) => l.active)
-
   return (
     <EditorShell store={store}>
       <div
-        className="relative border border-neutral-800 bg-neutral-950 overflow-hidden flex items-center justify-center"
+        ref={viewportRef}
+        className="relative border border-neutral-800 bg-neutral-950 overflow-hidden"
         style={{
           aspectRatio: `${comp.width} / ${comp.height}`,
           maxHeight: '100%',
@@ -77,29 +76,7 @@ export const EditorView: React.FC = () => {
           width: comp.width >= comp.height ? '85%' : 'auto',
           height: comp.height > comp.width ? '85%' : 'auto',
         }}
-      >
-        {activeLayers.length === 0 ? (
-          <span className="text-xs text-neutral-600">Нет активных слоёв на {state.currentTime.toFixed(2)}s</span>
-        ) : (
-          activeLayers.map((layer) => (
-            <div
-              key={layer.id}
-              onClick={() => store.selectLayer(layer.id)}
-              className={`absolute px-4 py-2 rounded border text-xs cursor-pointer transition-colors ${
-                state.selectedLayerId === layer.id
-                  ? 'border-amber-400 bg-amber-500/20 text-amber-200'
-                  : 'border-sky-400/50 bg-sky-500/15 text-sky-200'
-              }`}
-              style={{
-                opacity: layer.transform.opacity,
-                transform: `translate3d(${layer.transform.position[0]}px, ${layer.transform.position[1]}px, 0) scale(${layer.transform.scale[0]}, ${layer.transform.scale[1]})`,
-              }}
-            >
-              {layer.name}
-            </div>
-          ))
-        )}
-      </div>
+      />
     </EditorShell>
   )
 }
