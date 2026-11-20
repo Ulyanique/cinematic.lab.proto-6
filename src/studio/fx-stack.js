@@ -1,4 +1,7 @@
 import * as THREE from "three";
+import { INTRO_BACKGROUND_GLSL } from "./intro-background-effect.js";
+import { CIRCLE_BEAMS_GLSL } from "./circle-final/fx/beams-shader.js";
+import { fxCycleTime } from "./fx-cycle.js";
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 
 /**
@@ -18,6 +21,8 @@ export const FX_EFFECTS = Object.freeze([
   { key: "dust", label: "Золотая пыль в объёме", src: "proto-2/5", max: 2 },
   { key: "bokeh", label: "Боке — тёплые диски света", src: "proto-1/2", max: 2 },
   { key: "embers", label: "Искры и угли", src: "proto-1/2", max: 2 },
+  { key: "introBackground", label: "Фон интро — свет и искры", src: "интро", max: 2 },
+  { key: "circleFinalRays", label: "Перекрёстные лучи из ролика «Логотип и лучи»", src: "финал", max: 2 },
   { key: "rays", label: "Объёмные лучи света", src: "proto-1/2/5", max: 2 },
   { key: "flare", label: "Анаморфные блики в углах", src: "proto-1/2", max: 2 },
   { key: "sweep", label: "Световой проход по золоту", src: "proto-2", max: 2 },
@@ -38,14 +43,14 @@ export const FX_EFFECTS = Object.freeze([
   { key: "warm", label: "Золотой тон (цветокор)", src: "proto-1/2", max: 2 },
 ]);
 
-const EFFECT_KEYS = FX_EFFECTS.map((e) => e.key);
+export const EFFECT_KEYS = FX_EFFECTS.map((e) => e.key);
 
 /** Умолчания: все эффекты выключены — композиции выглядят как прежде. */
 export function fxDefaults() {
   const d = { look: "none" };
   for (const k of EFFECT_KEYS) d[k] = 0;
   Object.assign(d, {
-    eventTime: 4.5, fadeIn: 1.2, fadeOut: 1.2, speed: 1,
+    eventTime: 4.5, fadeIn: 1.2, fadeOut: 1.2, speed: 1, introBackgroundSpeed: 1,
     originX: 0.5, originY: 0.42, tint: "#ffc878",
     hue: 0, saturation: 1, contrast: 1,
   });
@@ -82,6 +87,7 @@ export const FX_SCHEMA_SECTION = {
     { key: "eventTime", label: "Момент удара, с (волна, вспышка, зум)", type: "range", min: 0, max: 60, step: 0.05 },
     { key: "fadeIn", label: "Плавное появление эффектов, с", type: "range", min: 0, max: 10, step: 0.05 },
     { key: "fadeOut", label: "Плавное затухание в конце, с", type: "range", min: 0, max: 10, step: 0.05 },
+    { key: "introBackgroundSpeed", label: "Фон интро: скорость света", type: "range", min: 0, max: 2, step: 0.01 },
     { key: "speed", label: "Скорость движения эффектов", type: "range", min: 0.2, max: 3, step: 0.01 },
     { key: "originX", label: "Центр лучей и волны: X", type: "range", min: 0, max: 1, step: 0.005 },
     { key: "originY", label: "Центр лучей и волны: Y", type: "range", min: 0, max: 1, step: 0.005 },
@@ -116,10 +122,13 @@ precision highp float;
 uniform sampler2D uSrc;
 uniform float uTime, uEv, uFx, uAspect;
 uniform float uDust, uBokeh, uEmber, uRays, uFlare, uSweep, uShock, uRings, uHaze, uZoom, uCA;
+uniform float uCircleFinalRays, uCircleTime, uIntroBackground, uIntroTime;
 uniform vec3 uTint;
 uniform vec2 uOrigin;
 varying vec2 vUv;
 ${HASH}
+${CIRCLE_BEAMS_GLSL}
+${INTRO_BACKGROUND_GLSL}
 
 // пылинки: три слоя глубины, мерцание
 vec3 dustLayer(vec2 p, float t, float scale, float seed, float speed){
@@ -223,6 +232,12 @@ void main(){
   if(uEmber > 0.){
     float s = emberLayer(p, t, 7., 1., 1.) + emberLayer(p, t, 12., 2., 1.3)*.8 + emberLayer(p, t, 20., 3., 1.7)*.7;
     add += mix(vec3(1., .55, .15), hot, .4)*s*uEmber*1.05*fx;
+  }
+  if(uIntroBackground > 0.) add += introBackgroundLight(vUv) * uIntroBackground * fx;
+  // Тот же рисунок перекрёстных лучей, что и в самостоятельном финальном ролике.
+  if(uCircleFinalRays > 0.){
+    float along = 495. + .08 * (1004. + uCircleTime * 24. - 1100.);
+    add += circleFinalBeams(vUv, uCircleTime, along) * uCircleFinalRays * fx;
   }
   if(uRays > 0.){
     vec2 rd = (uv - uOrigin)*asp;
@@ -417,7 +432,7 @@ export class FxStack {
     this.mats = {
       overlay: mk(OVERLAY_FRAG, {
         uSrc: u(null), uTime: u(0), uEv: u(-1), uFx: u(1), uAspect: u(16 / 9),
-        uDust: u(0), uBokeh: u(0), uEmber: u(0), uRays: u(0), uFlare: u(0), uSweep: u(0), uShock: u(0), uRings: u(0), uHaze: u(0),
+        uDust: u(0), uBokeh: u(0), uEmber: u(0), uRays: u(0), uCircleFinalRays: u(0), uCircleTime: u(0), uIntroBackground: u(0), uIntroTime: u(0), uFlare: u(0), uSweep: u(0), uShock: u(0), uRings: u(0), uHaze: u(0),
         uZoom: u(0), uCA: u(0), uTint: u(new THREE.Vector3(1, .78, .47)), uOrigin: u(new THREE.Vector2(.5, .58)),
       }),
       bright: mk(BRIGHT_FRAG, { tDiffuse: u(null), uThreshold: u(.7) }),
@@ -488,8 +503,9 @@ export class FxStack {
 
     const k = (key) => Math.max(0, Number(cfg[key]) || 0);
     const speed = Math.max(0.05, Number(cfg.speed) || 1);
-    const rel = time - (span?.start || 0);
-    const total = Math.max(0.1, (span?.end ?? 1e9) - (span?.start || 0));
+    const clock = fxCycleTime(time, span);
+    const rel = clock.relative;
+    const total = Math.max(0.1, clock.total);
     const fx = smooth(0, Math.max(0.001, cfg.fadeIn), rel) * (1 - smooth(total - Math.max(0.001, cfg.fadeOut), total, rel));
     const ev = rel - (Number(cfg.eventTime) || 0);
     const tint = hexToRgb(cfg.tint);
@@ -498,14 +514,17 @@ export class FxStack {
     ou.uSrc.value = this.texture;
     ou.uTime.value = rel * speed + 3.7;
     ou.uEv.value = ev;
-    ou.uFx.value = (cfg.fadeIn <= 0 && cfg.fadeOut <= 0) ? 1 : fx;
+    ou.uFx.value = clock.beforeStart ? 0 : (cfg.fadeIn <= 0 && cfg.fadeOut <= 0) ? 1 : fx;
     ou.uAspect.value = aspect;
     ou.uDust.value = k("dust"); ou.uBokeh.value = k("bokeh"); ou.uEmber.value = k("embers"); ou.uRays.value = k("rays");
+    ou.uIntroBackground.value = k("introBackground");
+    ou.uIntroTime.value = rel * speed * (Number.isFinite(cfg.introBackgroundSpeed) ? Math.max(0, cfg.introBackgroundSpeed) : 1);
+    ou.uCircleFinalRays.value = k("circleFinalRays"); ou.uCircleTime.value = rel * speed;
     ou.uFlare.value = k("flare"); ou.uSweep.value = k("sweep"); ou.uShock.value = k("shock"); ou.uRings.value = k("rings");
     ou.uHaze.value = k("haze"); ou.uZoom.value = k("zoom"); ou.uCA.value = k("aberration");
     ou.uTint.value.set(tint[0], tint[1], tint[2]);
     // y в UV идёт снизу вверх, а в панели — сверху вниз
-    ou.uOrigin.value.set(Number(cfg.originX) || 0.5, 1 - (Number.isFinite(cfg.originY) ? cfg.originY : 0.42));
+    ou.uOrigin.value.set(Number.isFinite(cfg.originX) ? cfg.originX : 0.5, 1 - (Number.isFinite(cfg.originY) ? cfg.originY : 0.42));
     this._pass(this.mats.overlay, this.rt.base);
 
     const bloom = k("bloom"), streak = k("streak"), ghosts = k("ghosts");

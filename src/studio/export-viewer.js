@@ -12,6 +12,8 @@
  * загрузку заставки не утяжеляет.
  */
 
+import { icon } from "./ui/icons.js";
+
 /**
  * @param {object} options
  * @param {Blob} options.blob готовый видеофайл
@@ -34,9 +36,9 @@ export function openExportViewer({ blob, filename, meta = "", onDownload }) {
         <span></span>
       </div>
       <div class="export-viewer-actions">
-        <button type="button" data-viewer="fullscreen" title="Развернуть видео на весь экран штатным режимом браузера">Во весь экран</button>
-        <button type="button" data-viewer="download" title="Сохранить файл предложенным именем">Скачать файл</button>
-        <button type="button" data-viewer="close" aria-label="Закрыть просмотр" title="Закрыть просмотр (Esc)">×</button>
+        <button type="button" data-viewer="fullscreen" title="Развернуть видео на весь экран штатным режимом браузера">${icon("expand", 14)}<span>Во весь экран</span></button>
+        <button type="button" data-viewer="download" title="Сохранить файл предложенным именем">${icon("download", 14)}<span>Скачать файл</span></button>
+        <button type="button" class="export-viewer-close" data-viewer="close" aria-label="Закрыть просмотр" title="Закрыть просмотр (Esc)">${icon("close", 15)}</button>
       </div>
     </header>
     <video controls loop playsinline autoplay muted src=""></video>

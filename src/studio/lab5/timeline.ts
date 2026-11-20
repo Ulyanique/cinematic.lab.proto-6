@@ -43,6 +43,7 @@ export function heroPlacement(i: number): HeroPlacement {
 }
 
 export const visitTime = (i: number) => TL.visit0 + i * TL.visitStep;
+
 export const riseStart = (i: number) => visitTime(i) - TL.riseLead;
 
 interface Key {

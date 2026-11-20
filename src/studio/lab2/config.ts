@@ -13,6 +13,15 @@ export const DEFAULT_CONFIG = {
   order: [...DEFAULT_ORDER] as LayerId[],
   general: {
     impact: 4.5, speed: 1, hold: 0,
+    // Насколько эмблема ниже своего места в начале, до появления названия:
+    // сначала она собирается по центру кадра, затем плавно поднимается.
+    // 1.65 — посчитано по камере: центр эмблемы до подъёма ровно в середине
+    // кадра (50 %), после — на своём обычном месте (34 %).
+    logoRise: 1.65,
+    // Смещение всей композиции по вертикали, в мировых единицах (плюс — вверх).
+    // Нужно фоновым роликам: у них нет подзаголовка и даты, и блок «эмблема +
+    // название» без сдвига садится выше середины кадра.
+    compositionY: 0,
     fadeOut: true,
     fps: 30, width: 1920, bitrate: 16, quality: 1920,
     loop: false, fileName: 'intro',
@@ -24,13 +33,16 @@ export const DEFAULT_CONFIG = {
   post: {
     exposure: 0.9, bloom: 1, bloomRadius: 0.7, bloomThreshold: 1, streak: 1, aberration: 1, focus: 1,
     vignette: 0.62, grain: 0.02, hue: 0, saturation: 1, contrast: 1, shadowTint: 1,
-    slit: true, slitSize: 0.372, ignition: true,
+    // Кадр открывается не «щелью», а включением старого телевизора: круг из
+    // центра. Щель и линия света остаются как возможность в настройках.
+    slit: false, slitSize: 0.372, ignition: true,
   },
   layers: {
     background: { enabled: true, delay: 0, beam: 1, ribbons: 1, glow: 1, final: 1 },
     logo: {
       enabled: true, delay: 0,
       preset: 'swarm', duration: 1.15, stagger: 0.12, lead: 0.3, easing: 'cubic', intensity: 1, angle: 90, turns: 1,
+      lightPulse: 0, lightPulseSpeed: 0.3, elementFlash: 0, elementFlashStart: 4.5, elementFlashDuration: 0.5,
       x: 0, y: 0, scale: 1, tilt: 0.62, float: 1,
       swarm: 1, sparkCount: 1100, flash: 1,
       deep: '#e4b159', mid: '#ffe29e', top: '#fff2c8', roughness: 0.27, env: 1.6,
@@ -42,18 +54,19 @@ export const DEFAULT_CONFIG = {
       text: 'ЯНТАРНЫЙ ЦИРКУЛЬ', font: 'prata', width: 11.55, tracking: 0.045, depth: 0.15, bevel: 0.04,
       x: 0, y: 0, scale: 1,
       preset: 'fly', order: 'ltr', start: 5.75, stagger: 0.085, duration: 0.95, intensity: 1, easing: 'cubic',
+      lightPulse: 0, lightPulseSpeed: 0.3, elementFlash: 0, elementFlashStart: 4.5, elementFlashDuration: 0.5,
       sparkCount: 70, flash: 1,
       deep: '#e4b159', mid: '#ffe29e', top: '#fff2c8', roughness: 0.25, env: 1.55,
     },
     subtitle: {
       enabled: true, delay: 0,
       text: 'ВЕЧЕР РЕТРОСПЕКТИВА', font: 'forum', width: 7.25, tracking: 0.42, x: 0, y: 0,
-      preset: 'wipe', start: 8.35, duration: 1.9, brightness: 1.45, colA: '#e7bb76', colB: '#ffefc4',
+      preset: 'wipe', start: 8.35, duration: 1.9, brightness: 1.45, lightPulse: 0, lightPulseSpeed: 0.3, elementFlash: 0, elementFlashStart: 4.5, elementFlashDuration: 0.5, colA: '#e7bb76', colB: '#ffefc4',
     },
     date: {
       enabled: true, delay: 0,
       text: '20 НОЯБРЯ 2026 ГОДА', font: 'forum', width: 4.45, tracking: 0.3, x: 0, y: 0,
-      preset: 'wipe', start: 9.55, duration: 1.6, brightness: 1.35, colA: '#e7bf7c', colB: '#fff1cb',
+      preset: 'wipe', start: 9.55, duration: 1.6, brightness: 1.35, lightPulse: 0, lightPulseSpeed: 0.3, elementFlash: 0, elementFlashStart: 4.5, elementFlashDuration: 0.5, colA: '#e7bf7c', colB: '#fff1cb',
     },
     dividers: {
       enabled: true, delay: 0, first: true, second: true, diamonds: true,
@@ -124,6 +137,39 @@ export function setPath<T>(obj: T, path: string, value: any): T {
 /** Длительность ролика в секундах при текущих настройках времени. */
 export const baseDuration = 13.6;
 export const DESIGN_IMPACT = 4.5;
+/** Проектное время последнего движения композиции и его конца (уход). */
+const DESIGN_EXIT = 11.1;
+const DESIGN_EXIT_END = 13.6;
+
+/**
+ * Границы фаз ролика в реальном времени: где кончается появление и где
+ * начинается уход.
+ *
+ * Композиция живёт в «проектном» времени, а `impact` и `speed` его растягивают,
+ * поэтому границы нельзя держать константами: они считаются той же формулой,
+ * что и `totalDuration`. По этим двум числам пульт ставит метки входа и ухода —
+ * метка перестаёт быть декоративной пропорцией и показывает, где на самом деле
+ * заканчивается анимация появления и начинается уход.
+ *
+ * Конец появления — момент удара: до него эмблема собирается из роя, после он
+ * уже стоит. Уход начинается с финального движения: последние 2.5 с проектного
+ * времени композиция уходит, а затем фильм гаснет (`fadeOut`).
+ * @param {{impact:number, speed:number, hold?:number}} g
+ */
+export function phaseBounds(g: { impact: number; speed: number; hold?: number }) {
+  const speed = g.speed > 0 ? g.speed : 1;
+  const impact = g.impact;
+  // та же формула, что и totalDuration: удар + базовый хвост со скоростью + пауза
+  const total = Math.round((impact + (baseDuration - DESIGN_IMPACT) / speed + (g.hold || 0)) * 100) / 100;
+  // в проектном времени уход начинается на DESIGN_EXIT, в реальном — с учётом скорости
+  const exitAt = impact + (DESIGN_EXIT - DESIGN_IMPACT) / speed;
+  const exitEnd = impact + (DESIGN_EXIT_END - DESIGN_IMPACT) / speed;
+  return {
+    entry: Math.max(0.1, Math.min(impact, total * 0.5)),
+    exit: Math.max(0.3, Math.min(exitEnd - exitAt, total - impact)),
+    exitAt: Math.min(exitAt, total),
+  };
+}
 export function totalDuration(c: Config) {
   const g = c.general;
   return Math.round((g.impact + (baseDuration - DESIGN_IMPACT) / g.speed + g.hold) * 100) / 100;
@@ -195,7 +241,9 @@ export const SCHEMA: Record<string, Section[]> = {
     { title: 'Время', fields: [
       num('impact', 'Момент удара (эмблема)', 1.5, 9, 0.05, { unit: 'с', hint: 'Центральное событие: вспышка и ударная волна' }),
       num('speed', 'Скорость после удара', 0.5, 2.5, 0.05, { unit: '×' }),
-      num('hold', 'Финальная пауза', 0, 10, 0.1, { unit: 'с' }),
+      num('hold', 'Финальная пауза', 0, 60, 0.1, { unit: 'с' }),
+      num('compositionY', 'Положение композиции, Y', -3, 3, 0.05, { hint: 'Сдвиг эмблемы и надписей целиком: вверх — положительное' }),
+      num('logoRise', 'Подъём эмблемы к названию', 0, 3, 0.02, { unit: 'Y', hint: 'Насколько эмблема ниже в начале и поднимается, когда появляется название' }),
       bool('loop', 'Зацикливать превью'),
     ] },
     { title: 'Экспорт видео', fields: [
@@ -254,6 +302,7 @@ export const SCHEMA: Record<string, Section[]> = {
     ] },
   ],
   logo: [
+    lightPulseSection(),
     { title: 'Анимация', fields: [
       sel('preset', 'Пресет', LOGO_PRESETS),
       num('duration', 'Длительность детали', 0.2, 4, 0.05, { unit: 'с' }),
@@ -294,6 +343,7 @@ export const SCHEMA: Record<string, Section[]> = {
     ] },
   ],
   title: [
+    lightPulseSection(),
     { title: 'Текст', fields: [
       text('text', 'Название'),
       sel('font', 'Шрифт', FONT_KEYS),
@@ -317,8 +367,8 @@ export const SCHEMA: Record<string, Section[]> = {
     { title: 'Положение', fields: [num('x', 'Смещение X', -6, 6, 0.05), num('y', 'Смещение Y', -3, 3, 0.02), num('scale', 'Масштаб', 0.3, 2, 0.01)] },
     { title: 'Материал', fields: [...gold, num('roughness', 'Шероховатость', 0.02, 0.9, 0.01), num('env', 'Отражения', 0, 4, 0.05)] },
   ],
-  subtitle: [textSection('Подзаголовок'), textAnim()],
-  date: [textSection('Дата'), textAnim()],
+  subtitle: [textSection('Подзаголовок'), textAnim(), lightPulseSection()],
+  date: [textSection('Дата'), textAnim(), lightPulseSection()],
   dividers: [
     { title: 'Общие', fields: [
       bool('first', 'Показывать верхний'), bool('second', 'Показывать нижний'), bool('diamonds', 'Ромбы'),
@@ -372,6 +422,16 @@ function textSection(title: string): Section {
     color('colA', 'Цвет: основа'), color('colB', 'Цвет: блик'), num('brightness', 'Яркость', 0, 4, 0.05),
   ] };
 }
+function lightPulseSection(): Section {
+  return { title: 'Переиспользуемые эффекты элемента', fields: [
+    num('lightPulse', 'Пульсация света: сила', 0, 1, 0.01),
+    num('lightPulseSpeed', 'Пульсация света: скорость, Гц', 0, 3, 0.01),
+    num('elementFlash', 'Вспышка элемента: сила', 0, 2, 0.01),
+    num('elementFlashStart', 'Вспышка элемента: момент, с', 0, 60, 0.05),
+    num('elementFlashDuration', 'Вспышка элемента: затухание, с', 0.05, 5, 0.05),
+  ] };
+}
+
 function textAnim(): Section {
   return { title: 'Анимация', fields: [
     sel('preset', 'Пресет', TEXT_PRESETS), num('start', 'Старт', 0, 12, 0.05, { unit: 's' }),

@@ -1,8 +1,10 @@
 import { createSharedSceneConfig } from "./shared-visuals.js";
 import { WAITING_DEFAULTS } from "./waiting.js";
-import { DEFAULT_CONFIG, SCHEMA as LAB2_SCHEMA } from "../lab2/config.ts";
+import { DEFAULT_CONFIG, SCHEMA as LAB2_SCHEMA, totalDuration as lab2Duration, phaseBounds } from "../lab2/config.ts";
 import { DEFAULT_SETTINGS } from "../lab5/settings.ts";
 import { TL as LAB5_TL } from "../lab5/timeline.ts";
+import { MEDIA_CLIPS, mediaOptions, VIDEO_FIT_OPTIONS } from "../lab5/media.ts";
+import { FULL_ASSIGN, normalizeAssign } from "../lab5/settings.ts";
 
 /**
  * Две кинематографичные лаборатории, подключённые к конструктору как полноценные
@@ -17,19 +19,60 @@ import { TL as LAB5_TL } from "../lab5/timeline.ts";
  */
 export const LAB2_ID = "lab-swarm";
 export const LAB5_ID = "lab-monoliths";
-export const LAB_IDS = Object.freeze([LAB2_ID, LAB5_ID]);
+/**
+ * Фон из интро: та же композиция, что «Интро», без вечера и даты. Отдельный
+ * ролик, а не переключатель внутри интро: у фона своя длина, свои настройки и
+ * своя запись, и он должен жить в списке рядом с остальными.
+ */
+export const LAB2_BRAND_ID = "lab-swarm-brand";
+export const LAB2_OUTRO_ID = "lab-swarm-outro";
+/** Фотопауза собрана на той же интро-машинерии, что «Фон»; id остаётся прежним. */
+export const PHOTO_PAUSE_ID = "photo-pause";
+export const LAB_IDS = Object.freeze([LAB2_ID, LAB5_ID, LAB2_BRAND_ID, LAB2_OUTRO_ID, PHOTO_PAUSE_ID]);
 export const isLabScene = (id) => LAB_IDS.includes(id);
 
-/** Таймлайн ролика-лаборатории: вся длительность — «удержание», её выставляет сам ролик. */
-function labTimeline(duration) {
+/**
+ * Таймлайн ролика-лаборатории по фазам её фильма: появление · основная картинка ·
+ * уход.
+ *
+ * Раньше вся длительность лежала в «удержании» (0 / всё / 0), и метки входа и
+ * ухода стояли по краям полосы — то есть ничего не ограничивали. Теперь границы
+ * считает `phaseBounds` по той же формуле, что и длительность фильма: метка
+ * входа — конец появления (момент удара), метка ухода — начало ухода.
+ * @param {number} duration полная длина фильма, секунды
+ * @param {{entry:number, exit:number}} bounds
+ */
+function labTimeline(duration, bounds) {
   const base = WAITING_DEFAULTS.timeline;
+  const entry = Math.max(0, Math.min(bounds.entry, duration - 0.4));
+  const exit = Math.max(0, Math.min(bounds.exit, duration - entry - 0.2));
   return {
-    drawDuration: 0, emergeDuration: 0, holdDuration: duration, fadeDuration: 0, restDuration: 0,
+    // вход — одной стадией: у фильма один пролог, делить его на «контур» и
+    // «появление» нечего, и подпись «Вход» честно равна всей анимации появления.
+    drawDuration: entry, emergeDuration: 0,
+    holdDuration: Math.max(0.2, duration - entry - exit),
+    fadeDuration: exit, restDuration: 0,
     startDelay: 0, ringsIntro: base.ringsIntro, speed: 1, beatBpm: base.beatBpm, beatOffset: base.beatOffset,
   };
 }
 
 const plain = (o) => JSON.parse(JSON.stringify(o));
+
+/**
+ * Фон из интро: минута удержания собранной композиции по центру кадра.
+ *
+ * Остальное — ровно как в «Интро»: та же эмблема, то же название, тот же свет.
+ * Убраны только «ВЕЧЕР РЕТРОСПЕКТИВА» и дата внизу. Без них блок «эмблема +
+ * название» садится выше середины, поэтому композиция целиком опускается
+ * (compositionY) — центр блока приходится на середину кадра.
+ */
+function brandTimeline() {
+  const base = WAITING_DEFAULTS.timeline;
+  return {
+    drawDuration: 0, emergeDuration: 0, holdDuration: 60, fadeDuration: 0, restDuration: 0,
+    startDelay: 0, ringsIntro: base.ringsIntro, speed: 1, beatBpm: base.beatBpm, beatOffset: base.beatOffset,
+  };
+}
 
 // ── Лаборатория 10 ───────────────────────────────────────────────────────
 const LAB2_SCOPES = [
@@ -55,7 +98,11 @@ function convertField(f) {
 
 const lab2Sections = LAB2_SCOPES.map(([scope, title]) => {
   const seen = new Set();
-  const fields = [];
+  // В исходной схеме переключатели включения были вынесены за список полей.
+  // Без них иконки в панели были только декоративными.
+  const fields = Object.hasOwn(DEFAULT_CONFIG.layers, scope)
+    ? [{ key: 'enabled', label: 'Показывать слой', type: 'bool' }] : [];
+  if (fields.length) seen.add('enabled');
   for (const group of LAB2_SCHEMA[scope] || []) {
     for (const f of group.fields) {
       if (SKIP(scope, f.k) || seen.has(f.k)) continue;
@@ -78,7 +125,8 @@ export function lab2Source(cfg) {
 }
 
 export const LAB2_DEFAULTS = (() => {
-  const cfg = createSharedSceneConfig(labTimeline(13.6));
+  const srcPre = plain(DEFAULT_CONFIG);
+  const cfg = createSharedSceneConfig(labTimeline(lab2Duration(srcPre), phaseBounds(srcPre.general)));
   cfg.transition = { duration: 0.9 };
   cfg.caption.titleVisible = false;
   const src = plain(DEFAULT_CONFIG);
@@ -89,11 +137,95 @@ export const LAB2_DEFAULTS = (() => {
   return cfg;
 })();
 
+export const LAB2_BRAND_DEFAULTS = (() => {
+  const cfg = createSharedSceneConfig(brandTimeline());
+  cfg.transition = { duration: 0.9 };
+  cfg.caption.titleVisible = false;
+  const src = plain(DEFAULT_CONFIG);
+  // Подзаголовок и дата выключены: фон идёт под речь, лишние строки в кадре
+  // только мешают. Всё остальное — из «Интро», без правок.
+  src.layers.subtitle.enabled = false;
+  src.layers.date.enabled = false;
+  // В фоне нет разделителей и ромбов: остаются только эмблема и название.
+  src.layers.dividers.enabled = false;
+  src.layers.dividers.first = false;
+  src.layers.dividers.second = false;
+  src.layers.dividers.diamonds = false;
+  // Композиция по центру: блок «эмблема + название» занимает y от −1.61 до
+  // 3.34 (проверено по реальным границам эмблемы и высоте букв), то есть его
+  // центр выше середины кадра. Минус 0.86 ставит центр ровно в середину:
+  // эмблема сверху 22.5 %, название снизу 77.5 %.
+  src.general.compositionY = -0.86;
+  // Эмблема не поднимается: в фоне нет текста, к которому надо подвинуться —
+  // композиция уже стоит по центру и должна оставаться на месте всю минуту.
+  src.general.logoRise = 0;
+  // Минута удержания добавляется к фазам появления и ухода.
+  src.general.hold = 60;
+  // Фон почти стоит в кадре всю минуту, поэтому всё, что в «Интро» можно
+  // позволить на тринадцати секундах, здесь превращается в дрожание: ударная
+  // дрожь камеры, толчок и «замах» перед ним. Убираем их у фона; удара в кадре
+  // остаётся столько, сколько нужно композиции (вспышка и волна на месте).
+  src.camera.shake = 0;
+  src.camera.punch = 0;
+  src.camera.windup = 0;
+  // Медленное покачивание камеры оставляем, но чуть мягче: оно и держит фон
+  // живым, а не резким.
+  src.camera.sway = Math.min(src.camera.sway, 0.6);
+  // Удержание начинается после сборки названия, а не в момент удара эмблемы.
+  cfg.timeline = labTimeline(73.6, phaseBounds(src.general));
+  cfg.timeline.drawDuration = phaseBounds(src.general).exitAt;
+  cfg.timeline.holdDuration = 60;
+  for (const [scope] of LAB2_SCOPES) {
+    const part = ["general", "camera", "post"].includes(scope) ? src[scope] : src.layers[scope];
+    cfg[LAB2_PREFIX + scope] = part;
+  }
+  return cfg;
+})();
+
+/** Аутро — та же композиция, что интро, с обратным ходом времени. */
+export const LAB2_OUTRO_DEFAULTS = (() => {
+  const cfg = plain(LAB2_DEFAULTS);
+  const tl = cfg.timeline;
+  // В обратном ролике вход и уход меняются местами.
+  const entry = tl.drawDuration + tl.emergeDuration;
+  const exit = tl.fadeDuration + tl.restDuration;
+  tl.drawDuration = exit;
+  tl.emergeDuration = 0;
+  tl.fadeDuration = entry;
+  tl.restDuration = 0;
+  return cfg;
+})();
+
 // ── Лаборатория 11 ───────────────────────────────────────────────────────
 const LAB5_PREFIX = "lab5_";
 const FONTS5 = [{ value: "Prata", label: "Prata" }, { value: "Forum", label: "Forum" }, { value: "Inter", label: "Inter" }];
 const r = (key, label, min, max, step = 0.01) => ({ key, label, type: "range", min, max, step });
+/**
+ * Слоты видеомонолитов. Каждый слот — отдельное поле, поэтому человек видит,
+ * какой ролик попадёт в какой визит камеры, и может назначить источники по
+ * одному. Одним списком «videoOrder» это было не сделать: порядок есть, а
+ * что именно играет на слоте — нет.
+ */
+const LAB5_SLOTS = MEDIA_CLIPS.map((clip, index) => ({
+  key: `videoAssign.${index}`,
+  label: `Слот ${String(index + 1).padStart(2, "0")} (визит ${index + 1})`,
+  type: "select",
+  options: mediaOptions(),
+  // Подсказка в панели: чей ролик и сколько он длится.
+  hint: `${clip.name} · ${clip.timecode}`,
+}));
+
 const LAB5_FIELDS = {
+  video: [
+    {
+      key: "videoFit",
+      label: "Что видно в окне визита",
+      type: "select",
+      options: VIDEO_FIT_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
+      hint: "Экран монолита живёт около 1,9 с: выберите, показывать начало, кульминацию или весь ролик.",
+    },
+    ...LAB5_SLOTS,
+  ],
   text: [
     { key: "title", label: "Название", type: "text", maxLength: 30 },
     { key: "subtitle", label: "Подзаголовок", type: "text", maxLength: 45 },
@@ -121,20 +253,51 @@ const LAB5_FIELDS = {
     { key: "antialias", label: "Сглаживание кромок", type: "bool" },
   ],
 };
-const LAB5_TITLES = { text: "Надписи", logo: "Знак и кольца", light: "Свет, камера, цвет" };
+const LAB5_TITLES = { video: "Ролики на монолитах", text: "Надписи", logo: "Знак и кольца", light: "Свет, камера, цвет" };
 const lab5Sections = Object.entries(LAB5_FIELDS).map(([id, fields]) => ({ id: LAB5_PREFIX + id, title: `Лаб. 11 · ${LAB5_TITLES[id]}`, fields }));
 
-/** Собрать плоский набор настроек фильма из разделов сцены (нормализует сам движок). */
+/**
+ * Собрать плоский набор настроек фильма из разделов сцены (нормализует сам движок).
+ *
+ * Слоты лежат в конфиге плоско (`videoAssign.0`), а движок ждёт массив: здесь
+ * они и собираются. Пустой список означает «ни одного источника» — так
+ * плейсхолдеры видны сразу после первого запуска, а не заменяются молча.
+ */
 export function lab5Source(cfg) {
-  return { ...(cfg[LAB5_PREFIX + "text"] || {}), ...(cfg[LAB5_PREFIX + "logo"] || {}), ...(cfg[LAB5_PREFIX + "light"] || {}) };
+  const section = cfg[LAB5_PREFIX + "video"] || {};
+  // -1 — намеренно пустой слот, он часть раскладки: «одна дырка» не должна
+  // обнулять весь набор и молча терять все источники.
+  const assign = normalizeAssign(MEDIA_CLIPS.map((_clip, index) => section[`videoAssign.${index}`])) ?? [];
+  return {
+    videoAssign: assign,
+    videoFit: section.videoFit,
+    ...(cfg[LAB5_PREFIX + "text"] || {}),
+    ...(cfg[LAB5_PREFIX + "logo"] || {}),
+    ...(cfg[LAB5_PREFIX + "light"] || {}),
+  };
 }
 
+/**
+ * Значение по умолчанию для поля панели. Слоты монолитов адресуются точечным
+ * ключом (`videoAssign.3`), поэтому обычный `DEFAULT_SETTINGS[f.key]` для них
+ * пуст — здесь он разворачивается в номер ролика из полного набора.
+ */
+function lab5Default(key) {
+  const slot = /^videoAssign\.(\d+)$/.exec(key);
+  if (slot) return FULL_ASSIGN[Number(slot[1])];
+  return DEFAULT_SETTINGS[key];
+}
+
+/**
+ * Лаборатория 11 живёт не общей схемой, а своим таймлайном визитов: появление и
+ * уход заданы в `TL` — первым подъёмом камеры и финальным движением.
+ */
 export const LAB5_DEFAULTS = (() => {
-  const cfg = createSharedSceneConfig(labTimeline(LAB5_TL.end));
+  const cfg = createSharedSceneConfig(labTimeline(LAB5_TL.end, { entry: LAB5_TL.visit0, exit: LAB5_TL.end - LAB5_TL.exitStart }));
   cfg.transition = { duration: 0.9 };
   cfg.caption.titleVisible = false;
   for (const [id, fields] of Object.entries(LAB5_FIELDS)) {
-    cfg[LAB5_PREFIX + id] = Object.fromEntries(fields.map((f) => [f.key, DEFAULT_SETTINGS[f.key]]));
+    cfg[LAB5_PREFIX + id] = Object.fromEntries(fields.map((f) => [f.key, lab5Default(f.key)]));
   }
   return cfg;
 })();
@@ -145,5 +308,9 @@ export const LAB_SCHEMA_SECTIONS = [...lab2Sections, ...lab5Sections];
 export function labSectionAllowed(sceneId, sectionId) {
   if (!isLabScene(sceneId)) return null;
   if (["timeline", "playback", "transition", "fxStack"].includes(sectionId)) return true;
-  return sectionId.startsWith(sceneId === LAB2_ID ? LAB2_PREFIX : LAB5_PREFIX);
+  // У фотопаузы свой раздел с апертурой — остальное те же lab2_*.
+  if (sceneId === PHOTO_PAUSE_ID) return sectionId === "photo" || sectionId.startsWith(LAB2_PREFIX);
+  // Фон собран из той же композиции, что «Интро», поэтому его разделы — те же
+  // lab2_*: отдельного набора настроек у него нет и не должно быть.
+  return sectionId.startsWith(sceneId === LAB5_ID ? LAB5_PREFIX : LAB2_PREFIX);
 }

@@ -1,8 +1,9 @@
-import { TL } from './timeline';
+import { TL, visitTime } from './timeline';
 import { glyphExit, subtitleExit } from './finalExit';
 import { clamp, easeInOutCubic, easeOutCubic, lerp, smoothstep } from './math';
 import { drawCornerRings } from './cornerRings';
 import type { FilmSettings } from './settings';
+import { mediaClip } from './media';
 
 /**
  * Надписи, полосы, кольца и финальное затухание фильма «Монолиты».
@@ -14,6 +15,39 @@ const DESIGN_W = 1920, DESIGN_H = 1080;
 
 function measure(ctx: CanvasRenderingContext2D, text: string, spacing: number) {
   return Array.from(text).map((ch) => ctx.measureText(ch).width + spacing);
+}
+
+/**
+ * Метки монолитов: таймкод и короткое имя ролика под каждым экраном.
+ * Появляются вместе с монолитом и гаснут перед схлопыванием, чтобы в
+ * финальной части кадра ничего не спорило со знаком. Подпись — часть кадра,
+ * поэтому в экспорт она попадает так же, как в предпросмотр.
+ */
+function drawVisitLabels(ctx: CanvasRenderingContext2D, t: number, w: number, h: number, s: FilmSettings) {
+  const appear = smoothstep(visitTime(0) - 2.6, visitTime(0) - 1.4, t);
+  const fade = 1 - smoothstep(TL.implodeStart - 2.4, TL.implodeStart - 0.4, t);
+  const alpha = Math.min(appear, fade) * (s.showSubtitle ? 1 : 0);
+  if (alpha < 0.004) return;
+  const size = Math.min(15, Math.max(10, 0.0078 * w));
+  const gap = 0.012 * w;
+  const y = h * 0.905;
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.92;
+  ctx.font = `500 ${size}px "${s.subtitleFont}", serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  // Кодировка точек: только буквы, цифры и двоеточие — панель и кадр
+  // используют одну и ту же запись из media.ts.
+  for (let i = 0; i < s.videoAssign.length; i++) {
+    const clip = mediaClip(s.videoAssign[i]);
+    const x = (w / (s.videoAssign.length + 1)) * (i + 1);
+    const label = clip.file ? `${clip.timecode} · ${clip.name}` : `${String(i + 1).padStart(2, "0")} · НЕТ ИСТОЧНИКА`;
+    ctx.fillStyle = clip.file ? "rgba(255,224,168,.78)" : "rgba(255,196,120,.5)";
+    ctx.fillText(label, x, y);
+    ctx.fillStyle = "rgba(255,206,110,.28)";
+    ctx.fillRect(x - gap / 2, y + size * 0.55, gap, 1);
+  }
+  ctx.restore();
 }
 
 export function drawLab5Overlay(ctx: CanvasRenderingContext2D, t: number, W: number, H: number, s: FilmSettings) {
@@ -117,6 +151,8 @@ export function drawLab5Overlay(ctx: CanvasRenderingContext2D, t: number, W: num
     Array.from(s.subtitle).forEach((ch, i) => { ctx.fillText(ch, sx, by); sx += sw[i]; });
     ctx.restore();
   }
+
+  drawVisitLabels(ctx, t, w, h, s);
 
   // ---- анаморфные полосы: из чёрной щели раскрываются и выбрасываются взрывом
   const open = easeInOutCubic((t - 0.3) / 3.4);

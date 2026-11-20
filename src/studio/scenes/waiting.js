@@ -4,8 +4,8 @@ import { backgroundGlowDefaults } from "../background-glow-config.js";
 import { logoTimingDefaults } from "../logo-timing.js";
 import { captionTimingDefaults } from "../caption-timing.js";
 import { customTextDefaults } from "../custom-text.js";
-import { editorLockDefaults } from "../editor-locks.js";
 import { effectOrderDefaults } from "../effect-order.js";
+import { depthOrderDefaults } from "../depth-order.js";
 import { fxDefaults } from "../fx-stack.js";
 
 // Стартовое интро: художественные значения по умолчанию.
@@ -17,8 +17,10 @@ export const WAITING_DEFAULTS = {
   textLayers: customTextDefaults(),
   captionTiming: captionTimingDefaults(),
   logoTiming: logoTimingDefaults(),
-  editorLocks: editorLockDefaults(),
   effectOrder: effectOrderDefaults(),
+  // Порядок слоёв по глубине (левая панель «Слои»): включённый режим двигает
+  // прозрачные слои кадра, выключенный оставляет исходную отрисовку.
+  depthOrder: depthOrderDefaults(),
   // Подзаголовок: 0,32em разрывал слово на буквы; 0,22em держит группы и
   // оставляет воздух. Дата чуть плотнее, чтобы длинная строка не «расползалась».
   typography: { font: "cormorant-garamond", titleTracking: 0, subtitleTracking: 0.22, dateTracking: 0.24 },
@@ -71,6 +73,7 @@ export const WAITING_DEFAULTS = {
     holdScaleTo: 1.04,
     pulseAmount: 0.018,    // амплитуда «дыхания»
     pulseSpeed: 0.55,
+    lightPulse: 0, lightPulseSpeed: 0.3, elementFlash: 0, elementFlashStart: 4.5, elementFlashDuration: 0.5,
     swayAmount: 0.05,      // лёгкое покачивание (рад)
     swaySpeed: 0.35,
     shadowDepth: 0.55,     // насколько глубоко уходит в тень (z-сдвиг)

@@ -1,7 +1,7 @@
 import { masterSize } from "./output-profile.js";
 import { DEFAULT_QUALITY, isQualityPreset } from "./quality-presets.js";
 import { Intro } from "./lab2/Intro.ts";
-import { sanitizeConfig, totalDuration } from "./lab2/config.ts";
+import { sanitizeConfig, totalDuration, phaseBounds } from "./lab2/config.ts";
 import { loadFontFace } from "./lab2/fonts.ts";
 import { IntroEngine } from "./lab5/Engine.ts";
 import { DEFAULT_SETTINGS, normalizeSettings } from "./lab5/settings.ts";
@@ -9,13 +9,20 @@ import { TL as LAB5_TL } from "./lab5/timeline.ts";
 import { drawLab5Overlay } from "./lab5/overlay.ts";
 import { loadLab5Fonts } from "./lab5/fonts.ts";
 import { lab2Source, lab5Source } from "./scenes/labs.js";
+import { introSceneOrderOverride } from "./depth-order.js";
+import { localCycleTime, repeatTime } from "./playback.js";
+import { cycleDuration } from "./runtime.js";
+import { holdForDuration } from "./operator-timeline.js";
+import { lab2FrameTiming, lab2OutroFrameTiming } from "./lab2-timing.js";
+import { PhotoAperture } from "./photo-aperture.js";
+import { apertureSegments } from "./scenes/aperture-layout.js";
 
 /**
  * Адаптеры лабораторий к общему циклу студии: сцена получает время `update(t)` и
  * рисует кадр `render()` в холст сцены (2D), откуда его берут и предпросмотр, и
  * покадровый экспорт, и общий слой эффектов.
  */
-class LabScene {
+export class LabScene {
   constructor(canvas, cfg) {
     this.cfg = cfg;
     this.canvas = canvas;
@@ -44,8 +51,16 @@ class LabScene {
     return true;
   }
   setCaptionSource() {}
-  setCaptionOverride() {}
   setCaptionVisible() {}
+  /**
+   * Держит ли сцена длительность удержания за собой.
+   *
+   * Лаборатории живут собственным фильмом: их длина считается из «момента
+   * удара», скорости и паузы, и каждый кадр переписывает `holdDuration`.
+   * Студии это важно знать: иначе правка «Держ.» в пульте молча отменялась
+   * следующим же кадром — число вводилось и через кадр возвращалось.
+   */
+  holdsOwnDuration() { return false; }
   resize() {}
   whenReady() { return this._readyPromise || Promise.resolve(); }
   update(t) { this.time = t; }
@@ -57,6 +72,17 @@ class LabScene {
     }).catch(() => {});
   }
   _black() { this.ctx.fillStyle = "#050403"; this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height); }
+  /**
+   * Время кадра для лаборатории: сначала заворачивается по циклу пульта, потом
+   * по длине самого фильма. Без этого фильм проигрывался один раз, и дальше
+   * кадр был чёрным — при включённом цикле в пульте это выглядело поломкой.
+   * @param {number} time абсолютное время студии
+   * @param {number} filmLength длина фильма лаборатории, секунды
+   */
+  filmTime(time, filmLength) {
+    const tl = this.cfg.timeline;
+    return repeatTime(localCycleTime(time, cycleDuration(tl), tl.startDelay || 0), filmLength);
+  }
   dispose() {
     this.disposed = true;
     this.host.remove();
@@ -73,6 +99,8 @@ export class Lab2Scene extends LabScene {
     this.intro.forced = true;
     this.intro.embeddedSize = [this.W, this.H];
     this.intro.onWarn = () => { if (!this.disposed) window.__logo?.renderAt?.(window.__logo.time); };
+    // Порядок слоёв — из общей панели студии (если ручной режим включён).
+    this.intro.setDepthOrder?.(introSceneOrderOverride(cfg));
     this._readyPromise = this.intro.init().then(() => { this.ready = !this.disposed; });
     this._redrawWhenReady();
   }
@@ -81,28 +109,143 @@ export class Lab2Scene extends LabScene {
   configChanged() {
     this.lab = sanitizeConfig(lab2Source(this.cfg));
     this.intro.setConfig(this.lab);
+    // Порядок слоёв приходит из общей панели «Слои» и раскладывается на
+    // собственные слои лаборатории: список для человека один.
+    this.intro.setDepthOrder?.(introSceneOrderOverride(this.cfg));
   }
 
   update(t) {
     super.update(t);
     if (!this.ready) return;
-    // Длительность ролика зависит от «Момента удара», скорости и паузы — таймлайн студии следует за ней.
+    // Не перезаписываем сохранённую ручную длительность при загрузке.
+    // При изменении настроек фильма подстраиваем удержание так, чтобы сумма
+    // всех фаз, а не одно удержание, равнялась длительности фильма.
     const duration = totalDuration(this.lab);
-    if (Math.abs(this.cfg.timeline.holdDuration - duration) > 1e-3) this.cfg.timeline.holdDuration = duration;
+    if (this.filmDuration === undefined) {
+      this.filmDuration = duration;
+      return;
+    }
+    if (Math.abs(this.filmDuration - duration) > 1e-3) {
+      this.filmDuration = duration;
+      this.durationFromPanel = false;
+      this.cfg.timeline.holdDuration = holdForDuration(this.cfg.timeline, duration);
+    }
   }
+
+  /** Длительность задаётся пультом: следующий кадр её не перетирает. */
+  overrideDuration(seconds) {
+    if (!Number.isFinite(seconds) || seconds <= 0) return false;
+    this.durationFromPanel = true;
+    if (this.ready) this.filmDuration = totalDuration(this.lab);
+    return true;
+  }
+
+  holdsOwnDuration() { return true; }
 
   render() {
     if (!this.ready) { this._black(); return; }
     const intro = this.intro;
-    intro.t = this.time;
-    intro.update(this.time, 1 / 30);
+    const timeline = this.cfg.timeline;
+    const cycle = cycleDuration(timeline);
+    const local = localCycleTime(this.time, cycle, timeline.startDelay || 0);
+    const entryEnd = this.brand ? phaseBounds(this.lab.general).exitAt : this.lab.general.impact;
+    const { filmTime, fade } = (this.reverse ? lab2OutroFrameTiming : lab2FrameTiming)(local, timeline, this.lab.general.impact, entryEnd);
+    intro.t = filmTime;
+    intro.update(filmTime, 1 / 30);
     intro.composer.render();
     this.ctx.drawImage(intro.renderer.domElement, 0, 0, this.canvas.width, this.canvas.height);
+    if (fade > 0) {
+      this.ctx.save();
+      this.ctx.globalAlpha = fade;
+      this.ctx.fillStyle = "#000";
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.restore();
+    }
   }
 
   dispose() {
     super.dispose();
     try { this.intro.dispose(); } catch (error) { console.warn("Лаборатория 10: ошибка освобождения", error); }
+  }
+}
+
+/**
+ * Фотопауза: композиция «Фона» (эмблема из роя, надпись, кольца à la Фон) плюс
+ * раскрывающаяся апертура диафрагмы, как была на прежней фотопаузе. Апертура —
+ * отдельный слой поверх интро-кадра: раскрывается до удара эмблемы и растворяется,
+ * как только знак осел.
+ */
+export class Lab2PhotoScene extends Lab2Scene {
+  constructor(canvas, cfg) {
+    super(canvas, cfg);
+    this.photo = true;
+    // Как у «Фона»: вход студии растянут на всю сборку композиции, а не резкий
+    // «удар» эмблемы посередине пролога.
+    this.brand = true;
+    this.aperture = new PhotoAperture();
+    this.apertureAdded = false;
+  }
+
+  /** Время фильма — то же, по которому render() ставит кадр интро. */
+  filmSeconds() {
+    const timeline = this.cfg.timeline;
+    const cycle = cycleDuration(timeline);
+    const local = localCycleTime(this.time, cycle, timeline.startDelay || 0);
+    const entryEnd = phaseBounds(this.lab.general).exitAt;
+    return lab2FrameTiming(local, timeline, this.lab.general.impact, entryEnd).filmTime;
+  }
+
+  update(t) {
+    super.update(t);
+    if (!this.ready || this.disposed) return;
+    if (!this.apertureAdded && this.intro?.scene) {
+      this.intro.scene.add(this.aperture.group);
+      this.apertureAdded = true;
+    }
+    const p = this.cfg.photo || {};
+    const clamp01 = (x) => Math.max(0, Math.min(1, x));
+    const smooth = (x) => { const k = clamp01(x); return k * k * (3 - 2 * k); };
+    const tFilm = this.filmSeconds();
+    // Раскрытие к удару эмблемы, короткое «присутствие» и мягкий уход.
+    const open = smooth((tFilm - 1.1) / 2.3);
+    const opacity = smooth((tFilm - 1.1) / 0.8) * (1 - smooth((tFilm - 3.6) / 1.2));
+    const a = this.aperture;
+    const logo = this.intro?.logoRoot;
+    a.group.position.set(
+      (logo?.position.x ?? 0) + (p.apertureOffsetX ?? 0),
+      (logo?.position.y ?? 0) + (p.apertureOffsetY ?? 0),
+      -0.6, // чуть позади эмблемы, как на прежней фотопаузе
+    );
+    a.group.scale.setScalar(p.apertureRadius ?? 3.1);
+    // На светлом рое тонкие линии гаснут: поднимаем цвет в HDR, чтобы апертура
+    // читалась как светящийся контур (её и так подхватывает блумом сцены).
+    a.material.color.set(p.apertureColor ?? "#e8c77e").multiplyScalar(2.1);
+    a.material.opacity = (p.apertureOpacity ?? 0.85) * opacity;
+    const positions = a.geometry.getAttribute("position");
+    positions.array.set(apertureSegments(open));
+    positions.needsUpdate = true;
+    a.group.visible = (p.apertureEnabled !== false) && a.material.opacity > 0.004;
+  }
+
+  dispose() {
+    try { this.aperture?.dispose(); } catch { /* сцена уже закрывается */ }
+    super.dispose();
+  }
+}
+
+/** Фон: отсчёт минуты удержания начинается после сборки всей композиции. */
+export class Lab2BrandScene extends Lab2Scene {
+  constructor(canvas, cfg) {
+    super(canvas, cfg);
+    this.brand = true;
+  }
+}
+
+/** Обратное воспроизведение интро, с отдельным конфигом и возможностью записи. */
+export class Lab2OutroScene extends Lab2Scene {
+  constructor(canvas, cfg) {
+    super(canvas, cfg);
+    this.reverse = true;
   }
 }
 
@@ -127,18 +270,22 @@ export class Lab5Scene extends LabScene {
     this.engine?.setSettings(this.film);
   }
 
+  /** Фильм 51 с: длину задаёт его собственный таймлайн, а не пульт. */
+  holdsOwnDuration() { return true; }
+
   /** Покадровый экспорт: дожидаемся перемотки видеоэкранов монолитов. */
   async prepareFrame(t) {
     await this.whenReady();
     if (!this.engine) return;
-    const time = Math.min(Math.max(0, t), LAB5_TL.end - 1e-4);
+    // Тот же кадр, что в предпросмотре: время завёрнуто по циклу и по фильму.
+    const time = Math.min(this.filmTime(t, LAB5_TL.end), LAB5_TL.end - 1e-4);
     await this.engine.renderFrame(time);
     this.prepared = t;
   }
 
   render() {
     if (!this.ready || !this.engine) { this._black(); return; }
-    const t = Math.min(Math.max(0, this.time), LAB5_TL.end - 1e-4);
+    const t = Math.min(this.filmTime(this.time, LAB5_TL.end), LAB5_TL.end - 1e-4);
     if (Math.abs(this.prepared - this.time) > 1e-9) this.engine.seek(t);
     this.prepared = -1;
     const { ctx, canvas } = this;
@@ -148,6 +295,19 @@ export class Lab5Scene extends LabScene {
     ctx.drawImage(this.engine.canvas, 0, 0, canvas.width, canvas.height);
     ctx.restore();
     drawLab5Overlay(ctx, t, canvas.width, canvas.height, this.film);
+  }
+
+  /**
+   * Состояние источников для пульта: сколько слотов занято, сколько играет и
+   * что не открылось. Без этого пустой экран в кадре выглядел как ошибка
+   * рендера, хотя причина — неназначенный слот или битый файл.
+   */
+  mediaStatus() {
+    const assign = this.film?.videoAssign || [];
+    const slots = assign.filter((n) => Number.isInteger(n) && n >= 0).length;
+    const engine = this.engine;
+    const errors = (engine?.mediaErrors || []).filter(Boolean);
+    return { slots, total: assign.length, errors, ready: this.ready };
   }
 
   dispose() {

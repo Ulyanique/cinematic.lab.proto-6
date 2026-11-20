@@ -36,7 +36,10 @@ float beam(vec2 p, vec2 s, float ang, float spread, float seed){
   float a=atan(v.y,v.x)-ang; a=mod(a+PI,2.*PI)-PI;
   float cone=exp(-(a*a)/(spread*spread));
   float rays=0.35+0.65*fbm(vec2(a*16.+seed, seed*3.+uTime*0.05));
-  rays*=0.55+0.45*vnoise(vec2(a*80.+seed, r*0.18-uTime*0.1));
+  // Мелкая сетка (a*80) превращалась в статическую крупу на луче: соседние
+  // пиксели попадали в разные узлы и луч «кипел». Крупнее и мягче — тот же
+  // характер, но без дрожания.
+  rays*=0.55+0.45*vnoise(vec2(a*26.+seed, r*0.18-uTime*0.1));
   return cone*rays*exp(-r*0.17);
 }
 float ribbon(vec2 p, vec2 c, float R, float w, float seed, float speed){
@@ -79,11 +82,30 @@ void main(){
   rib+=ribbon(p, vec2(-9.,5.5), 4.1, 0.35, 12., 0.07)*0.6;
   col+=mix(gold,pale,clamp(rib*0.4,0.,1.))*rib*0.5*uRib;
 
-  // micro-sparkles living inside the light
-  vec2 g=floor(p*60.);
+  // micro-sparkles living inside the light.
+  // Блёстки — это точки: ячейка сетки либо светится, либо нет. Сглаженный шум
+  // вместо них давал мягкие пятна, и на фоне это читалось как грязь, а не как
+  // искры. Поэтому узор точечный, как был; мягче стала только пульсация —
+  // медленнее и без случайной фазы на клетку, из-за которой искры «кипели».
+  // Сетка блёсток привязана к экрану, а не к миру: p смещается вместе с
+  // камерой (uCam), и весь узор уползал в угол кадра — заметно как «точки
+  // ползут». Экранные координаты не зависят от движения камеры: точки стоят на
+  // месте, а свет под ними медленно живёт.
+  // Шаг сетки — как у мира до этой правки (клетка ≈ 1/540 высоты кадра):
+  // размер и плотность точек остаются прежними, но узор не едет.
+  vec2 g=floor(vec2(vUv.x*uAspect, vUv.y)*540.);
   float h=hash21(g);
-  float sp=pow(h,38.)*(0.5+0.5*sin(uTime*2.5+h*60.));
-  col+=pale*sp*(bs+rib*0.8)*1.4;
+  // Редкие и яркие: из тысячи клеток светится единицы, и только там, где есть
+  // свет. «pow(h,34)» оставлял зажжёнными больше десятой части клеток — по всему
+  // кадру это и читалось как мусор, а не блёстки.
+  // Искра не двигается по экрану — двигается только её яркость. Поэтому
+  // «движение» здесь — это мигание, и его надо сделать медленным и сплошным:
+  // редкая низкая частота (≈0.22 Гц) и мягкая волна вместо качелей вкл/выкл.
+  // Раньше на клетку приходилась случайная фаза (g.y*0.35 + g.x*0.2), из-за
+  // которой соседние точки гасли вразнобой — это и читалось как рябь.
+  float phase=hash21(g+17.3)*6.2831;
+  float sp=smoothstep(0.972,0.999,h)*(0.58+0.42*sin(uTime*0.22+phase));
+  col+=pale*sp*(bs+rib*0.8)*1.9;
 
   col+=vec3(1.0,0.5,0.14)*0.03*exp(-length((p-vec2(0.,0.2))*vec2(0.5,0.9)))*uGlow;
   col+=vec3(1.0,0.66,0.28)*uFlash*exp(-length(p-vec2(0.,1.4))*0.45)*0.55;
@@ -350,6 +372,7 @@ export const finalPass = {
     uRes: { value: [1920, 1080] },
     uOpen: { value: 1 },       // половина высоты видимой «щели» (в UV); >0.5 — кадр полностью открыт
     uSlitMix: { value: 1 },    // 1 — жёсткая маска «щели», 0 — мягкое затемнение вместо неё
+    uIris: { value: 0 },       // включение «старого телевизора»: 1 — чёрный экран, 0 — кадр открыт
     uLineVisible: { value: 1 },// 1 — пролог с линией-зажиганием разрешён
     uLine: { value: 0 },       // длина линии-зажигания 0..1
     uLineI: { value: 0 },      // её яркость
@@ -368,12 +391,18 @@ export const finalPass = {
   fragmentShader: /* glsl */ `
     precision highp float;
     uniform sampler2D tDiffuse;
-    uniform float uTime, uFade, uAspect, uOpen, uLine, uLineI, uBlur, uShock, uShockAmp, uCA, uPulse, uRays, uZoom, uGhost, uVig, uGrainK, uSat, uCon, uHue, uShadow, uSlitMix, uLineVisible;
+    uniform float uTime, uFade, uAspect, uOpen, uLine, uLineI, uBlur, uShock, uShockAmp, uCA, uPulse, uRays, uZoom, uGhost, uVig, uGrainK, uSat, uCon, uHue, uShadow, uSlitMix, uLineVisible, uIris;
     uniform vec2 uRes, uShockC;
     varying vec2 vUv;
     vec3 hueRot(vec3 c,float a){ vec3 k=vec3(0.57735); float ca=cos(a); return c*ca+cross(k,c)*sin(a)+k*dot(k,c)*(1.-ca); }
     float h21(vec2 p){ vec3 p3=fract(vec3(p.xyx)*.1031); p3+=dot(p3,p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
     void main(){
+      // Полностью закрытый экран должен оставаться чёрным, включая все
+      // эффекты, которые добавляются после маски раскрытия.
+      if (uIris >= 0.99999) {
+        gl_FragColor=vec4(0.,0.,0.,1.);
+        return;
+      }
       vec2 uv=vUv;
       vec2 d=uv-.5;
       float r2=dot(d*vec2(uAspect,1.),d*vec2(uAspect,1.));
@@ -462,7 +491,12 @@ export const finalPass = {
       col=mix(vec3(lm2),col,uSat);
       col=max((col-0.18)*uCon+0.18,vec3(0.));
       // film grain / dither
-      float gr=h21(vUv*uRes+fract(uTime*7.13)*173.)-.5;
+      // Зерно меняется 24 раза в секунду и только по одной оси: полноэкранный
+      // шум на каждом кадре на спокойном фоне читался не как плёнка, а как
+      // дрожание света — особенно на фоновом ролике, где картинка почти стоит.
+      // Зерно меняется по кадрам, но мягко: сильное по силе оно давало
+      // «дрожание света» на спокойном фоне. Слабее и с плавной фазой.
+      float gr=(h21(vUv*uRes+floor(uTime*24.)*37.)-.5)*0.5;
       col+=gr*uGrainK*(1.-0.4*col);
       col*=uFade;
 
@@ -477,13 +511,33 @@ export const finalPass = {
       float edge=exp(-pow((dy-uOpen)*55.,2.))*step(uOpen,0.5)*smoothstep(0.0,0.02,uOpen);
       col+=vec3(1.,0.66,0.26)*edge*0.22*mix(1.,vis,uSlitMix);
 
+      // ВКЛЮЧЕНИЕ ИЗ ЦЕНТРА. Кадр стартует полностью чёрным, затем из середины
+      // зажигается точка света и круг расходится к краям — как включался старый
+      // телевизор. uIris: 1 — закрыто, 0 — открыто целиком. Круг чуть вытянут
+      // по горизонтали, иначе на широком кадре он открывался бы «щёлочкой».
+      {
+        float dist=length(d*vec2(uAspect*0.62,1.0))*1.55;
+        float R=(1.-uIris)*1.75;
+        float soft=0.05+0.12*(1.-uIris);
+        float iris=1.-smoothstep(max(0.,R-soft),R+soft,dist);
+        // Мягкая кромка при закрытом ирисе всё равно оставляла в центре видимый
+        // диск кадра — самое начало не читалось как чёрный экран.
+        iris*=smoothstep(0.0,0.12,1.-uIris);
+        col*=iris;
+        // Короткая вспышка при открытии: гаснет, когда кадр раскрыт.
+        float spark=smoothstep(0.0,0.12,1.-uIris)*smoothstep(0.0,0.65,uIris);
+        col+=vec3(1.0,0.72,0.35)*exp(-dist*dist*100.0)*spark*0.16;
+      }
+
       // линия-зажигание: горячее ядро + анаморфный шлейф
-      float half_=uLine*0.62;
-      float lx=1.-smoothstep(half_*0.55, half_, abs(d.x)*1.0);
+      float half_=max(uLine*0.62,0.0001);
+      float lx=(1.-smoothstep(half_*0.55, half_, abs(d.x)))*step(0.001,uLine);
       float core=exp(-dy*dy*90000.);
       float halo=exp(-dy*dy*1800.)*0.35+exp(-dy*dy*180.)*0.07;
       float streak=exp(-abs(d.x)*2.4)*exp(-dy*dy*20000.)*0.7;
-      float ig=(core*3.2+halo)*lx+streak*step(0.001,uLine);
+      // Шлейф тоже ограничен растущей длиной линии: иначе он мгновенно
+      // появлялся на всю ширину кадра, даже когда ядро ещё у центра.
+      float ig=(core*3.2+halo+streak)*lx;
       vec3 lc=mix(vec3(1.,0.62,0.2),vec3(1.,0.93,0.75),core);
       col+=lc*ig*uLineI*uLineVisible;
       gl_FragColor=vec4(col,1.);

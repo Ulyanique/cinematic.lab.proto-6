@@ -1,3 +1,8 @@
+import { migrateIntroBackgroundEffect } from "./intro-background-effect.js";
+import { PARTNERS_ELEMENT_SCHEMA } from "./partners-elements.js";
+import { migratePartnersStage, migratePartnersSequence, migrateSponsorStage, migrateCurtainEdge, migrateSponsorLabels, migrateCurtainEdgeV3, migratePartnersReferenceLayout, migratePartnerLabelLines, migratePartnersTopTitle, migratePartnersCompassContrast, migrateEqualPartnerLogoWidths, migratePartnersTitleAndKeaz, migratePartnersCurtainChoreography, migratePartnersCenterFirst, migrateSingleSponsorLayout, migratePartnerTextCase, migrateSponsorSideLabel, migrateSponsorTitleBlock, migrateSponsorLabelScale, migrateSponsorWord, SPONSOR_WORD_FLAG } from "./partners-stage.js";
+import { migrateGalleryBuiltinClips, GALLERY_BUILTIN_FLAG } from "./gallery-defaults.js";
+import { migrateIntroBackground } from "./background-migration.js";
 import { DECOR_SLOTS } from "./brand-decor-config.js";
 import { PARTICLE_CLOUD_IDS } from "./particle-cloud-config.js";
 import { BACKGROUND_GLOW_IDS } from "./background-glow-config.js";
@@ -16,7 +21,25 @@ export const DEFAULTS = WAITING_DEFAULTS;
 
 // Схема UI: группы → поля. type: range | color | bool
 export const SCHEMA = [
-  { id: "partners", title: "Спонсоры и организаторы", fields: [
+  ...PARTNERS_ELEMENT_SCHEMA,
+  { id: "gallery_video", title: "Видео в галерее", fields: Array.from({ length: 10 }, (_, i) => ({
+    key: `slot${i}`, label: `Видео ${String(i + 1).padStart(2, "0")}`, type: "video",
+    hint: "Видео или фото для панели; пустой слот — плейсхолдер в цветах интро",
+  })) },
+  { id: "gallery_effects", title: "Осколки панелей", fields: [
+    { key: "shards", label: "Разбивать панели на осколки", type: "bool", hint: "Выкл — цельные плоскости вместо парящих золотых осколков" },
+  ] },
+  { id: "partnersIntroBackground", title: "Фон интро", fields: [
+    { key: "enabled", label: "Использовать вместо картинки", type: "bool" },
+    { key: "strength", label: "Яркость", type: "range", min: 0, max: 2, step: .01 },
+    { key: "speed", label: "Скорость света", type: "range", min: 0, max: 2, step: .01 },
+  ] },
+  { id: "partnersLight", title: "Играющий свет на фоне", fields: [
+    {key:"enabled",label:"Показывать свет",type:"bool"},
+    {key:"strength",label:"Яркость света",type:"range",min:0,max:1.5,step:.01},
+    {key:"speed",label:"Скорость изменения",type:"range",min:0,max:2,step:.01},
+  ] },
+  { id: "partners", title: "Партнёры и организаторы", fields: [
     {key:"title",label:"Название вечера",type:"text",maxLength:120},
     {key:"subtitle",label:"Подзаголовок",type:"text",maxLength:120},
     {key:"organizerLabel",label:"Заголовок организатора",type:"text",maxLength:60},
@@ -25,7 +48,8 @@ export const SCHEMA = [
     {key:"organizer1Logo",label:"Организатор 1: свой логотип",type:"image"},
     {key:"organizer2",label:"Соорганизатор",type:"text",maxLength:80},
     {key:"organizer2Logo",label:"Соорганизатор: свой логотип",type:"image"},
-    {key:"partnerLabel",label:"Заголовок спонсоров",type:"text",maxLength:60},
+    {key:"partnerLabel",label:"Подпись партнёра 1",type:"text",maxLength:60},
+    {key:"partner2Label",label:"Подпись партнёра 2",type:"text",maxLength:60},
     {key:"partner1",label:"Партнёр 1",type:"text",maxLength:80},
     {key:"partner1Logo",label:"Партнёр 1: свой логотип",type:"image"},
     {key:"partner2",label:"Партнёр 2",type:"text",maxLength:80},
@@ -36,27 +60,28 @@ export const SCHEMA = [
     ]},
     {key:"frameVisible",label:"Показывать рамку",type:"bool"},
     {key:"curtainVisible",label:"Показывать занавес",type:"bool"},
-    {key:"curtainWidth",label:"Занавес: ширина, px",type:"range",min:320,max:760,step:4},
+    {key:"curtainWidth",label:"Занавес у края: ширина, px",type:"range",min:20,max:240,step:4},
     {key:"motion",label:"Движение декора при удержании",type:"range",min:0,max:1,step:.01},
   ] },
-  // Заставка одного спонсора: тот же кадр, что у «Спонсоров», но знак крупно
+  // Заставка одного партнёра: тот же кадр, что у «Партнёров», но знак крупно
   // по центру. Поля повторяют общий раздел, чтобы правки привычно искались.
-  { id: "sponsor", title: "Спонсор и подписи", fields: [
+  { id: "sponsor", title: "Партнёр и подписи", fields: [
     { key: "mark", label: "Чей знак в кадре", type: "select", options: [
       { value: "promrukav", label: "Промрукав" },
       { value: "keaz", label: "КЭАЗ" },
     ] },
     { key: "markLogo", label: "Свой файл знака (SVG/PNG)", type: "image" },
     { key: "markScale", label: "Размер знака", type: "range", min: 0.5, max: 1.8, step: 0.01 },
-    { key: "title", label: "Надпись сверху", type: "text", maxLength: 60 },
+    { key: "title", label: "Название под эмблемой", type: "text", maxLength: 60 },
     { key: "subtitle", label: "Подзаголовок", type: "text", maxLength: 80 },
+    { key: "sponsorLabel", label: "Подпись рядом с логотипом", type: "text", maxLength: 80 },
     { key: "logoStyle", label: "Оформление знака", type: "select", options: [
       { value: "gold", label: "Золотое тиснение" },
       { value: "original", label: "Исходные цвета файла" },
     ] },
     { key: "frameVisible", label: "Показывать рамку", type: "bool" },
     { key: "curtainVisible", label: "Показывать занавес", type: "bool" },
-    { key: "curtainWidth", label: "Занавес: ширина, px", type: "range", min: 320, max: 760, step: 4 },
+    { key: "curtainWidth", label: "Занавес у края: ширина, px", type: "range", min: 20, max: 240, step: 4 },
     { key: "motion", label: "Движение декора при удержании", type: "range", min: 0, max: 1, step: 0.01 },
   ] },
   { id: "intro", title: "Последовательность интро", fields: [
@@ -107,32 +132,13 @@ export const SCHEMA = [
     { key: "subtitleHoldDuration", label: "Удержание фразы на тёмном фоне (с)", type: "range", min: 0, max: 10, step: 0.05 },
     { key: "subtitleEraseDuration", label: "Стирание финальной фразы (с)", type: "range", min: 0.2, max: 6, step: 0.05 },
   ] },
-  { id: "photo", title: "Круговая надпись и рамка", fields: [
-    { key: "textEnabled", label: "Надпись по кругу", type: "bool" },
-    { key: "text", label: "Текст", type: "text", maxLength: 40 },
-    { key: "repeats", label: "Повторений", type: "range", min: 1, max: 8, step: 1 },
-    { key: "radius", label: "Радиус надписи", type: "range", min: 1.1, max: 2.15, step: 0.05 },
-    { key: "offsetX", label: "Сдвиг надписи по горизонтали", type: "range", min: -2, max: 2, step: 0.01 },
-    { key: "offsetY", label: "Сдвиг надписи по вертикали", type: "range", min: -2, max: 2, step: 0.01 },
-    { key: "fontSize", label: "Размер букв", type: "range", min: 0.08, max: 0.35, step: 0.01 },
-    { key: "rotationSpeed", label: "Скорость вращения", type: "range", min: -0.2, max: 0.2, step: 0.005 },
-    { key: "textOpacity", label: "Прозрачность надписи", type: "range", min: 0, max: 1, step: 0.01 },
-    { key: "color", label: "Цвет уголков и исходный цвет надписи", type: "color" },
-    { key: "textColor", label: "Свой цвет надписи", type: "color", fallback: "#e8c77e" },
+  { id: "photo", title: "Апертура", fields: [
     { key: "apertureEnabled", label: "Апертура перед логотипом", type: "bool" },
-    { key: "apertureOffsetX", label: "Апертура: сдвиг X", type: "range", min: -2, max: 2, step: 0.01 },
-    { key: "apertureOffsetY", label: "Апертура: сдвиг Y", type: "range", min: -2, max: 2, step: 0.01 },
-    { key: "apertureRadius", label: "Апертура: радиус", type: "range", min: 0.5, max: 2.5, step: 0.01 },
+    { key: "apertureOffsetX", label: "Апертура: сдвиг X", type: "range", min: -3, max: 3, step: 0.01 },
+    { key: "apertureOffsetY", label: "Апертура: сдвиг Y", type: "range", min: -3, max: 3, step: 0.01 },
+    { key: "apertureRadius", label: "Апертура: радиус", type: "range", min: 0.5, max: 4.5, step: 0.01 },
     { key: "apertureOpacity", label: "Апертура: прозрачность", type: "range", min: 0, max: 1, step: 0.01 },
     { key: "apertureColor", label: "Апертура: цвет", type: "color" },
-    { key: "logoTurns", label: "Оборотов логотипа за 20 с (0 — стоп)", type: "range", min: -3, max: 3, step: 1 },
-    { key: "ringRadius", label: "Радиус пунктирного круга", type: "range", min: 0.5, max: 2.5, step: 0.01 },
-    { key: "frameEnabled", label: "Уголки кадра", type: "bool" },
-    { key: "frameMargin", label: "Отступ уголков", type: "range", min: 0, max: 0.18, step: 0.005 },
-    { key: "frameLength", label: "Длина уголков", type: "range", min: 0.02, max: 0.18, step: 0.005 },
-    { key: "frameOpacity", label: "Прозрачность уголков", type: "range", min: 0, max: 1, step: 0.01 },
-    { key: "framePulse", label: "Амплитуда движения уголков к центру", type: "range", min: 0, max: 0.1, step: 0.005 },
-    { key: "framePulseCycles", label: "Пульсаций за цикл", type: "range", min: 1, max: 10, step: 1 },
   ] },
   { id: "caption", title: "Надписи", fields: [
     { key: "titleVisible", label: "Название: показывать", type: "bool" },
@@ -203,6 +209,11 @@ export const SCHEMA = [
       { key: "holdScaleTo", label: "Масштаб в конце удержания", type: "range", min: 0.5, max: 1.5, step: 0.001 },
       { key: "pulseAmount", label: "Пульсация", type: "range", min: 0, max: 0.1, step: 0.001 },
       { key: "pulseSpeed", label: "Скорость пульсации", type: "range", min: 0, max: 3, step: 0.01 },
+      { key: "lightPulse", label: "Пульсация света: сила", type: "range", min: 0, max: 1, step: 0.01 },
+      { key: "lightPulseSpeed", label: "Пульсация света: скорость, Гц", type: "range", min: 0, max: 3, step: 0.01 },
+      { key: "elementFlash", label: "Вспышка элемента: сила", type: "range", min: 0, max: 2, step: 0.01 },
+      { key: "elementFlashStart", label: "Вспышка элемента: момент, с", type: "range", min: 0, max: 60, step: 0.05 },
+      { key: "elementFlashDuration", label: "Вспышка элемента: затухание, с", type: "range", min: 0.05, max: 5, step: 0.05 },
       { key: "swayAmount", label: "Покачивание", type: "range", min: 0, max: 0.4, step: 0.005 },
       { key: "swaySpeed", label: "Скорость покачивания", type: "range", min: 0, max: 2, step: 0.01 },
       { key: "shadowDepth", label: "Глубина ухода в тень", type: "range", min: 0, max: 3, step: 0.01 },
@@ -376,7 +387,7 @@ export const PROJECT_VERSION = 2;
 // "Logo" и на текущее значение строки — но в умолчаниях сцен таких ключей нет,
 // поэтому ссылка #cfg=... проносила data:image любого размера (и SVG, который
 // декодируется в гигабайты растра из пары сотен байт).
-export const IMAGE_KEYS = Object.freeze(["organizer1Logo", "organizer2Logo", "partner1Logo", "partner2Logo"]);
+export const IMAGE_KEYS = Object.freeze(["organizer1Logo", "organizer2Logo", "partner1Logo", "partner2Logo", "markLogo", "backgroundImage"]);
 const IMAGE_KEY_SET = new Set(IMAGE_KEYS);
 export const MAX_IMAGE_DATA_URL_LENGTH = 4 * 1024 * 1024;
 
@@ -448,6 +459,7 @@ export function replaceConfig(target, source) {
 export function mergeConfig(defaults, patch) {
   const cfg = cloneDefaults(defaults);
   if (patch && typeof patch === "object") deepMerge(cfg, patch);
+  migrateIntroBackgroundEffect(cfg);
   return cfg;
 }
 
@@ -455,10 +467,36 @@ export function mergeConfig(defaults, patch) {
 export function loadSceneConfig(sceneId, defaults, onReadError) {
   const cfg = cloneDefaults(defaults);
   let raw = null;
+  let migrateGalleryBuiltinClipsNeeded = false, migrateIntroBackgroundNeeded = false, migratePartnersStageNeeded = false, migratePartnersSequenceNeeded = false, migrateSponsorStageNeeded = false, migrateCurtainEdgeNeeded = false, migrateCurtainEdgeV3Needed = false, migrateSponsorLabelsNeeded = false, migrateReferenceLayoutNeeded = false, migratePartnerLabelLinesNeeded = false, migratePartnersTopTitleNeeded = false, migratePartnersCompassContrastNeeded = false, migrateEqualPartnerLogoWidthsNeeded = false, migratePartnersTitleAndKeazNeeded = false, migratePartnersCurtainChoreographyNeeded = false, migratePartnersCenterFirstNeeded = false, migrateSingleSponsorLayoutNeeded = false, migratePartnerTextCaseNeeded = false, migrateSponsorSideLabelNeeded = false, migrateSponsorTitleBlockNeeded = false, migrateSponsorLabelScaleNeeded = false;
   let migratePhotoCenter = false, migratePhotoSize = false, migrateBrandCenter = false, migrateGuides = false, migrateFinaleGuides = false, migrateBrandLift = false;
+  let migrateSponsorWordNeeded = false;
   try {
     raw = localStorage.getItem(sceneStorageKey(sceneId));
     if (!raw && sceneId === "waiting") raw = localStorage.getItem(LEGACY_KEY);
+    if (sceneId === "partners") {
+      migratePartnersStageNeeded = !localStorage.getItem("partners-stage-minute-v1");
+      migratePartnersSequenceNeeded = !localStorage.getItem("partners-stage-sequence-v1");
+    }
+    if (sceneId === "partners" || sceneId.startsWith("sponsor-")) migrateCurtainEdgeNeeded = !localStorage.getItem(`curtain-edge-v2:${sceneId}`);
+    if (sceneId === "partners" || sceneId.startsWith("sponsor-")) migrateCurtainEdgeV3Needed = !localStorage.getItem(`curtain-edge-v3:${sceneId}`);
+    if (sceneId === "partners") migratePartnerTextCaseNeeded = !localStorage.getItem("partners-text-case-v1");
+    if (sceneId === "partners") migratePartnersCenterFirstNeeded = !localStorage.getItem("partners-center-first-v1");
+    if (sceneId === "partners") migratePartnersCurtainChoreographyNeeded = !localStorage.getItem("partners-curtain-choreography-v1");
+    if (sceneId === "partners") migratePartnersTitleAndKeazNeeded = !localStorage.getItem("partners-title-keaz-v1");
+    if (sceneId === "partners") migrateEqualPartnerLogoWidthsNeeded = !localStorage.getItem("partners-equal-logo-widths-v1");
+    if (sceneId === "partners") migratePartnersCompassContrastNeeded = !localStorage.getItem("partners-compass-contrast-v1");
+    if (sceneId === "partners") migratePartnersTopTitleNeeded = !localStorage.getItem("partners-top-title-v1");
+    if (sceneId === "partners") migratePartnerLabelLinesNeeded = !localStorage.getItem("partners-label-lines-v1");
+    if (sceneId === "partners") migrateReferenceLayoutNeeded = !localStorage.getItem("partners-reference-layout-v1");
+    if (sceneId === "partners") migrateSponsorLabelsNeeded = !localStorage.getItem("partners-labels-v2");
+    if (sceneId.startsWith("sponsor-")) migrateSponsorSideLabelNeeded = !localStorage.getItem(`sponsor-side-label-v1:${sceneId}`);
+    if (sceneId.startsWith("sponsor-")) migrateSponsorTitleBlockNeeded = !localStorage.getItem(`sponsor-title-block-v1:${sceneId}`);
+    if (sceneId.startsWith("sponsor-")) migrateSponsorLabelScaleNeeded = !localStorage.getItem(`sponsor-label-scale-v1:${sceneId}`);
+    if (sceneId === "gallery") migrateGalleryBuiltinClipsNeeded = !localStorage.getItem(GALLERY_BUILTIN_FLAG);
+    if (sceneId === "partners" || sceneId.startsWith("sponsor-")) migrateSponsorWordNeeded = !localStorage.getItem(`${SPONSOR_WORD_FLAG}:${sceneId}`);
+    if (sceneId.startsWith("sponsor-")) migrateSingleSponsorLayoutNeeded = !localStorage.getItem(`single-sponsor-layout-v1:${sceneId}`);
+    if (sceneId.startsWith("sponsor-")) migrateSponsorStageNeeded = !localStorage.getItem(`sponsor-stage-v1:${sceneId}`);
+    if (sceneId === "lab-swarm-brand") migrateIntroBackgroundNeeded = !localStorage.getItem("lab-swarm-brand-minute-hold-v1");
     if (sceneId === "photo-pause") {
       migratePhotoCenter = !localStorage.getItem(PHOTO_CENTER_MIGRATION);
       migratePhotoSize = !localStorage.getItem(PHOTO_SIZE_MIGRATION);
@@ -475,6 +513,37 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     return cfg;
   }
   if (!raw) {
+    if (migrateSponsorSideLabelNeeded) { try { localStorage.setItem(`sponsor-side-label-v1:${sceneId}`, "1"); } catch (e) { /* noop */ } }
+    if (migrateSponsorTitleBlockNeeded) { try { localStorage.setItem(`sponsor-title-block-v1:${sceneId}`, "1"); } catch (e) { /* noop */ } }
+    if (migrateSponsorLabelScaleNeeded) { try { localStorage.setItem(`sponsor-label-scale-v1:${sceneId}`, "1"); } catch (e) { /* noop */ } }
+    if (migrateGalleryBuiltinClipsNeeded) { try { localStorage.setItem(GALLERY_BUILTIN_FLAG, "1"); } catch (e) { /* noop */ } }
+    if (migratePartnerTextCaseNeeded) { try { localStorage.setItem("partners-text-case-v1", "1"); } catch (e) { /* noop */ } }
+    if (migrateSingleSponsorLayoutNeeded) { try { localStorage.setItem(`single-sponsor-layout-v1:${sceneId}`, "1"); } catch (e) { /* noop */ } }
+    if (migratePartnersCenterFirstNeeded) { try { localStorage.setItem("partners-center-first-v1", "1"); } catch (e) { /* noop */ } }
+    if (migratePartnersCurtainChoreographyNeeded) { try { localStorage.setItem("partners-curtain-choreography-v1", "1"); } catch (e) { /* noop */ } }
+    if (migratePartnersTitleAndKeazNeeded) { try { localStorage.setItem("partners-title-keaz-v1", "1"); } catch (e) { /* noop */ } }
+    if (migrateEqualPartnerLogoWidthsNeeded) { try { localStorage.setItem("partners-equal-logo-widths-v1", "1"); } catch (e) { /* noop */ } }
+    if (migratePartnersCompassContrastNeeded) { try { localStorage.setItem("partners-compass-contrast-v1", "1"); } catch (e) { /* noop */ } }
+    if (migratePartnersTopTitleNeeded) { try { localStorage.setItem("partners-top-title-v1", "1"); } catch (e) { /* noop */ } }
+    if (migratePartnerLabelLinesNeeded) { try { localStorage.setItem("partners-label-lines-v1", "1"); } catch (e) { /* noop */ } }
+    if (migrateReferenceLayoutNeeded) { try { localStorage.setItem("partners-reference-layout-v1", "1"); } catch (e) { /* noop */ } }
+    if (migrateCurtainEdgeV3Needed) { try { localStorage.setItem(`curtain-edge-v3:${sceneId}`, "1"); } catch (e) { /* noop */ } }
+    if (migrateSponsorLabelsNeeded) { try { localStorage.setItem("partners-labels-v2", "1"); } catch (e) { /* noop */ } }
+    if (migrateCurtainEdgeNeeded) {
+      try { localStorage.setItem(`curtain-edge-v2:${sceneId}`, "1"); } catch (e) { /* noop */ }
+    }
+    if (migrateSponsorStageNeeded) {
+      try { localStorage.setItem(`sponsor-stage-v1:${sceneId}`, "1"); } catch (e) { /* noop */ }
+    }
+    if (migratePartnersSequenceNeeded) {
+      try { localStorage.setItem("partners-stage-sequence-v1", "1"); } catch (e) { /* noop */ }
+    }
+    if (migratePartnersStageNeeded) {
+      try { localStorage.setItem("partners-stage-minute-v1", "1"); } catch (e) { /* noop */ }
+    }
+    if (migrateIntroBackgroundNeeded) {
+      try { localStorage.setItem("lab-swarm-brand-minute-hold-v1", "1"); } catch (e) { /* noop */ }
+    }
     if (migrateBrandLift) {
       try { localStorage.setItem(BRAND_LIFT_MIGRATION, "1"); } catch (e) { /* noop */ }
     }
@@ -496,7 +565,154 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
     return cfg;
   }
   try {
-    const saved = JSON.parse(raw);
+    let saved = JSON.parse(raw);
+    if (migratePartnersStageNeeded) {
+      saved = migratePartnersStage(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-stage-minute-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migratePartnersSequenceNeeded) {
+      saved = migratePartnersSequence(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-stage-sequence-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateSponsorStageNeeded) {
+      saved = migrateSponsorStage(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(`sponsor-stage-v1:${sceneId}`, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateSingleSponsorLayoutNeeded) {
+      saved = migrateSingleSponsorLayout(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(`single-sponsor-layout-v1:${sceneId}`, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateSponsorSideLabelNeeded) {
+      saved = migrateSponsorSideLabel(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(`sponsor-side-label-v1:${sceneId}`, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateSponsorTitleBlockNeeded) {
+      saved = migrateSponsorTitleBlock(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(`sponsor-title-block-v1:${sceneId}`, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateSponsorLabelScaleNeeded) {
+      saved = migrateSponsorLabelScale(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(`sponsor-label-scale-v1:${sceneId}`, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateGalleryBuiltinClipsNeeded) {
+      saved = migrateGalleryBuiltinClips(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(GALLERY_BUILTIN_FLAG, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateCurtainEdgeNeeded) {
+      saved = migrateCurtainEdge(saved, sceneId === "partners" ? "partners" : "sponsor");
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(`curtain-edge-v2:${sceneId}`, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateCurtainEdgeV3Needed) {
+      saved = migrateCurtainEdgeV3(saved, sceneId === "partners" ? "partners" : "sponsor");
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(`curtain-edge-v3:${sceneId}`, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateSponsorLabelsNeeded) {
+      saved = migrateSponsorLabels(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-labels-v2", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateReferenceLayoutNeeded) {
+      saved = migratePartnersReferenceLayout(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-reference-layout-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migratePartnerLabelLinesNeeded) {
+      saved = migratePartnerLabelLines(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-label-lines-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migratePartnersTopTitleNeeded) {
+      saved = migratePartnersTopTitle(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-top-title-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migratePartnersCompassContrastNeeded) {
+      saved = migratePartnersCompassContrast(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-compass-contrast-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateEqualPartnerLogoWidthsNeeded) {
+      saved = migrateEqualPartnerLogoWidths(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-equal-logo-widths-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migratePartnersTitleAndKeazNeeded) {
+      saved = migratePartnersTitleAndKeaz(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-title-keaz-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migratePartnersCurtainChoreographyNeeded) {
+      saved = migratePartnersCurtainChoreography(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-curtain-choreography-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migratePartnersCenterFirstNeeded) {
+      saved = migratePartnersCenterFirst(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-center-first-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migratePartnerTextCaseNeeded) {
+      saved = migratePartnerTextCase(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("partners-text-case-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
+    if (migrateIntroBackgroundNeeded) {
+      saved = migrateIntroBackground(saved, defaults);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem("lab-swarm-brand-minute-hold-v1", "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
     // Старое стандартное положение фона было 0.86. Оно ошибочно переносилось
     // в новую центрированную фотопаузу. Иные значения пользовательских правок
     // не трогаем; после первого переноса произвольное положение снова сохраняется.
@@ -566,7 +782,19 @@ export function loadSceneConfig(sceneId, defaults, onReadError) {
       }
       try { localStorage.setItem(FINALE_GUIDES_MIGRATION, "1"); } catch (e) { /* noop */ }
     }
+    // Однократное переименование старого слова в стандартных подписях на «ПАРТНЁР».
+    // Идёт последней после прежних миграций подписей.
+    if (migrateSponsorWordNeeded) {
+      saved = migrateSponsorWord(saved);
+      try {
+        localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(saved));
+        localStorage.setItem(`${SPONSOR_WORD_FLAG}:${sceneId}`, "1");
+      } catch (e) { onReadError?.(sceneId, e); }
+    }
     deepMerge(cfg, saved);
+    if (migrateIntroBackgroundEffect(cfg)) {
+      try { localStorage.setItem(sceneStorageKey(sceneId), JSON.stringify(cfg)); } catch (e) { onReadError?.(sceneId, e); }
+    }
   } catch (e) {
     console.warn("Сохранённые настройки повреждены, взяты умолчания", e);
     onReadError?.(sceneId, e);
@@ -609,6 +837,7 @@ export function parseConfigJSON(text, defaults = DEFAULTS) {
   }
   const cfg = cloneDefaults(defaults);
   deepMerge(cfg, data);
+  migrateIntroBackgroundEffect(cfg);
   return cfg;
 }
 

@@ -1,0 +1,59 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { framePoint, hitElement, sponsorDragElements, clampPosition, snapBox, resizeScale } from '../src/studio/drag-layout.js';
+import { PARTNERS_DEFAULTS, SPONSOR_KEAZ_DEFAULTS } from '../src/studio/scenes/partners.js';
+
+test('pointer conversion respects preview size and offset', () => {
+  assert.deepEqual(framePoint({left: 100, top: 50, width: 960, height: 540}, 580, 320), {x: 960, y: 540});
+  assert.equal(clampPosition(2100, 0, 1920), 1920);
+});
+test('hit testing chooses the topmost target and excludes disabled elements', () => {
+  const elements = sponsorDragElements(PARTNERS_DEFAULTS);
+  assert.equal(hitElement({x: 430, y: 350}, elements).id, 'stageOrganizer1');
+  assert.equal(hitElement({x: 1320, y: 450}, elements).id, 'stagePartnerLabel2');
+  const cfg = structuredClone(PARTNERS_DEFAULTS);
+  cfg.stageOrganizer1.enabled = false;
+  assert.equal(sponsorDragElements(cfg).some(e => e.id === 'stageOrganizer1'), false);
+  assert.equal(hitElement({x: 960, y: 385}, sponsorDragElements(SPONSOR_KEAZ_DEFAULTS)).id, 'stageSingleMark');
+  assert.equal(hitElement({x: -300, y: -300}, elements), null);
+});
+
+
+test('smart guides snap to canvas centre and neighboring centres or edges', () => {
+  const a = { id: 'a', x: 954, y: 303, w: 100, h: 50 };
+  const b = { id: 'b', x: 500, y: 300, w: 150, h: 80 };
+  const result = snapBox(a, [a, b], 8, 8);
+  assert.equal(result.x, 960);
+  assert.equal(result.y, 300);
+  assert.deepEqual(result.guides, [{ axis: 'x', value: 960 }, { axis: 'y', value: 300 }]);
+  const edge = snapBox({ id: 'a', x: 397, y: 600, w: 50, h: 50 }, [b], 4, 4);
+  assert.equal(edge.x, 400); // right edge 425 meets left edge 425
+  assert.deepEqual(edge.guides, [{ axis: 'x', value: 425 }]);
+  assert.deepEqual(snapBox({ id: 'a', x: 600, y: 700, w: 20, h: 20 }, [b], 4, 4), { x: 600, y: 700, guides: [] });
+});
+
+
+test('frame is selected only at its border, not over other elements', () => {
+  const frame = sponsorDragElements(PARTNERS_DEFAULTS).find(e => e.id === 'stageFrame');
+  assert.equal(hitElement({ x: frame.x - frame.w / 2 + 5, y: frame.y }, [frame]).id, 'stageFrame');
+  assert.equal(hitElement({ x: frame.x, y: frame.y }, [frame]), null);
+});
+test('corner resizing is proportional, bounded and has no initial jump', () => {
+  const box = { w: 400, h: 200 };
+  const start = { x: 200, y: 100 };
+  assert.equal(resizeScale(box, start, start, 1, .2, 2), 1);
+  assert.equal(resizeScale(box, start, { x: 400, y: 200 }, 1, .2, 2), 2);
+  assert.equal(resizeScale(box, start, { x: -1000, y: -1000 }, 1, .2, 2), .2);
+});
+
+test('group bounds and common boundary constraint preserve relative positions', async () => {
+  const {selectionBounds, boundedGroupMoves} = await import('../src/studio/drag-layout.js');
+  const bounds = selectionBounds([{x:100,y:50,w:40,h:20},{x:200,y:110,w:20,h:40}]);
+  assert.deepEqual(bounds,{x:145,y:85,w:130,h:90});
+  assert.equal(selectionBounds([]), null);
+  const moves = [{x:100,y:50,dx:40,dy:20,minX:0,maxX:1000,minY:0,maxY:1000},
+    {x:200,y:110,dx:40,dy:20,minX:0,maxX:220,minY:0,maxY:1000}];
+  const result = boundedGroupMoves(moves);
+  assert.equal(result.factor,.5);
+  assert.deepEqual(result.values.map(({x,y})=>[x,y]), [[120,60],[220,120]]);
+});

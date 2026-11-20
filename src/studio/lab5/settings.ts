@@ -1,3 +1,16 @@
+import { MEDIA_COUNT, type VideoFit } from './media';
+
+/**
+ * Настройки фильма «Монолиты» (лаборатория 11).
+ *
+ * `videoAssign` — единственный источник правды о том, что играет на экранах:
+ * массив из десяти слотов, где значение — номер ролика из `video/MEDIA_CLIPS`,
+ * а `-1` — намеренно пустой слот (на экране остаётся плейсхолдер).
+ *
+ * Раньше это был `videoOrder` — перестановка 0…9 без возможности «пусто»:
+ * слот нельзя было оставить без ролика, а сам порядок ничего не говорил о том,
+ * какой файл куда назначен.
+ */
 export interface FilmSettings {
   title: string; subtitle: string; titleFont: 'Prata' | 'Forum' | 'Inter'; subtitleFont: 'Prata' | 'Forum' | 'Inter';
   titleScale: number; subtitleScale: number; titleSpacing: number; subtitleSpacing: number; titlePosition: number;
@@ -8,8 +21,18 @@ export interface FilmSettings {
   antialias: boolean;
   exposure: number; bloom: number; dust: number; beams: number; blast: number; sigil: number; sky: number; rays: number; grain: number; vignette: number;
   hue: number; saturation: number; cameraFov: number; cameraDrift: number;
-  videoBrightness: number; videoOrder: number[];
+  videoBrightness: number;
+  /** Ролик на каждом из десяти монолитов; `-1` — пустой слот с плейсхолдером. */
+  videoAssign: number[];
+  /** Что видно в коротком окне визита: начало, середина или весь ролик. */
+  videoFit: VideoFit;
 }
+
+/** Слоты по порядку: все ролики папки `video/` уже разложены по монолитам. */
+export const FULL_ASSIGN: number[] = Array.from({ length: MEDIA_COUNT }, (_v, i) => i);
+/** Все слоты пусты: фильм играет на плейсхолдерах. */
+export const EMPTY_ASSIGN: number[] = Array.from({ length: MEDIA_COUNT }, () => -1);
+
 export const DEFAULT_SETTINGS: FilmSettings = {
   title: 'ЯНТАРНЫЙ ЦИРКУЛЬ', subtitle: 'ВЕЧЕР РЕТРОСПЕКТИВА', titleFont: 'Prata', subtitleFont: 'Forum',
   titleScale: 1, subtitleScale: 1, titleSpacing: .055, subtitleSpacing: .34, titlePosition: 49,
@@ -20,7 +43,10 @@ export const DEFAULT_SETTINGS: FilmSettings = {
   antialias: true,
   exposure: 1, bloom: 1, dust: 1, beams: 1, blast: 1, sigil: 1, sky: 1, rays: 1, grain: 1, vignette: 1,
   hue: 0, saturation: 1, cameraFov: 1, cameraDrift: 1, videoBrightness: 1,
-  videoOrder: [0,1,2,3,4,5,6,7,8,9],
+  // По умолчанию все десять роликов вечера разложены по слотам в хронологии:
+  // фильм сразу показывает материал, а не пустые экраны.
+  videoAssign: [...FULL_ASSIGN],
+  videoFit: 'center',
 };
 const KEY = 'cinematic-film-settings-v1';
 const ranges: Partial<Record<keyof FilmSettings, [number, number]>> = {
@@ -29,13 +55,31 @@ const ranges: Partial<Record<keyof FilmSettings, [number, number]>> = {
   exposure: [.35, 2], bloom: [0, 2], dust: [0, 2], beams: [0, 2], blast: [0, 2], sigil: [0, 2], sky: [0, 2], rays: [0, 2], grain: [0, 2], vignette: [0, 2],
   hue: [-180, 180], saturation: [0, 2], cameraFov: [.75, 1.3], cameraDrift: [0, 2], videoBrightness: [0, 2],
 };
+
+/** Массив слотов: ровно MEDIA_COUNT значений, -1 или номер существующего ролика. */
+export function normalizeAssign(value: unknown): number[] | null {
+  if (!Array.isArray(value) || value.length !== MEDIA_COUNT) return null;
+  const slots = value.map((n) => (Number.isInteger(n) && n >= 0 && n < MEDIA_COUNT ? n : -1));
+  // Один ролик не может стоять на двух монолитах: повтор освобождает слот,
+  // чтобы в кадре не было двух одинаковых экранов без ведома человека.
+  const seen = new Set<number>();
+  return slots.map((n) => {
+    if (n < 0 || seen.has(n)) return -1;
+    seen.add(n);
+    return n;
+  });
+}
+
 export function normalizeSettings(value: unknown): FilmSettings {
   const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
-  const result = { ...DEFAULT_SETTINGS, videoOrder: [...DEFAULT_SETTINGS.videoOrder] };
+  const result = { ...DEFAULT_SETTINGS, videoAssign: [...DEFAULT_SETTINGS.videoAssign] };
   for (const key of Object.keys(result) as (keyof FilmSettings)[]) {
     const v = source[key];
-    if (key === 'videoOrder') {
-      if (Array.isArray(v) && v.length === 10 && new Set(v).size === 10 && v.every(n => Number.isInteger(n) && n >= 0 && n < 10)) result.videoOrder = [...v];
+    if (key === 'videoAssign') {
+      // Явно присланный список слотов уважаем целиком, включая пустые слоты.
+      result.videoAssign = normalizeAssign(v) ?? [...DEFAULT_SETTINGS.videoAssign];
+    } else if (key === 'videoFit') {
+      if (v === 'cut' || v === 'center' || v === 'speed') result.videoFit = v;
     } else if (key === 'title' || key === 'subtitle') {
       if (typeof v === 'string') result[key] = v.replace(/[\r\n]/g, ' ').slice(0, key === 'title' ? 30 : 45);
     } else if (key === 'titleFont' || key === 'subtitleFont') {
