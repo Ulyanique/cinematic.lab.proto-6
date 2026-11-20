@@ -143,15 +143,15 @@ export class ViewportRenderer {
   }
 
   dispose(): void {
-    this.mediaCache.forEach((c) => c.texture.dispose())
-    this.mediaCache.clear()
-    this.layerMeshes.forEach((mesh) => {
+    this.mediaCache?.forEach((c) => c.texture.dispose())
+    this.mediaCache?.clear()
+    this.layerMeshes?.forEach((mesh) => {
       mesh.geometry.dispose()
       ;(mesh.material as THREE.Material).dispose()
     })
-    this.layerMeshes.clear()
-    this.renderer.dispose()
-    if (this.renderer.domElement.parentElement === this.container) {
+    this.layerMeshes?.clear()
+    this.renderer?.dispose()
+    if (this.renderer?.domElement?.parentElement === this.container) {
       this.container.removeChild(this.renderer.domElement)
     }
   }

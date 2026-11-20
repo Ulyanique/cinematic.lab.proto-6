@@ -1,24 +1,24 @@
 import { useEffect } from 'react'
 import { EditorView } from './ui/EditorView'
 
-const isEditorMode =
+const isStudioMode =
   typeof window !== 'undefined' &&
-  new URLSearchParams(window.location.search).get('editor') === '1'
+  new URLSearchParams(window.location.search).get('studio') === '1'
 
 /**
- * Единая студия «Cinematic Lab».
- * По умолчанию запускает текущую студию (src/studio/main.js).
- * При ?editor=1 открывает новый интерфейс редактора (EditorView).
+ * Единая точка входа «Cinematic Lab».
+ * По умолчанию открывает редактор (EditorView).
+ * При ?studio=1 запускает классическую студию (src/studio/main.js).
  */
 export default function App() {
   useEffect(() => {
-    if (!isEditorMode) {
+    if (isStudioMode) {
       // @ts-ignore — студия написана на JS и стартует при загрузке модуля
       import('./studio/main.js')
     }
   }, [])
 
-  if (isEditorMode) {
+  if (!isStudioMode) {
     return <EditorView />
   }
 
@@ -27,7 +27,7 @@ export default function App() {
       type="button"
       onClick={() => {
         const url = new URL(window.location.href)
-        url.searchParams.set('editor', '1')
+        url.searchParams.delete('studio')
         window.location.href = url.toString()
       }}
       style={{
@@ -42,11 +42,12 @@ export default function App() {
         border: '1px solid rgba(251, 191, 36, 0.4)',
         fontSize: '12px',
         fontWeight: 600,
+        fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
         cursor: 'pointer',
         backdropFilter: 'blur(6px)',
       }}
     >
-      Открыть редактор (Beta)
+      Открыть редактор
     </button>
   )
 }
