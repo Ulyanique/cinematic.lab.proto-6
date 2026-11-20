@@ -27,7 +27,10 @@ export const EditorShell: React.FC<EditorShellProps> = ({ store, children }) => 
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-neutral-950 text-neutral-100 overflow-hidden">
+    <div
+      className="flex flex-col h-screen w-screen bg-neutral-950 text-neutral-100 overflow-hidden font-sans"
+      style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }}
+    >
       {/* Top Bar */}
       <header className="flex items-center justify-between px-4 h-10 bg-neutral-900 border-b border-neutral-800 text-xs shrink-0">
         <div className="flex items-center gap-3">
