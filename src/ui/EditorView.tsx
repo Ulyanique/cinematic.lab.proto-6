@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import { evaluateComposition } from '../core/evaluator'
 import { ProjectStore } from '../core/store'
+import { ViewportRenderer } from '../engine/ViewportRenderer'
 import { createGalleryTemplate } from '../templates/gallery-template'
 import { EditorShell } from './EditorShell'
 import { useProjectStore } from './useProjectStore'
@@ -10,6 +11,26 @@ export const EditorView: React.FC = () => {
   const state = useProjectStore(store)
   const comp = store.getActiveComposition()
   const evaluated = evaluateComposition(comp, state.currentTime)
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const rendererRef = useRef<ViewportRenderer | null>(null)
+
+  useEffect(() => {
+    const el = viewportRef.current
+    if (!el) return
+    const renderer = new ViewportRenderer(el)
+    rendererRef.current = renderer
+    const onResize = () => renderer.resize()
+    window.addEventListener('resize', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      renderer.dispose()
+      rendererRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    rendererRef.current?.render(evaluated, state.selectedLayerId)
+  }, [evaluated, state.selectedLayerId])
 
   useEffect(() => {
     if (!state.playing) return

@@ -22,5 +22,31 @@ export default function App() {
     return <EditorView />
   }
 
-  return null
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const url = new URL(window.location.href)
+        url.searchParams.set('editor', '1')
+        window.location.href = url.toString()
+      }}
+      style={{
+        position: 'fixed',
+        bottom: '16px',
+        right: '16px',
+        zIndex: 9999,
+        padding: '8px 14px',
+        borderRadius: '8px',
+        background: 'rgba(24, 24, 27, 0.9)',
+        color: '#fbbf24',
+        border: '1px solid rgba(251, 191, 36, 0.4)',
+        fontSize: '12px',
+        fontWeight: 600,
+        cursor: 'pointer',
+        backdropFilter: 'blur(6px)',
+      }}
+    >
+      Открыть редактор (Beta)
+    </button>
+  )
 }

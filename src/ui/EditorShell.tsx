@@ -64,6 +64,17 @@ export const EditorShell: React.FC<EditorShellProps> = ({ store, children }) => 
           >
             Сохранить .clab
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              const url = new URL(window.location.href)
+              url.searchParams.delete('editor')
+              window.location.href = url.toString()
+            }}
+            className="px-2.5 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-400"
+          >
+            Студия
+          </button>
         </div>
       </header>
 
