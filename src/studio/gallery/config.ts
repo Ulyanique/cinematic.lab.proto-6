@@ -16,7 +16,7 @@ export interface MediaSlotConfig {
 }
 
 export const BRAND = {
-  name: 'ЯНТАРНЫЙ ЦИРКУЛЬ',
+  name: 'CINEMATIC LAB',
   presents: 'представляет',
 }
 

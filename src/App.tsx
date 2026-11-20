@@ -1,14 +1,26 @@
-// @ts-ignore — студия написана на JS и стартует при загрузке модуля
-import "./studio/main.js";
+import { useEffect } from 'react'
+import { EditorView } from './ui/EditorView'
+
+const isEditorMode =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('editor') === '1'
 
 /**
- * Единая студия «Янтарный циркуль».
- * Основа — конструктор circle-animation-proto-1 (src/studio). К нему подключены
- * кинематографичные лаборатории cinematic-lab-proto-2 и proto-5 как полноценные
- * композиции, а общий набор эффектов (src/studio/fx-stack) доступен в любой из них.
- * Сцена (#stage), титры (#caption), пульт, панель настроек и покадровый экспорт —
- * единый интерфейс студии; React-корень остаётся точкой входа приложения.
+ * Единая студия «Cinematic Lab».
+ * По умолчанию запускает текущую студию (src/studio/main.js).
+ * При ?editor=1 открывает новый интерфейс редактора (EditorView).
  */
 export default function App() {
-  return null;
+  useEffect(() => {
+    if (!isEditorMode) {
+      // @ts-ignore — студия написана на JS и стартует при загрузке модуля
+      import('./studio/main.js')
+    }
+  }, [])
+
+  if (isEditorMode) {
+    return <EditorView />
+  }
+
+  return null
 }

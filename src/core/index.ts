@@ -1,3 +1,6 @@
 export * from './schema'
 export * from './easing'
 export * from './history'
+export * from './evaluator'
+export * from './project'
+export * from './store'
